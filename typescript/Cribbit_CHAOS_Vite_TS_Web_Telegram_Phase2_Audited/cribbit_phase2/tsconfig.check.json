@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "packages/**/*.ts",
+    "apps/**/src/**/*.ts",
+    "env.d.ts",
+    "server-shims.d.ts"
+  ],
+  "exclude": [
+    "apps/**/vite.config.ts"
+  ]
+}

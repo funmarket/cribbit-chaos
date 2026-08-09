@@ -1,0 +1,17 @@
+{
+  "name": "cribbit-chaos-platform",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev:web": "vite --config apps/web/vite.config.ts",
+    "dev:telegram": "vite --config apps/telegram/vite.config.ts",
+    "build:web": "vite build --config apps/web/vite.config.ts",
+    "build:telegram": "vite build --config apps/telegram/vite.config.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vite": "^7.0.0"
+  }
+}

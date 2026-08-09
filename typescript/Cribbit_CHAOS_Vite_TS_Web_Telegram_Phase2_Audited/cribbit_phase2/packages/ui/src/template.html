@@ -1,0 +1,362 @@
+<svg class="sr-only" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="i-frog" viewBox="0 0 64 64"><path d="M13 26C7 33 8 45 15 51c8 7 27 7 35 0 7-6 8-18 1-25-5-6-13-9-19-9s-14 3-19 9Z" fill="currentColor" stroke="currentColor"/><circle cx="20" cy="18" r="10" fill="currentColor"/><circle cx="44" cy="18" r="10" fill="currentColor"/><circle cx="20" cy="18" r="4" fill="#071009" stroke="none"/><circle cx="44" cy="18" r="4" fill="#071009" stroke="none"/><path d="M20 39c6 6 18 6 24 0" stroke="#071009" stroke-width="4" fill="none"/></symbol>
+      <symbol id="i-card" viewBox="0 0 64 64"><rect x="15" y="10" width="34" height="44" rx="5"/><path d="m24 33 6 6 12-14"/></symbol>
+      <symbol id="i-cards" viewBox="0 0 64 64"><rect x="21" y="13" width="31" height="39" rx="4"/><path d="m17 20-5 2a4 4 0 0 0-2 5l9 27"/><path d="m16 15 4-3a4 4 0 0 1 5 1"/></symbol>
+      <symbol id="i-users" viewBox="0 0 64 64"><circle cx="24" cy="23" r="8"/><circle cx="43" cy="25" r="6"/><path d="M10 50c1-11 7-17 14-17s13 6 14 17"/><path d="M37 37c10 0 15 5 17 13"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 64 64"><path d="M32 7 52 14v15c0 13-8 22-20 28C20 51 12 42 12 29V14l20-7Z"/><path d="m22 32 7 7 14-16"/></symbol>
+      <symbol id="i-question" viewBox="0 0 64 64"><path d="M21 22c1-9 20-11 22 0 2 10-11 10-11 19"/><circle cx="32" cy="51" r="2" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="i-truth" viewBox="0 0 64 64"><path d="m32 5 21 12v24L32 59 11 41V17L32 5Z"/><path d="M23 23c1-9 18-10 19 0 1 8-10 8-10 16"/><circle cx="32" cy="48" r="2" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="i-lightning" viewBox="0 0 64 64"><path d="m37 4-22 34h17l-5 22 24-37H34l3-19Z"/></symbol>
+      <symbol id="i-eye" viewBox="0 0 64 64"><path d="M4 32s10-15 28-15 28 15 28 15-10 15-28 15S4 32 4 32Z"/><circle cx="32" cy="32" r="8"/></symbol>
+      <symbol id="i-paranoia" viewBox="0 0 64 64"><path d="M32 7 58 52H6L32 7Z"/><path d="M17 35s6-9 15-9 15 9 15 9-6 9-15 9-15-9-15-9Z"/><circle cx="32" cy="35" r="4"/></symbol>
+      <symbol id="i-spiral" viewBox="0 0 64 64"><path d="M32 32c0-8 13-8 13 2 0 12-18 17-28 7C4 28 13 9 31 8c19-1 30 15 26 32-4 17-24 25-40 17"/></symbol>
+      <symbol id="i-swords" viewBox="0 0 64 64"><path d="m11 9 18 18-7 7L8 20l3-11ZM53 9 35 27l7 7 14-14-3-11Z"/><path d="m16 48 12-12M48 48 36 36"/><path d="m11 53 8-2-6-6-2 8ZM53 53l-8-2 6-6 2 8Z"/></symbol>
+      <symbol id="i-hand" viewBox="0 0 64 64"><path d="M18 31V14c0-5 6-5 6 0v13-18c0-5 7-5 7 0v18-16c0-5 7-5 7 0v16-12c0-5 7-5 7 0v17l6-8c4-5 9 0 6 5L47 46c-5 8-12 11-21 8-9-3-14-11-14-20 0-5 6-7 6-3Z"/></symbol>
+      <symbol id="i-skip" viewBox="0 0 64 64"><circle cx="32" cy="32" r="23"/><path d="m16 48 32-32"/></symbol>
+      <symbol id="i-reverse" viewBox="0 0 64 64"><path d="M12 23h35l-9-9M52 41H17l9 9"/><path d="M47 23 38 32M17 41l9-9"/></symbol>
+      <symbol id="i-draw" viewBox="0 0 64 64"><rect x="12" y="18" width="28" height="34" rx="4"/><rect x="24" y="10" width="28" height="34" rx="4"/></symbol>
+      <symbol id="i-mic" viewBox="0 0 64 64"><rect x="23" y="8" width="18" height="31" rx="9"/><path d="M15 31c0 10 7 17 17 17s17-7 17-17M32 48v9M23 57h18"/></symbol>
+      <symbol id="i-chat" viewBox="0 0 64 64"><path d="M10 12h44v32H27L15 54l3-10h-8V12Z"/><path d="M20 25h24M20 33h16"/></symbol>
+      <symbol id="i-choice" viewBox="0 0 64 64"><circle cx="18" cy="21" r="6"/><circle cx="46" cy="21" r="6"/><circle cx="32" cy="45" r="6"/><path d="m23 25 6 14M41 25l-6 14"/></symbol>
+      <symbol id="i-wave" viewBox="0 0 64 64"><path d="M7 32h5l3-13 6 27 6-35 6 42 6-29 5 17 4-9h9"/></symbol>
+      <symbol id="i-trophy" viewBox="0 0 64 64"><path d="M20 9h24v13c0 10-5 17-12 17s-12-7-12-17V9Z"/><path d="M20 15H9v5c0 9 5 14 14 14M44 15h11v5c0 9-5 14-14 14M32 39v10M22 56h20M26 49h12"/></symbol>
+      <symbol id="i-person" viewBox="0 0 64 64"><circle cx="32" cy="20" r="10"/><path d="M14 55c2-16 10-24 18-24s16 8 18 24"/></symbol>
+      <symbol id="i-pepper" viewBox="0 0 64 64"><path d="M40 9c-1 6-5 8-10 10-10 4-16 12-14 22 3 14 23 18 34 8 10-9 7-23-4-28-5-2-10-3-16-2"/><path d="M39 9c5 0 9 3 11 7"/></symbol>
+      <symbol id="i-rewind" viewBox="0 0 64 64"><path d="M25 15 8 31l17 16V35c15-1 22 3 29 14 0-22-12-30-29-30v-4Z"/></symbol>
+      <symbol id="i-flag" viewBox="0 0 64 64"><path d="M15 57V8M16 11h30l-5 11 5 11H16"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 64 64"><rect x="12" y="27" width="40" height="29" rx="5"/><path d="M21 27V17c0-14 22-14 22 0v10M32 38v8"/></symbol>
+      <symbol id="i-home" viewBox="0 0 64 64"><path d="m7 30 25-21 25 21"/><path d="M13 27v29h38V27M25 56V39h14v17"/></symbol>
+      <symbol id="i-globe" viewBox="0 0 64 64"><circle cx="32" cy="32" r="25"/><path d="M7 32h50M32 7c9 7 13 15 13 25S41 50 32 57C23 50 19 42 19 32S23 14 32 7Z"/></symbol>
+      <symbol id="i-bookmark" viewBox="0 0 64 64"><path d="M17 8h30v48L32 45 17 56V8Z"/></symbol>
+      <symbol id="i-send" viewBox="0 0 64 64"><path d="m7 29 50-21-17 48-9-19L7 29Z"/><path d="M31 37 57 8"/></symbol>
+      <symbol id="i-search" viewBox="0 0 64 64"><circle cx="28" cy="28" r="18"/><path d="m42 42 14 14"/></symbol>
+      <symbol id="i-settings" viewBox="0 0 64 64"><circle cx="32" cy="32" r="9"/><path d="M32 7v8M32 49v8M7 32h8M49 32h8M14 14l6 6M44 44l6 6M50 14l-6 6M20 44l-6 6"/></symbol>
+      <symbol id="i-info" viewBox="0 0 64 64"><circle cx="32" cy="32" r="25"/><path d="M32 28v17"/><circle cx="32" cy="19" r="2" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="i-wifi" viewBox="0 0 64 64"><path d="M8 25c15-14 33-14 48 0M16 34c10-9 22-9 32 0M25 43c5-4 9-4 14 0"/><circle cx="32" cy="51" r="2" fill="currentColor"/></symbol>
+      <symbol id="i-check" viewBox="0 0 64 64"><path d="m11 33 13 13 29-30"/></symbol>
+      <symbol id="i-close" viewBox="0 0 64 64"><path d="m14 14 36 36M50 14 14 50"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 64 64"><path d="M52 24A22 22 0 1 0 54 39"/><path d="M52 10v14H38"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 64 64"><circle cx="32" cy="32" r="25"/><path d="M32 17v17l11 7"/></symbol>
+      <symbol id="i-palette" viewBox="0 0 64 64"><path d="M31 7C16 7 6 17 6 31s11 25 24 25c6 0 8-4 6-8-2-5 2-9 7-9h7c6 0 9-5 8-11C56 16 45 7 31 7Z"/><circle cx="19" cy="24" r="3" fill="currentColor"/><circle cx="29" cy="17" r="3" fill="currentColor"/><circle cx="41" cy="20" r="3" fill="currentColor"/><circle cx="18" cy="37" r="3" fill="currentColor"/></symbol>
+      <symbol id="i-menu" viewBox="0 0 64 64"><path d="M10 17h44M10 32h44M10 47h44"/></symbol>
+      <symbol id="i-bolt-circle" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26"/><path d="m36 10-17 27h13l-4 17 18-29H34l2-15Z"/></symbol>
+      <symbol id="i-play" viewBox="0 0 64 64"><circle cx="32" cy="32" r="24"/><path d="m27 22 15 10-15 10V22Z"/></symbol>
+
+      <symbol id="i-panel-left" viewBox="0 0 64 64"><rect x="8" y="10" width="48" height="44" rx="6"/><path d="M25 10v44M17 25l-7 7 7 7"/></symbol>
+      <symbol id="i-panel-right" viewBox="0 0 64 64"><rect x="8" y="10" width="48" height="44" rx="6"/><path d="M39 10v44M47 25l7 7-7 7"/></symbol>
+      <symbol id="i-focus" viewBox="0 0 64 64"><path d="M24 10H10v14M40 10h14v14M10 40v14h14M54 40v14H40"/><circle cx="32" cy="32" r="8"/></symbol>
+      <symbol id="i-expand" viewBox="0 0 64 64"><path d="M24 10H10v14M40 10h14v14M10 40v14h14M54 40v14H40"/></symbol>
+      <symbol id="i-collapse" viewBox="0 0 64 64"><path d="M10 24h14V10M54 24H40V10M10 40h14v14M54 40H40v14"/></symbol>
+      <symbol id="i-chevron-left" viewBox="0 0 64 64"><path d="M40 12 20 32l20 20"/></symbol>
+      <symbol id="i-chevron-right" viewBox="0 0 64 64"><path d="m24 12 20 20-20 20"/></symbol>
+    </defs>
+  </svg>
+
+  <header class="app-header">
+    <div class="app-header__inner">
+      <button class="brand-lockup" data-nav="lobby" type="button" aria-label="Cribbit CHAOS lobby">
+        <svg class="frog-mark icon" aria-hidden="true"><use href="#i-frog" /></svg>
+        <span class="brand-type"><span class="brand-type__cribbit">Cribbit</span><span class="brand-type__chaos">Chaos</span></span>
+      </button>
+      <nav class="product-nav header-nav" aria-label="Primary navigation">
+        <div class="nav-cluster">
+          <button class="nav-button" data-nav="lobby" type="button">Play</button>
+          <div class="nav-popover"><div class="nav-popover__label">Play</div>
+            <button class="nav-menu-item" data-nav="lobby" type="button" style="--nav-accent:var(--lime)"><svg class="icon"><use href="#i-home" /></svg><span><b>Lobby</b><span>Create, join or continue a room.</span></span></button>
+            <button class="nav-menu-item" data-nav="game" type="button" style="--nav-accent:var(--magenta)"><svg class="icon"><use href="#i-play" /></svg><span><b>Active Game</b><span>Return to the authoritative table.</span></span></button>
+            <button class="nav-menu-item" data-nav="recap" type="button" style="--nav-accent:var(--gold)"><svg class="icon"><use href="#i-trophy" /></svg><span><b>Recent Recap</b><span>Winner, stats and Save That.</span></span></button>
+          </div>
+        </div>
+        <div class="nav-cluster">
+          <button class="nav-button" data-nav="rooms" type="button">Rooms</button>
+          <div class="nav-popover"><div class="nav-popover__label">Rooms</div>
+            <button class="nav-menu-item" data-nav="rooms" type="button" style="--nav-accent:var(--orange)"><svg class="icon"><use href="#i-users" /></svg><span><b>Tonight’s CHAOS</b><span>Vibe, categories and source mix.</span></span></button>
+            <button class="nav-menu-item" data-nav="rooms" data-room-anchor="pool" type="button" style="--nav-accent:var(--cyan)"><svg class="icon"><use href="#i-cards" /></svg><span><b>Live Room Pool</b><span>The exact eligible prompts for tonight.</span></span></button>
+            <button class="nav-menu-item" data-nav="lobby" type="button" style="--nav-accent:var(--lime)"><svg class="icon"><use href="#i-send" /></svg><span><b>Join Room</b><span>Enter a simulated room code.</span></span></button>
+          </div>
+        </div>
+        <div class="nav-cluster">
+          <button class="nav-button" data-nav="board" type="button">CHAOS Board</button>
+          <div class="nav-popover"><div class="nav-popover__label">Discover</div>
+            <button class="nav-menu-item" data-nav="board" data-board-tab="all" type="button" style="--nav-accent:var(--lime)"><svg class="icon"><use href="#i-globe" /></svg><span><b>Discover All</b><span>Official and moderated community prompts.</span></span></button>
+            <button class="nav-menu-item" data-nav="board" data-board-tab="original" type="button" style="--nav-accent:var(--lime)"><svg class="icon"><use href="#i-check" /></svg><span><b>Cribbit Originals</b><span>Curated official game content.</span></span></button>
+            <button class="nav-menu-item" data-nav="board" data-board-tab="community" type="button" style="--nav-accent:var(--magenta)"><svg class="icon"><use href="#i-users" /></svg><span><b>Community CHAOS</b><span>Approved player-created prompts.</span></span></button>
+            <div class="nav-popover__divider"></div>
+            <button class="nav-menu-item" data-nav="board" data-board-tab="trending" type="button" style="--nav-accent:var(--orange)"><svg class="icon"><use href="#i-bolt-circle" /></svg><span><b>Trending & Staff Picks</b><span>Positive discovery signals only.</span></span></button>
+          </div>
+        </div>
+        <div class="nav-cluster">
+          <button class="nav-button" data-nav="library" type="button">Library</button>
+          <div class="nav-popover"><div class="nav-popover__label">Your memory</div>
+            <button class="nav-menu-item" data-nav="library" data-library-tab="my" type="button" style="--nav-accent:var(--cyan)"><svg class="icon"><use href="#i-bookmark" /></svg><span><b>My Saved Deck</b><span>Private prompts saved for future games.</span></span></button>
+            <button class="nav-menu-item" data-nav="library" data-library-tab="house" type="button" style="--nav-accent:var(--orange)"><svg class="icon"><use href="#i-home" /></svg><span><b>House Deck</b><span>Private recurring group history.</span></span></button>
+            <button class="nav-menu-item" data-nav="library" data-library-tab="live" type="button" style="--nav-accent:var(--lime)"><svg class="icon"><use href="#i-play" /></svg><span><b>Live Room Pool</b><span>Prompts eligible in tonight’s game.</span></span></button>
+          </div>
+        </div>
+        <div class="nav-cluster">
+          <button class="nav-button" data-nav="create" type="button">Create</button>
+          <div class="nav-popover"><div class="nav-popover__label">Contribute</div>
+            <button class="nav-menu-item" data-nav="create" data-create-destination="my" type="button" style="--nav-accent:var(--cyan)"><svg class="icon"><use href="#i-bookmark" /></svg><span><b>Private Save</b><span>Keep a prompt only in My Saved Deck.</span></span></button>
+            <button class="nav-menu-item" data-nav="create" data-create-destination="house" type="button" style="--nav-accent:var(--orange)"><svg class="icon"><use href="#i-home" /></svg><span><b>House Deck</b><span>Add private group-owned content.</span></span></button>
+            <button class="nav-menu-item" data-nav="create" data-create-destination="live" type="button" style="--nav-accent:var(--lime)"><svg class="icon"><use href="#i-play" /></svg><span><b>Current Game</b><span>Moderate into tonight’s sealed pool.</span></span></button>
+            <button class="nav-menu-item" data-nav="create" data-create-destination="community" type="button" style="--nav-accent:var(--magenta)"><svg class="icon"><use href="#i-globe" /></svg><span><b>Suggest to CHAOS Board</b><span>Submit for duplicate, quality and moderation review.</span></span></button>
+          </div>
+        </div>
+        <div class="nav-cluster"><button class="nav-button" data-nav="call" type="button">Call Mode</button></div>
+        <div class="nav-cluster"><button class="nav-button" data-nav="lab" type="button">Rules</button></div>
+      </nav>
+      <div class="status-cluster">
+        <span class="status-pill" id="connectionPill" data-state="connected"><i></i><span>Connected</span></span>
+        <span class="status-pill" data-hide-mobile="true"><svg class="icon"><use href="#i-shield" /></svg><span id="revisionLabel">Server rev 0</span></span>
+      </div>
+      <div class="header-tools">
+        <button class="header-utility-icon mobile-nav-trigger" data-action="open-mobile-nav" type="button" aria-label="Open product navigation"><svg class="icon"><use href="#i-menu" /></svg></button>
+        <button class="header-utility-icon" data-action="open-global-search" type="button" aria-label="Search prompts and pages"><svg class="icon"><use href="#i-search" /></svg></button>
+        <button class="header-utility-icon notification-dot" data-action="open-notifications" type="button" aria-label="Open notifications"><svg class="icon"><use href="#i-bolt-circle" /></svg></button>
+        <button class="tool-button" data-action="simulate-disconnect" type="button"><svg class="icon"><use href="#i-wifi" /></svg><span>Reconnect test</span></button>
+        <button class="tool-button" data-action="reset-demo" type="button"><svg class="icon"><use href="#i-refresh" /></svg><span>Reset</span></button>
+        <button class="profile-chip" data-action="open-profile" type="button" aria-label="Open profile">Y</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="view is-active" data-view="lobby" aria-labelledby="lobbyTitle">
+      <div class="lobby-grid">
+        <article class="panel lobby-hero">
+          <div class="hero-wordmark"><span class="hero-wordmark__cribbit">Cribbit</span><span class="hero-wordmark__chaos">Chaos</span></div>
+          <p class="hero-kicker">A real card game. <span>A social detonator.</span></p>
+          <p class="hero-copy">Start a simulated room, deal seven cards, match color or symbol, trigger social peaks, use explicit safety controls, and race to legally empty your hand.</p>
+          <div class="hero-pills">
+            <span class="tag" data-tone="lime">2-10 players</span>
+            <span class="tag" data-tone="cyan">Telegram-native</span>
+            <span class="tag" data-tone="magenta">Playable demo</span>
+            <span class="tag" data-tone="gold">0 cards = win</span>
+          </div>
+          <div class="hero-pillar-grid">
+            <div class="hero-pillar" style="--pillar:var(--magenta)"><svg class="icon"><use href="#i-card" /></svg><b>Real gameplay</b><span>Match, manage, draw and disrupt.</span></div>
+            <div class="hero-pillar" style="--pillar:var(--orange)"><svg class="icon"><use href="#i-users" /></svg><b>Social peaks</b><span>Truth, Dare, Paranoia and Duel.</span></div>
+            <div class="hero-pillar" style="--pillar:var(--cyan)"><svg class="icon"><use href="#i-wave" /></svg><b>Explicit input</b><span>Speak, Type, Choose or Live.</span></div>
+            <div class="hero-pillar" style="--pillar:var(--lime)"><svg class="icon"><use href="#i-shield" /></svg><b>Safe by design</b><span>Pass, Rewind, Nope and Flag stay distinct.</span></div>
+          </div>
+          <div class="hero-deck" aria-hidden="true"><span class="hero-card"></span><span class="hero-card"></span><span class="hero-card"></span><span class="hero-card"></span><span class="hero-card"></span></div>
+        </article>
+
+        <article class="panel setup-panel">
+          <header class="panel-header"><div><p class="eyebrow">Room creation</p><h1 class="panel-title" id="lobbyTitle">Build tonight's CHAOS</h1><p class="panel-subtitle">The client suggests. The simulated server decides.</p></div><span class="tag" data-tone="cyan">Book II v6.1</span></header>
+          <div class="panel-body setup-grid">
+            <div class="setup-row">
+              <div class="field"><label for="profileName">Profile name</label><input class="input" id="profileName" maxlength="20" value="You" /><span class="field-help">The local human player.</span></div>
+              <div class="field"><label for="worldSelect">Content world</label><select class="select" id="worldSelect"><option value="clean">Clean CHAOS</option><option value="adult">Adult CHAOS (18+ demo)</option></select><span class="field-help">One engine; separate prompt eligibility.</span></div>
+            </div>
+            <div class="setup-row">
+              <div class="field"><label for="ceilingSelect">Personal ceiling</label><select class="select" id="ceilingSelect"></select><span class="field-help">The individual ceiling still wins.</span></div>
+              <div class="field"><label for="roomName">Room name</label><input class="input" id="roomName" maxlength="28" value="Night Squad" /><span class="field-help">Used in the dashboard and recap.</span></div>
+            </div>
+
+            <div class="field"><span class="field-label">Choose mode</span><div class="mode-grid" id="modeGrid">
+              <button class="mode-card" data-mode="duel" aria-pressed="false" type="button"><b>Duel</b><span>Fast head-to-head pacing.</span><small>2 players</small></button>
+              <button class="mode-card" data-mode="squad" aria-pressed="false" type="button"><b>Squad</b><span>Balanced teaching format.</span><small>3-4 players</small></button>
+              <button class="mode-card" data-mode="party" aria-pressed="true" type="button"><b>Party</b><span>Primary social format.</span><small>5-7 players</small></button>
+              <button class="mode-card" data-mode="mayhem" aria-pressed="false" type="button"><b>Mayhem</b><span>Shorter timers, more anti-downtime.</span><small>8-10 players</small></button>
+            </div></div>
+
+            <div class="field"><label for="playerCount">Player count</label><div class="range-row"><input class="range" id="playerCount" type="range" min="5" max="7" value="5" /><output class="range-value" id="playerCountValue">5</output></div></div>
+
+            <div class="field"><span class="field-label">Live prompt sources</span><div class="source-grid" id="sourceGrid">
+              <button class="source-toggle" data-source="original" aria-pressed="true" style="--source:var(--lime)" type="button"><svg class="icon"><use href="#i-card" /></svg><b>Original</b><span>Curated</span></button>
+              <button class="source-toggle" data-source="community" aria-pressed="true" style="--source:var(--purple)" type="button"><svg class="icon"><use href="#i-globe" /></svg><b>Community</b><span>Approved</span></button>
+              <button class="source-toggle" data-source="house" aria-pressed="true" style="--source:var(--orange)" type="button"><svg class="icon"><use href="#i-home" /></svg><b>House</b><span>Private group</span></button>
+              <button class="source-toggle" data-source="live" aria-pressed="true" style="--source:var(--cyan)" type="button"><svg class="icon"><use href="#i-users" /></svg><b>Live</b><span>Tonight</span></button>
+            </div></div>
+
+            <div class="knob-row"><div><b>QA test hand</b><span>Guarantees the human starts with Truth, Dare, Paranoia, Chaos, Duel, Nope and Wild so every major flow is testable.</span></div><label class="switch"><input id="qaHandToggle" type="checkbox" aria-label="Enable QA test hand" checked /><span class="switch-slider"></span></label></div>
+
+            <div class="setup-row" style="align-items:end"><div class="field"><label for="joinCode">Join simulated room</label><input class="input" id="joinCode" maxlength="8" placeholder="Enter room code" /><span class="field-help">Loads a deterministic demo lobby; no network request is made.</span></div><button class="button" data-action="join-room" type="button">Join room</button></div>
+
+            <div class="start-row"><p class="demo-note">Seven starting cards is the default target. Draw count, timers, stacking and special frequency remain visibly configurable balancing knobs.</p><button class="button button--primary" id="startGameButton" type="button"><svg class="icon"><use href="#i-play" /></svg>Start simulated game</button></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="view" data-view="game" aria-labelledby="gameViewTitle">
+      <div class="game-app-shell">
+        <div class="game-core">
+          <div class="game-topbar">
+            <div class="game-heading"><div><p class="eyebrow">Authoritative session</p><h1 id="gameViewTitle">Live Game</h1></div><span class="tag" data-tone="lime" id="modeBadge">Party</span></div>
+            <div class="game-toolbar">
+              <div class="phase-track" id="phaseTrack" aria-label="Turn engine state"></div>
+              <div class="game-view-controls" aria-label="Game workspace controls">
+                <button class="game-control" id="toggleLeftRail" data-action="toggle-left-rail" type="button" aria-expanded="true" aria-controls="leftRail" title="Hide players panel"><svg class="icon"><use href="#i-panel-left" /></svg><span class="control-label">Players</span></button>
+                <button class="game-control" id="toggleRightRail" data-action="toggle-right-rail" type="button" aria-expanded="true" aria-controls="rightRail" title="Hide session stats"><svg class="icon"><use href="#i-panel-right" /></svg><span class="control-label">Stats</span></button>
+                <button class="game-control" id="focusModeButton" data-action="toggle-focus-mode" type="button" aria-pressed="false" title="Toggle focus mode"><svg class="icon"><use href="#i-focus" /></svg><span class="control-label">Focus</span></button>
+                <button class="game-control" id="fullscreenButton" data-action="toggle-fullscreen" type="button" aria-pressed="false" title="Enter fullscreen"><svg class="icon"><use href="#i-expand" /></svg><span class="control-label">Fullscreen</span></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="game-layout" id="gameLayout" data-left-open="true" data-right-open="true" data-rail-mode="inline" data-drawer-open="false">
+            <button class="rail-scrim" id="railScrim" data-action="close-rail-drawers" type="button" aria-label="Close side panel"></button>
+
+            <aside class="panel game-rail game-rail--left" id="leftRail" aria-label="Players panel">
+              <header class="panel-header"><div><h2 class="panel-title">Players</h2><p class="panel-subtitle">Cards remaining drive victory.</p></div><button class="icon-button" data-action="toggle-left-rail" type="button" aria-label="Hide players panel"><svg class="icon"><use href="#i-chevron-left" /></svg></button></header>
+              <div class="panel-body"><div class="player-list" id="playerList"></div></div>
+            </aside>
+
+            <section class="game-stage" id="gameStage" aria-label="Desktop gameboard">
+              <article class="desktop-gameboard">
+                <header class="board-session-header">
+                  <div class="board-room"><h2 id="gameRoomName">Night Squad</h2><p id="gameRoomMeta">5 players • Party • Round 1</p></div>
+                  <div class="board-turn"><div class="board-turn__copy"><small>Current turn</small><strong id="currentTurnName">You</strong></div><div class="timer" id="timerValue">35</div></div>
+                  <div class="board-phase-mini"><span class="round-chip" id="stageChip">Warm Up</span><b id="boardPhaseLabel">Play / Draw</b><span>Server-authoritative</span></div>
+                  <div class="board-timer-track"><span id="timerProgress"></span></div>
+                </header>
+
+                <div class="desktop-play-grid">
+                  <section class="board-pane board-challenge">
+                    <span class="active-panel__label">Active state</span>
+                    <h3 id="activeChallengeTitle">Play or draw</h3>
+                    <p id="activeChallengeCopy">Match the active color or symbol, use an eligible special, or draw under the current rules.</p>
+                    <div class="inline-flow-controls" id="inlineFlowControls" aria-live="polite"></div>
+                    <div class="challenge-status-row"><span class="tag" data-tone="lime">Empty hand wins</span><span class="tag" data-tone="cyan">Client hints only</span><span class="tag" data-tone="gold">Safety stays separate</span></div>
+                    <div class="board-callout">Truth cards open a sealed Truth-question Roulette. Dare cards open a sealed Dare-challenge Roulette. The server selects before the wheel moves.</div>
+                  </section>
+
+                  <section class="board-pane table-zone">
+                    <div class="table-piles">
+                      <div class="table-pile"><div class="desktop-discard" id="discardSlot" aria-label="Discard pile"></div><span class="table-pile__label">Discard</span></div>
+                      <div class="table-pile"><button class="desktop-draw-pile" id="drawPileVisual" data-action="draw-card" data-draw-control type="button" aria-label="Draw a card"><span class="draw-pile-stack" aria-hidden="true"><i></i><i></i><i></i></span><span class="draw-pile-body"><svg class="icon"><use href="#i-cards" /></svg><b>Draw pile</b><span id="drawPileCount">0 left</span></span></button><span class="table-pile__label">Deck</span></div>
+                    </div>
+                    <div class="table-actions"><button class="button" id="drawButton" data-action="draw-card" data-draw-control type="button"><svg class="icon"><use href="#i-cards" /></svg>Draw</button><button class="button" data-nav="board" type="button"><svg class="icon"><use href="#i-globe" /></svg>CHAOS Board</button></div>
+                  </section>
+
+                </div>
+
+                <section class="hand-zone"><div class="hand-zone__header"><b>Your hand</b><span id="handCount">0 cards</span></div><div class="hand-scroll" id="handScroll" aria-label="Your cards"></div></section>
+                <footer class="desktop-safety-bar"><button class="button" data-action="safety-pass" type="button">Pass / Not For Me</button><button class="button" data-action="safety-rewind" type="button">Rewind</button><button class="button" data-action="use-nope" type="button">Nope Card</button><button class="button" data-action="safety-flag" type="button">Flag Prompt</button></footer>
+              </article>
+            </section>
+
+            <aside class="panel game-rail game-rail--right" id="rightRail" aria-label="Session statistics">
+              <header class="panel-header"><div><h2 class="panel-title">Session stats</h2><p class="panel-subtitle">Flavor and recap data only.</p></div><button class="icon-button" data-action="toggle-right-rail" type="button" aria-label="Hide stats panel"><svg class="icon"><use href="#i-chevron-right" /></svg></button></header>
+              <div class="panel-body"><div class="stats-grid" id="statsGrid"></div><div class="authority-box"><b>Server authority</b><p id="authorityCopy">Waiting for a session. Client highlights are hints; state owns legality, hand ownership, winner and revision.</p></div><div class="board-context board-context--rail"><span class="context-title">Authoritative state</span><div class="active-state-grid active-state-grid--desktop"><div class="active-state"><span>Color</span><b id="activeColorLabel">-</b></div><div class="active-state"><span>Symbol</span><b id="activeSymbolLabel">-</b></div><div class="active-state"><span>Direction</span><b id="directionLabel">Clockwise</b></div><div class="active-state"><span>Revision</span><b id="phoneRevision">0</b></div></div><div class="next-step-card"><b>What happens next</b><p>Complete the highlighted phase. Animation never decides authoritative state.</p></div></div></div></aside>
+          </div>
+        </div>
+
+        <section class="activity-dock" id="activityDock" data-open="true">
+          <header class="activity-dock__header"><div><h2>Activity &amp; session history</h2><p>Supporting events and remarks stay below the core board.</p></div><div style="display:flex;gap:7px"><button class="icon-button" data-action="clear-log" aria-label="Clear event view" type="button"><svg class="icon"><use href="#i-refresh" /></svg></button><button class="button button--sm" data-action="toggle-activity" type="button">Collapse</button></div></header>
+          <div class="activity-dock__body"><div class="activity-scroll"><div class="event-list" id="eventList"></div></div><aside class="activity-scroll"><p class="eyebrow">Resolved prompt history</p><div class="prompt-history-list" id="promptHistoryList"></div></aside></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="view" data-view="rooms" aria-labelledby="roomsTitle">
+      <div class="ecosystem-hero"><div><p class="eyebrow">Custom Rooms</p><h1 class="view-title" id="roomsTitle">Build <span>Tonight’s CHAOS.</span></h1><p class="view-lead">Choose the vibe, categories and weighted content sources. The resulting Live Room Pool is the only prompt set eligible tonight.</p></div><div class="ecosystem-actions"><button class="button" data-nav="lobby" type="button">Back to Lobby</button><button class="button button--primary" data-action="apply-room-config" type="button">Apply Room Setup</button></div></div>
+      <div class="metric-strip" style="margin-bottom:14px"><div class="metric-tile" style="--metric:var(--lime)"><span>Official prompts</span><b id="roomMetricOriginal">0</b></div><div class="metric-tile" style="--metric:var(--magenta)"><span>Community prompts</span><b id="roomMetricCommunity">0</b></div><div class="metric-tile" style="--metric:var(--orange)"><span>House prompts</span><b id="roomMetricHouse">0</b></div><div class="metric-tile" style="--metric:var(--cyan)"><span>Live submissions</span><b id="roomMetricLive">0</b></div></div>
+      <div class="workspace-grid">
+        <section class="workspace-stack">
+          <article class="panel"><header class="panel-header"><div><h2 class="panel-title">Source mix</h2><p class="panel-subtitle">Weights are room balancing knobs, not permanent rules.</p></div><span class="tag" data-tone="cyan">Live room pool</span></header><div class="panel-body"><div class="source-mix-grid">
+            <div class="source-mix-row" style="--source-color:var(--lime)"><b>Cribbit Originals</b><input id="roomWeightOriginal" type="range" aria-label="Cribbit Originals source percentage" min="0" max="100" value="50" /><output id="roomWeightOriginalValue">50%</output></div>
+            <div class="source-mix-row" style="--source-color:var(--magenta)"><b>Community CHAOS</b><input id="roomWeightCommunity" type="range" aria-label="Community CHAOS source percentage" min="0" max="100" value="20" /><output id="roomWeightCommunityValue">20%</output></div>
+            <div class="source-mix-row" style="--source-color:var(--orange)"><b>House Deck</b><input id="roomWeightHouse" type="range" aria-label="House Deck source percentage" min="0" max="100" value="20" /><output id="roomWeightHouseValue">20%</output></div>
+            <div class="source-mix-row" style="--source-color:var(--cyan)"><b>New tonight</b><input id="roomWeightLive" type="range" aria-label="Live submissions source percentage" min="0" max="100" value="10" /><output id="roomWeightLiveValue">10%</output></div>
+            <div class="mix-total"><b>Current total</b><strong id="roomMixTotal">100%</strong></div>
+          </div></div></article>
+          <article class="panel"><header class="panel-header"><div><h2 class="panel-title">Vibe &amp; categories</h2><p class="panel-subtitle">The targeted player’s personal ceiling still wins.</p></div></header><div class="panel-body"><div class="setup-row"><div class="field"><label for="roomVibeStart">Starts at</label><select class="select" id="roomVibeStart"></select></div><div class="field"><label for="roomVibeEnd">Can rise to</label><select class="select" id="roomVibeEnd"></select></div></div><div class="field"><span class="field-label">Categories</span><div class="category-grid" id="roomCategoryGrid"></div></div></div></article>
+        </section>
+        <aside class="workspace-stack"><section class="panel" id="livePoolPanel"><header class="panel-header"><div><h2 class="panel-title">Live Room Pool</h2><p class="panel-subtitle" id="roomPoolMeta">Eligible prompts for tonight.</p></div><button class="button button--sm" data-nav="library" data-library-tab="live" type="button">Open full pool</button></header><div class="panel-body"><div class="room-preview-list" id="roomPoolPreview"></div></div></section><section class="panel"><div class="panel-body"><div class="authority-box"><b>Room eligibility</b><p>Source, world, stage, target ceiling, group size, repeat cooldown and moderation must all pass before a prompt renders.</p></div></div></section></aside>
+      </div>
+    </section>
+
+    <section class="view" data-view="board" aria-labelledby="boardTitle">
+      <div class="ecosystem-hero"><div><p class="eyebrow">Discoverable content hub</p><h1 class="view-title" id="boardTitle">The <span>CHAOS Board.</span></h1><p class="view-lead">Official Cribbit prompts and moderated Community CHAOS remain visibly distinct. Save privately, add to a room, or discover positive community signals.</p></div><div class="ecosystem-actions"><button class="button" data-nav="library" type="button">Open Library</button><button class="button button--primary" data-nav="create" data-create-destination="community" type="button">Suggest a Prompt</button></div></div>
+      <div class="board-toolbar"><div class="field"><label for="promptSearch">Search prompts</label><div style="position:relative"><svg class="icon" style="position:absolute;left:12px;top:13px;color:var(--faint)"><use href="#i-search" /></svg><input class="input" id="promptSearch" style="padding-left:40px" placeholder="Search text, category, tag or creator..." /></div></div><div class="filter-row" id="familyFilters"></div></div>
+      <div class="tab-strip" id="boardTabs" style="margin-top:14px"></div>
+      <section class="panel" style="margin-top:12px"><header class="panel-header"><div><h2 class="panel-title">Prompt discovery</h2><p class="panel-subtitle" id="boardResultMeta">Official and moderated community prompts.</p></div><span class="tag" data-tone="lime">Positive signals only</span></header><div class="panel-body"><div class="prompt-list" id="promptList"></div></div></section>
+    </section>
+
+    <section class="view" data-view="library" aria-labelledby="libraryTitle">
+      <div class="ecosystem-hero"><div><p class="eyebrow">Persistent group memory</p><h1 class="view-title" id="libraryTitle">Your <span>prompt libraries.</span></h1><p class="view-lead">My Saved Deck is private. House Deck belongs to a recurring group. Live Room Pool is the eligible set being used tonight.</p></div><div class="ecosystem-actions"><button class="button" data-nav="board" type="button">Browse CHAOS Board</button><button class="button button--primary" data-nav="create" type="button">Create Prompt</button></div></div>
+      <div class="metric-strip" style="margin-bottom:14px"><div class="metric-tile" style="--metric:var(--cyan)"><span>My Saved Deck</span><b id="libraryMetricMy">0</b></div><div class="metric-tile" style="--metric:var(--orange)"><span>House Deck</span><b id="libraryMetricHouse">0</b></div><div class="metric-tile" style="--metric:var(--lime)"><span>Live Room Pool</span><b id="libraryMetricLive">0</b></div><div class="metric-tile" style="--metric:var(--gold)"><span>Resolved moments</span><b id="libraryMetricHistory">0</b></div></div>
+      <div class="tab-strip" id="libraryTabs"></div>
+      <section class="panel" style="margin-top:12px"><header class="panel-header"><div><h2 class="panel-title" id="libraryPanelTitle">My Saved Deck</h2><p class="panel-subtitle" id="libraryPanelCopy">Private favorites for future games.</p></div></header><div class="panel-body"><div class="library-page-grid" id="libraryPageList"></div></div></section>
+    </section>
+
+    <section class="view" data-view="create" aria-labelledby="createTitle">
+      <div class="ecosystem-hero"><div><p class="eyebrow">Player-created content</p><h1 class="view-title" id="createTitle">Create once. <span>Choose the destination.</span></h1><p class="view-lead">Private Save, House Deck, Current Game and Suggest to CHAOS Board are four different actions with different privacy and moderation consequences.</p></div><div class="ecosystem-actions"><button class="button" data-nav="board" type="button">Browse Examples</button></div></div>
+      <section class="panel"><header class="panel-header"><div><h2 class="panel-title">1. Choose destination</h2><p class="panel-subtitle">Saving privately never publishes globally.</p></div></header><div class="panel-body"><div class="destination-grid" id="destinationGrid">
+        <button class="destination-card" data-create-destination="my" aria-pressed="true" style="--destination:var(--cyan)" type="button"><svg class="icon"><use href="#i-bookmark" /></svg><b>My Saved Deck</b><span>Instant private save for future games.</span></button>
+        <button class="destination-card" data-create-destination="house" aria-pressed="false" style="--destination:var(--orange)" type="button"><svg class="icon"><use href="#i-home" /></svg><b>House Deck</b><span>Private recurring-group content and lore.</span></button>
+        <button class="destination-card" data-create-destination="live" aria-pressed="false" style="--destination:var(--lime)" type="button"><svg class="icon"><use href="#i-play" /></svg><b>Current Game</b><span>Moderate into tonight’s sealed Live Room Pool.</span></button>
+        <button class="destination-card" data-create-destination="community" aria-pressed="false" style="--destination:var(--magenta)" type="button"><svg class="icon"><use href="#i-globe" /></svg><b>Suggest to CHAOS Board</b><span>Enter duplicate, quality and moderation review.</span></button>
+      </div><div class="destination-summary" id="createDestinationSummary" style="--destination:var(--cyan)">This prompt will be saved instantly and privately to My Saved Deck.</div></div></section>
+      <div class="workspace-grid" style="margin-top:14px">
+        <section class="panel"><header class="panel-header"><div><h2 class="panel-title">2. Write the prompt</h2><p class="panel-subtitle" id="currentDestinationLabel">Destination: My Saved Deck</p></div></header><div class="panel-body"><form class="create-form" id="ecosystemPromptForm">
+          <div class="setup-row"><div class="field"><label for="promptType">Type</label><select class="select" id="promptType"><option value="truth">Truth</option><option value="dare">Dare</option></select></div><div class="field"><label for="promptAuthorship">Authorship</label><select class="select" id="promptAuthorship"><option value="signed">Signed</option><option value="reveal">Reveal After</option><option value="taboo">Taboo</option></select></div></div>
+          <div class="field"><label for="promptText">Prompt</label><textarea class="textarea" id="promptText" required maxlength="280" placeholder="Write a clear, playable Truth or Dare..."></textarea><span class="field-help">Reveal After stays anonymous until the answer or Dare resolves. Taboo never reveals the creator to peers.</span></div>
+          <div class="setup-row"><div class="field"><label for="promptTargeting">Targeting</label><select class="select" id="promptTargeting"><option value="current">Current player</option><option value="random">Random player</option><option value="specific">Specific player</option><option value="anyone">Anyone</option></select></div><div class="field"><label for="promptCategory">Category</label><select class="select" id="promptCategory"><option>Friends</option><option>Funny</option><option>Icebreakers</option><option>Most Likely To</option><option>Movies</option><option>School</option><option>Work</option><option>Travel</option><option>Creativity</option><option>Couples</option><option>Dorm</option><option>Party</option><option>Bold</option><option>Clean</option></select></div></div>
+          <div class="setup-row"><div class="field"><label for="promptWorld">Content world</label><select class="select" id="promptWorld"><option value="clean">Clean CHAOS</option><option value="adult">Adult CHAOS</option></select></div><div class="field"><label for="promptIntensity">Intensity</label><select class="select" id="promptIntensity"></select></div></div>
+          <div id="communityFields"><div class="setup-row"><div class="field"><label for="promptMinPlayers">Minimum players</label><input class="input" id="promptMinPlayers" type="number" min="2" max="10" value="2" /></div><div class="field"><label for="promptMaxPlayers">Maximum players</label><input class="input" id="promptMaxPlayers" type="number" min="2" max="10" value="10" /></div></div><div class="setup-row"><div class="field"><label for="promptTags">Optional tags</label><input class="input" id="promptTags" placeholder="friends, funny, party" /></div><div class="field"><label for="promptAttribution">Attribution preference</label><select class="select" id="promptAttribution"><option value="profile">Creator profile</option><option value="display">Display name only</option><option value="anonymous">Anonymous community credit</option></select></div></div></div>
+          <button class="button button--primary" type="submit">Create Prompt</button>
+        </form></div></section>
+        <aside class="panel"><header class="panel-header"><div><h2 class="panel-title">Submission status</h2><p class="panel-subtitle">Global suggestions progress through moderation.</p></div></header><div class="panel-body"><div class="submission-list" id="submissionList"></div></div></aside>
+      </div>
+    </section>
+
+    <section class="view" data-view="call" aria-labelledby="callTitle">
+      <p class="eyebrow">Telegram Call Mode simulation</p><h1 class="view-title" id="callTitle">The call stays on. <span>You stay in control.</span></h1><p class="view-lead">Passive conversation is never gameplay input. The demo only accepts explicit Speak, Type, Choose or Answered Live actions.</p>
+      <div class="call-grid">
+        <section class="panel"><header class="panel-header"><div><h2 class="panel-title">Active group call</h2><p class="panel-subtitle" id="callRosterMeta">Start a session to populate the roster.</p></div><span class="tag" data-tone="lime">Call active</span></header><div class="panel-body"><div class="call-roster" id="callRoster"></div><div class="privacy-banner" style="margin-top:12px"><svg class="icon"><use href="#i-shield" /></svg><div><b>Privacy by design</b><p>No passive listening. No call transcription. Only explicit answer sessions count.</p></div></div></div></section>
+        <section class="panel call-console"><div class="privacy-banner"><svg class="icon"><use href="#i-lock" /></svg><div><b>Explicit answer path</b><p id="callStateCopy">No active social prompt. Return to the game and play a social card to test the answer engine.</p></div></div><div class="call-orb" id="callOrb"><svg class="icon"><use href="#i-mic" /></svg></div><div class="call-prompt" id="callPrompt"><small>Prompt</small><h3>No active prompt</h3></div><div class="answer-grid">
+          <button class="answer-tile" data-call-mode="speak" style="--answer:var(--lime)" type="button"><svg class="icon"><use href="#i-mic" /></svg><b>Speak</b><span>Explicit mic session for this answer only.</span></button>
+          <button class="answer-tile" data-call-mode="type" style="--answer:var(--cyan)" type="button"><svg class="icon"><use href="#i-chat" /></svg><b>Type</b><span>Enter text and review before submission.</span></button>
+          <button class="answer-tile" data-call-mode="choose" style="--answer:var(--gold)" type="button"><svg class="icon"><use href="#i-choice" /></svg><b>Choose</b><span>Pick from explicit curated options.</span></button>
+          <button class="answer-tile" data-call-mode="live" style="--answer:var(--magenta)" type="button"><svg class="icon"><use href="#i-wave" /></svg><b>Answered Live</b><span>Store completion only, never what was said.</span></button>
+        </div></section>
+      </div>
+    </section>
+
+    <section class="view" data-view="lab" aria-labelledby="labTitle">
+      <p class="eyebrow">Rules, balancing knobs and QA</p><h1 class="view-title" id="labTitle">Do not let prototypes <span>silently become canon.</span></h1><p class="view-lead">The following values are exposed as demo configuration because Book II labels them as balancing knobs or open details.</p>
+      <div class="lab-grid">
+        <section class="panel"><header class="panel-header"><div><h2 class="panel-title">Demo balancing knobs</h2><p class="panel-subtitle">Applied to the next session unless stated otherwise.</p></div><span class="tag" data-tone="orange">Not canon</span></header><div class="panel-body"><div class="knob-list">
+          <div class="knob-row"><div><b>Starting hand</b><span>Default target is seven; exposed for testing duration and dead-hand frequency.</span></div><input class="input" id="knobStartingHand" type="number" aria-label="Starting hand size" min="1" max="12" value="7" /></div>
+          <div class="knob-row"><div><b>Draw penalty</b><span>Book II does not lock the amount. Demo default is +2.</span></div><input class="input" id="knobDrawPenalty" type="number" aria-label="Draw penalty amount" min="1" max="6" value="2" /></div>
+          <div class="knob-row"><div><b>Base turn timer</b><span>Mayhem applies a shorter multiplier. Accessibility still matters.</span></div><input class="input" id="knobTurnTimer" type="number" aria-label="Base turn timer in seconds" min="10" max="120" value="40" /></div>
+          <div class="knob-row"><div><b>Stage every N completed turns</b><span>Controls how quickly Warm Up advances.</span></div><input class="input" id="knobStageEvery" type="number" aria-label="Completed turns per stage" min="2" max="12" value="4" /></div>
+          <div class="knob-row"><div><b>Voluntary draw with legal card</b><span>Not defined by the source. Off means Draw is available only when no legal card exists.</span></div><label class="switch"><input id="knobVoluntaryDraw" type="checkbox" aria-label="Allow voluntary draw while holding a legal card" /><span class="switch-slider"></span></label></div>
+          <div class="knob-row"><div><b>Social cards playable as eligible specials</b><span>Demo special-card contract. Exposed rather than buried in client code.</span></div><label class="switch"><input id="knobSocialAlways" type="checkbox" aria-label="Allow eligible social cards as special plays" checked /><span class="switch-slider"></span></label></div>
+          <div class="knob-row"><div><b>Final social card win timing</b><span>The source says this must be explicitly locked. Demo default checks after required social resolution.</span></div><select class="select" id="knobFinalSocial" aria-label="Final social card win timing"><option value="after">After social resolution</option><option value="immediate">Immediately after legal play</option></select></div>
+          <div class="knob-row"><div><b>Nope demo contract</b><span>Exact eligible effects remain open. This demo supports Draw and targeted hand-swap blocks.</span></div><select class="select" id="knobNopeContract" aria-label="Nope eligible effect contract"><option value="draw-chaos">Draw + targeted Chaos</option><option value="draw">Draw only</option></select></div>
+        </div></div></section>
+
+        <section style="display:grid;gap:14px;align-content:start">
+          <article class="panel"><header class="panel-header"><div><h2 class="panel-title">Demo lab</h2><p class="panel-subtitle">Non-production shortcuts for testing every flow.</p></div></header><div class="panel-body"><div class="field"><label for="labCardSelect">Card to add to your hand</label><select class="select" id="labCardSelect"><option value="truth">Truth</option><option value="dare">Dare</option><option value="paranoia">Paranoia</option><option value="duel">Duel</option><option value="chaos">Chaos</option><option value="nope">Nope</option><option value="skip">Skip</option><option value="reverse">Reverse</option><option value="draw">Draw</option><option value="wild">Wild</option><option value="number">Matching number</option></select></div><div class="lab-actions" style="margin-top:10px"><button class="button" data-action="lab-add-card" type="button">Add selected card</button><button class="button" data-action="lab-one-card" type="button">Set hand to one legal card</button><button class="button" data-action="lab-human-turn" type="button">Make it my turn</button><button class="button" data-action="lab-trigger-draw" type="button">Trigger Draw vs me</button><button class="button" data-action="lab-queue-chaos" type="button">Queue next Chaos effect</button><button class="button" data-action="retry-last-command" type="button">Retry last command key</button><button class="button button--danger" data-action="force-recap" type="button">Test winner / recap</button></div></div></article>
+          <article class="panel"><header class="panel-header"><div><h2 class="panel-title">Authoritative state</h2><p class="panel-subtitle">Read-only session snapshot.</p></div></header><div class="panel-body"><table class="state-table" id="stateTable"></table></div></article>
+          <article class="panel"><header class="panel-header"><div><h2 class="panel-title">Rule contracts in this demo</h2></div></header><div class="panel-body"><div class="library-list"><div class="library-item"><span class="library-icon" style="--lib:var(--lime)"><svg class="icon"><use href="#i-trophy" /></svg></span><span><b>Empty hand wins</b><span>Stats never replace the primary victory condition.</span></span></div><div class="library-item"><span class="library-icon" style="--lib:var(--purple)"><svg class="icon"><use href="#i-eye" /></svg></span><span><b>Roulette visualizes</b><span>The server selects the prompt before animation begins.</span></span></div><div class="library-item"><span class="library-icon" style="--lib:var(--cyan)"><svg class="icon"><use href="#i-wave" /></svg></span><span><b>Explicit input only</b><span>Ambient conversation never counts.</span></span></div><div class="library-item"><span class="library-icon" style="--lib:var(--gold)"><svg class="icon"><use href="#i-hand" /></svg></span><span><b>Nope is a card</b><span>Pass, Rewind and Flag are separate control paths.</span></span></div></div></div></article>
+        </section>
+      </div>
+    </section>
+
+    <section class="view" data-view="recap" aria-labelledby="recapTitle">
+      <p class="eyebrow">Game over</p><h1 class="view-title" id="recapTitle">The night becomes <span>a story.</span></h1><p class="view-lead">The winner is the first player who legally reached zero cards. All other values are recap metadata and group memory.</p>
+      <div class="recap-layout"><article class="panel champ-panel" id="champPanel"></article><aside style="display:grid;gap:14px;align-content:start"><section class="panel"><header class="panel-header"><div><h2 class="panel-title">Save That</h2><p class="panel-subtitle">Resolved prompts may become personal or House history.</p></div></header><div class="panel-body"><div class="save-list" id="saveThatList"></div></div></section><section class="panel"><div class="panel-body"><div class="lab-actions"><button class="button button--primary" data-action="play-again" type="button">Play again</button><button class="button" data-action="share-recap" type="button">Share recap voluntarily</button><button class="button" data-nav="board" type="button">Open saved decks</button><button class="button" data-nav="lab" type="button">Inspect final state</button></div></div></section></aside></div>
+    </section>
+  </main>
+
+  <dialog id="mobileNavDialog" class="mobile-nav-dialog"><div class="dialog-shell"><header class="dialog-header"><div><h2>Cribbit CHAOS</h2><p>Play, build rooms, discover prompts and manage group memory.</p></div><button class="icon-button" data-close-dialog="mobileNavDialog" aria-label="Close navigation" type="button"><svg class="icon"><use href="#i-close" /></svg></button></header><div class="dialog-body mobile-nav-body">
+    <section><p class="eyebrow">Play</p><div class="mobile-nav-grid"><button class="utility-result" data-nav="lobby" type="button" style="--result:var(--lime)"><svg class="icon"><use href="#i-home" /></svg><span><b>Lobby</b><span>Create, join or continue a room.</span></span><small>Play</small></button><button class="utility-result" data-nav="game" type="button" style="--result:var(--magenta)"><svg class="icon"><use href="#i-play" /></svg><span><b>Active Game</b><span>Return to the authoritative table.</span></span><small>Live</small></button><button class="utility-result" data-nav="recap" type="button" style="--result:var(--gold)"><svg class="icon"><use href="#i-trophy" /></svg><span><b>Recent Recap</b><span>Winner, stats and Save That.</span></span><small>History</small></button></div></section>
+    <section><p class="eyebrow">Rooms &amp; content</p><div class="mobile-nav-grid"><button class="utility-result" data-nav="rooms" type="button" style="--result:var(--orange)"><svg class="icon"><use href="#i-users" /></svg><span><b>Tonight’s CHAOS</b><span>Vibe, categories and source mix.</span></span><small>Rooms</small></button><button class="utility-result" data-nav="board" data-board-tab="all" type="button" style="--result:var(--magenta)"><svg class="icon"><use href="#i-globe" /></svg><span><b>CHAOS Board</b><span>Official and moderated community prompts.</span></span><small>Discover</small></button><button class="utility-result" data-nav="library" data-library-tab="my" type="button" style="--result:var(--cyan)"><svg class="icon"><use href="#i-bookmark" /></svg><span><b>My Saved Deck</b><span>Private favorites for future games.</span></span><small>Private</small></button><button class="utility-result" data-nav="library" data-library-tab="house" type="button" style="--result:var(--orange)"><svg class="icon"><use href="#i-home" /></svg><span><b>House Deck</b><span>Private recurring-group history.</span></span><small>Group</small></button><button class="utility-result" data-nav="library" data-library-tab="live" type="button" style="--result:var(--lime)"><svg class="icon"><use href="#i-cards" /></svg><span><b>Live Room Pool</b><span>The exact prompts eligible tonight.</span></span><small>Tonight</small></button><button class="utility-result" data-nav="create" data-create-destination="my" type="button" style="--result:var(--lime)"><svg class="icon"><use href="#i-send" /></svg><span><b>Create Prompt</b><span>Choose private, House, current game or Community destination.</span></span><small>Create</small></button></div></section>
+    <section><p class="eyebrow">Trust &amp; help</p><div class="mobile-nav-grid"><button class="utility-result" data-nav="call" type="button" style="--result:var(--teal)"><svg class="icon"><use href="#i-mic" /></svg><span><b>Call Mode</b><span>Explicit answer controls and privacy state.</span></span><small>Call</small></button><button class="utility-result" data-nav="lab" type="button" style="--result:var(--gold)"><svg class="icon"><use href="#i-info" /></svg><span><b>Rules &amp; Lab</b><span>Card contracts, safety and balancing knobs.</span></span><small>Rules</small></button></div></section>
+  </div></div></dialog>
+
+  <dialog id="cardDialog"><div class="dialog-shell"><header class="dialog-header"><div><h2>Card detail</h2><p>Visual contract, role and current legality.</p></div><button class="icon-button" data-close-dialog="cardDialog" aria-label="Close card detail" type="button"><svg class="icon"><use href="#i-close" /></svg></button></header><div class="dialog-body" id="cardDialogBody"></div></div></dialog>
+  <dialog id="flowDialog"><div class="dialog-shell"><header class="dialog-header"><div><h2 id="flowDialogTitle">Resolve effect</h2><p id="flowDialogSubtitle">The simulated server owns the transition.</p></div><button class="icon-button" data-action="flow-close-request" aria-label="Close flow" type="button"><svg class="icon"><use href="#i-close" /></svg></button></header><div class="dialog-body" id="flowDialogBody"></div></div></dialog>
+  <dialog id="reconnectDialog"><div class="dialog-shell"><header class="dialog-header"><div><h2>Connection state</h2><p>The server holds the authoritative snapshot during the grace window.</p></div></header><div class="dialog-body" id="reconnectBody"></div></div></dialog>
+  <dialog id="searchDialog"><div class="dialog-shell"><header class="dialog-header"><div><h2>Search Cribbit CHAOS</h2><p>Find prompts, libraries and product destinations.</p></div><button class="icon-button" data-close-dialog="searchDialog" aria-label="Close search" type="button"><svg class="icon"><use href="#i-close" /></svg></button></header><div class="dialog-body"><div class="field"><label for="globalSearchInput">Search</label><input class="input" id="globalSearchInput" autofocus placeholder="Search prompts, pages or categories..." /></div><div class="utility-results" id="globalSearchResults"></div></div></div></dialog>
+  <dialog id="notificationsDialog"><div class="dialog-shell"><header class="dialog-header"><div><h2>Notifications</h2><p>Room, moderation and group-memory updates.</p></div><button class="icon-button" data-close-dialog="notificationsDialog" aria-label="Close notifications" type="button"><svg class="icon"><use href="#i-close" /></svg></button></header><div class="dialog-body"><div class="utility-results" id="notificationList"></div></div></div></dialog>
+  <dialog id="profileDialog"><div class="dialog-shell"><header class="dialog-header"><div><h2>Profile &amp; preferences</h2><p>Personal ceiling, content world and creator identity.</p></div><button class="icon-button" data-close-dialog="profileDialog" aria-label="Close profile" type="button"><svg class="icon"><use href="#i-close" /></svg></button></header><div class="dialog-body"><div class="workspace-grid"><section class="panel"><div class="panel-body"><div class="field"><label for="profileDialogName">Display name</label><input class="input" id="profileDialogName" value="You" /></div><div class="field"><label for="profileDialogWorld">Content world</label><select class="select" id="profileDialogWorld"><option value="clean">Clean CHAOS</option><option value="adult">Adult CHAOS</option></select></div><button class="button button--primary" data-action="save-profile" type="button">Save profile</button></div></section><aside class="panel"><div class="panel-body"><div class="library-list"><div class="library-item"><span class="library-icon" style="--lib:var(--cyan)"><svg class="icon"><use href="#i-shield" /></svg></span><span><b>Privacy by design</b><span>Passive conversation is never gameplay input.</span></span></div><div class="library-item"><span class="library-icon" style="--lib:var(--lime)"><svg class="icon"><use href="#i-pepper" /></svg></span><span><b>Personal ceiling</b><span>The individual ceiling always overrides the room stage.</span></span></div><div class="library-item"><span class="library-icon" style="--lib:var(--magenta)"><svg class="icon"><use href="#i-person" /></svg></span><span><b>Creator profile</b><span>Approved community prompts can build a future creator identity.</span></span></div></div></div></aside></div></div></div></dialog>
+  <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="false"></div>
+  <div class="sr-only" id="liveRegion" aria-live="assertive"></div>

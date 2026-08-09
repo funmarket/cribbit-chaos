@@ -1,0 +1,9 @@
+{
+  "name": "@cribbit/server",
+  "private": true,
+  "version": "0.2.0",
+  "dependencies": {
+    "@cribbit/action-registry": "*",
+    "@cribbit/contracts": "*"
+  }
+}

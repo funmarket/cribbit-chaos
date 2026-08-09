@@ -1,0 +1,12 @@
+{
+  "name": "@cribbit/telegram",
+  "private": true,
+  "version": "0.2.0",
+  "dependencies": {
+    "@cribbit/ui": "*",
+    "@cribbit/platform": "*"
+  },
+  "scripts": {
+    "build": "cd ../.. && npm run build:telegram"
+  }
+}
