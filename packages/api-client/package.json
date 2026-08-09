@@ -1,0 +1,13 @@
+{
+  "name": "@cribbit/api-client",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "dependencies": {
+    "@cribbit/contracts": "*",
+    "socket.io-client": "^4.8.1"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

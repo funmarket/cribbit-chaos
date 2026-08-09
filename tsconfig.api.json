@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": { "lib": ["ES2022"], "noEmit": true },
+  "include": ["apps/api/src/**/*.ts", "packages/contracts/src/**/*.ts", "packages/action-registry/src/**/*.ts", "server-shims.d.ts"]
+}

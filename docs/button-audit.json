@@ -1,0 +1,16 @@
+{
+  "source": "packages/ui/src/template.html and packages/legacy-runtime/src/runtime.ts",
+  "actionsDiscovered": 56,
+  "actionsAssigned": 57,
+  "missingAssignments": [],
+  "staticButtons": 103,
+  "unclassifiedButtons": 0,
+  "buttonsWithoutType": 0,
+  "duplicateIds": [],
+  "inlineHandlers": 0,
+  "mappingPolicy": {
+    "gameplayMutations": "SERVER_COMMAND or REALTIME; pending mutations are rejected by the API with ENGINE_NOT_MIGRATED",
+    "navigationAndDisplay": "CLIENT_UI",
+    "backendReservedActions": "SERVER_COMMAND"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "@cribbit/api",
+  "private": true,
+  "version": "0.2.0",
+  "dependencies": {
+    "@cribbit/action-registry": "*",
+    "@cribbit/contracts": "*"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts"
+  }
+}
