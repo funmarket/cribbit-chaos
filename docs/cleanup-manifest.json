@@ -1,0 +1,180 @@
+{
+  "summary": {
+    "historicalCopiesScheduledForDeletion": [
+      "typescript/",
+      "webappchaos/",
+      "telegramchaos/"
+    ],
+    "legacyReferenceFolderScheduledForDeletion": [
+      "reference/legacy-migration/"
+    ],
+    "duplicateDocsScheduledForDeletion": [
+      "docs/VERCEL_SETUP.md",
+      "docs/RAILWAY_SETUP.md",
+      "docs/TELEGRAM_SETUP.md",
+      "docs/GITHUB_SETUP.md",
+      "docs/preflight-audit.md",
+      "docs/button-audit.md"
+    ],
+    "retainedReferenceFiles": [
+      "reference/approved-v4-template.html"
+    ],
+    "unknownEntries": 0
+  },
+  "entries": [
+    {
+      "path": "typescript/",
+      "classification": "DUPLICATE_REFERENCE",
+      "equivalentProductionPath": "apps/, packages/, db/, docs/, scripts/, .github/",
+      "importedByProductionCode": false,
+      "referencedByPackageJson": false,
+      "referencedByTsconfig": false,
+      "referencedByVite": false,
+      "referencedByCI": false,
+      "referencedByDocumentation": false,
+      "containsUniqueCodeNotElsewhere": false,
+      "deletionDecision": "delete",
+      "reason": "Historical migration archive fully superseded by the production monorepo and git history already preserves it."
+    },
+    {
+      "path": "webappchaos/",
+      "classification": "OBSOLETE",
+      "equivalentProductionPath": "",
+      "importedByProductionCode": false,
+      "referencedByPackageJson": false,
+      "referencedByTsconfig": false,
+      "referencedByVite": false,
+      "referencedByCI": false,
+      "referencedByDocumentation": false,
+      "containsUniqueCodeNotElsewhere": false,
+      "deletionDecision": "delete",
+      "reason": "Empty legacy project shell with no production use."
+    },
+    {
+      "path": "telegramchaos/",
+      "classification": "OBSOLETE",
+      "equivalentProductionPath": "",
+      "importedByProductionCode": false,
+      "referencedByPackageJson": false,
+      "referencedByTsconfig": false,
+      "referencedByVite": false,
+      "referencedByCI": false,
+      "referencedByDocumentation": false,
+      "containsUniqueCodeNotElsewhere": false,
+      "deletionDecision": "delete",
+      "reason": "Empty legacy project shell with no production use."
+    },
+    {
+      "path": "reference/legacy-migration/",
+      "classification": "OBSOLETE",
+      "equivalentProductionPath": "reference/approved-v4-template.html",
+      "importedByProductionCode": false,
+      "referencedByPackageJson": false,
+      "referencedByTsconfig": false,
+      "referencedByVite": false,
+      "referencedByCI": false,
+      "referencedByDocumentation": false,
+      "containsUniqueCodeNotElsewhere": false,
+      "deletionDecision": "delete",
+      "reason": "Empty placeholder folder after the useful reference asset was canonicalized elsewhere."
+    },
+    {
+      "path": "docs/VERCEL_SETUP.md",
+      "classification": "DUPLICATE_REFERENCE",
+      "equivalentProductionPath": "docs/DEPLOYMENT.md, README.md",
+      "importedByProductionCode": false,
+      "referencedByPackageJson": false,
+      "referencedByTsconfig": false,
+      "referencedByVite": false,
+      "referencedByCI": false,
+      "referencedByDocumentation": true,
+      "containsUniqueCodeNotElsewhere": false,
+      "deletionDecision": "delete",
+      "reason": "Useful deployment notes were folded into the canonical deployment documentation."
+    },
+    {
+      "path": "docs/RAILWAY_SETUP.md",
+      "classification": "DUPLICATE_REFERENCE",
+      "equivalentProductionPath": "docs/DEPLOYMENT.md, docs/TESTING.md, README.md",
+      "importedByProductionCode": false,
+      "referencedByPackageJson": false,
+      "referencedByTsconfig": false,
+      "referencedByVite": false,
+      "referencedByCI": false,
+      "referencedByDocumentation": true,
+      "containsUniqueCodeNotElsewhere": false,
+      "deletionDecision": "delete",
+      "reason": "Useful deployment notes were folded into the canonical deployment documentation."
+    },
+    {
+      "path": "docs/TELEGRAM_SETUP.md",
+      "classification": "DUPLICATE_REFERENCE",
+      "equivalentProductionPath": "docs/TELEGRAM.md, README.md",
+      "importedByProductionCode": false,
+      "referencedByPackageJson": false,
+      "referencedByTsconfig": false,
+      "referencedByVite": false,
+      "referencedByCI": false,
+      "referencedByDocumentation": true,
+      "containsUniqueCodeNotElsewhere": false,
+      "deletionDecision": "delete",
+      "reason": "Useful Telegram security notes were folded into the canonical Telegram documentation."
+    },
+    {
+      "path": "docs/GITHUB_SETUP.md",
+      "classification": "OBSOLETE",
+      "equivalentProductionPath": "README.md, PLAN.md",
+      "importedByProductionCode": false,
+      "referencedByPackageJson": false,
+      "referencedByTsconfig": false,
+      "referencedByVite": false,
+      "referencedByCI": false,
+      "referencedByDocumentation": true,
+      "containsUniqueCodeNotElsewhere": false,
+      "deletionDecision": "delete",
+      "reason": "GitHub workflow guidance is now captured in the root governance docs and branch/PR workflow."
+    },
+    {
+      "path": "docs/preflight-audit.md",
+      "classification": "OBSOLETE",
+      "equivalentProductionPath": "README.md, PLAN.md",
+      "importedByProductionCode": false,
+      "referencedByPackageJson": false,
+      "referencedByTsconfig": false,
+      "referencedByVite": false,
+      "referencedByCI": false,
+      "referencedByDocumentation": true,
+      "containsUniqueCodeNotElsewhere": false,
+      "deletionDecision": "delete",
+      "reason": "Superseded by the final repository status in the root docs and commit history."
+    },
+    {
+      "path": "docs/button-audit.md",
+      "classification": "DUPLICATE_REFERENCE",
+      "equivalentProductionPath": "docs/BUTTON_MAP.md, docs/button-audit.json",
+      "importedByProductionCode": false,
+      "referencedByPackageJson": false,
+      "referencedByTsconfig": false,
+      "referencedByVite": false,
+      "referencedByCI": false,
+      "referencedByDocumentation": true,
+      "containsUniqueCodeNotElsewhere": false,
+      "deletionDecision": "delete",
+      "reason": "Replaced by the canonical button map doc while preserving the machine-readable audit JSON."
+    },
+    {
+      "path": "reference/approved-v4-template.html",
+      "classification": "UNIQUE_REFERENCE",
+      "equivalentProductionPath": "",
+      "importedByProductionCode": false,
+      "referencedByPackageJson": false,
+      "referencedByTsconfig": false,
+      "referencedByVite": false,
+      "referencedByCI": false,
+      "referencedByDocumentation": false,
+      "containsUniqueCodeNotElsewhere": true,
+      "deletionDecision": "retain",
+      "reason": "Useful visual reference for the approved V4 design baseline."
+    }
+  ]
+}

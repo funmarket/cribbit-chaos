@@ -1,5 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "include": ["packages/**/*.ts", "apps/**/src/**/*.ts", "env.d.ts"],
-  "exclude": ["apps/**/vite.config.ts"]
-}
