@@ -17,4 +17,6 @@ The production source of truth lives in:
 
 `apps/api` owns authentication, Telegram `initData` validation, room/session boundaries, database access, and Socket.IO transport.
 
-`packages/game-engine` is deliberately fail-closed until the authoritative reducer and transition tests are migrated. Unmigrated gameplay routes return `ENGINE_NOT_MIGRATED`.
+`packages/game-engine` now owns the authoritative core reducer, command validation, deterministic setup, and transition tests for the Phase 1 gameplay slice.
+
+Social-card, safety, and multiplayer transport work remain separate follow-on phases.
