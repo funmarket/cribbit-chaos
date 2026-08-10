@@ -11,7 +11,8 @@ export interface SocialPrompt {
   text: string;
   world: PromptWorld;
   stage: number;
-  groupSize: number;
+  groupSizeMin: number;
+  groupSizeMax: number;
   intensity: number;
   language: string;
   callSuitability: string;
@@ -95,6 +96,9 @@ export interface SocialState {
   promptSelection: SelectedPromptSnapshot | null;
   pendingTargetId: string | null;
   pendingTargetIds: string[];
+  pendingCompletionPlayerIds: string[];
+  completedCompletionPlayerIds: string[];
+  completionRecords: Record<string, SocialAnswerRecord>;
   pendingReaction: SocialReactionRecord | null;
   pendingDuel: SocialDuelRecord | null;
   answerState: SocialAnswerRecord;

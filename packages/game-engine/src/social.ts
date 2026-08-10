@@ -135,6 +135,9 @@ export function createSocialState(
   prompt: SocialPrompt | null,
   selection: PromptEligibilityRequest | null
 ): SocialState {
+  const pendingCompletionPlayerIds = selection?.targeting === 'all'
+    ? state.players.map(player => player.id)
+    : [actorId];
   return {
     cardId,
     cardKind,
@@ -151,6 +154,9 @@ export function createSocialState(
       : null,
     pendingTargetId: null,
     pendingTargetIds: [],
+    pendingCompletionPlayerIds,
+    completedCompletionPlayerIds: [],
+    completionRecords: {},
     pendingReaction: null,
     pendingDuel: null,
     answerState: createAnswerRecord(),

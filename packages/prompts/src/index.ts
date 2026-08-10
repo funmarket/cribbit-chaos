@@ -8,7 +8,9 @@ export function isPromptEligible(prompt: SocialPrompt, request: PromptEligibilit
   if (prompt.kind !== request.kind) return false;
   if (prompt.world !== request.world) return false;
   if (prompt.targeting !== request.targeting) return false;
-  if (prompt.groupSize !== request.groupSize) return false;
+  if (prompt.groupSizeMin > prompt.groupSizeMax) return false;
+  if (request.groupSize < prompt.groupSizeMin) return false;
+  if (request.groupSize > prompt.groupSizeMax) return false;
   if (prompt.stage > request.stage) return false;
   if (prompt.intensity > request.intensity) return false;
   if (request.language !== '*' && normalize(prompt.language) !== normalize(request.language)) return false;

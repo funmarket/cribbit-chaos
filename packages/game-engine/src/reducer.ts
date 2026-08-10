@@ -1,4 +1,4 @@
-import type { Card, GameCommand, GameEvent, GameState, GameTransition, Player, SocialCardKind, SocialDuelResponseRecord } from '@cribbit/contracts';
+import type { Card, GameCommand, GameEvent, GameState, GameTransition, Player, SocialAnswerRecord, SocialCardKind, SocialDuelResponseRecord } from '@cribbit/contracts';
 import { createEngineError } from './errors.ts';
 import { drawCards } from './deck.ts';
 import { makeEvent } from './events.ts';
@@ -386,20 +386,122 @@ function completeSocialResolution<TState extends GameState>(
   createTurnResolution(state, actor, events, socialKind, steps, outcome);
 }
 
+function isAllPlayerCompletionSocial(social: NonNullable<GameState['social']>): boolean {
+  return social.cardKind === 'chaos' && social.promptSelection?.selection.targeting === 'all';
+}
+
+function getCompletionRecord(social: NonNullable<GameState['social']>, playerId: string): SocialAnswerRecord {
+  return social.completionRecords[playerId] ?? createAnswerRecord();
+}
+
+function setCompletionRecord(nextSocial: NonNullable<GameState['social']>, playerId: string, record: SocialAnswerRecord): void {
+  nextSocial.completionRecords = {
+    ...nextSocial.completionRecords,
+    [playerId]: record
+  };
+  nextSocial.answerState = record;
+}
+
+function isRequiredCompletionPlayer(social: NonNullable<GameState['social']>, playerId: string): boolean {
+  return social.pendingCompletionPlayerIds.includes(playerId);
+}
+
+function markCompletionResolvedIfAll(social: NonNullable<GameState['social']>): boolean {
+  return social.completedCompletionPlayerIds.length >= social.pendingCompletionPlayerIds.length;
+}
+
+function resolveAllPlayerCompletion<TState extends GameState>(
+  state: TState,
+  command: GameCommand,
+  eventType: 'ANSWER_SUBMITTED' | 'ANSWER_CHOICE_SUBMITTED' | 'ANSWERED_LIVE_MARKED',
+  payload: Record<string, unknown>,
+  updateRecord: (record: SocialAnswerRecord) => SocialAnswerRecord
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state);
+  if (error) return finalise(state, false, [], error);
+  if (!isAllPlayerCompletionSocial(social)) {
+    return finalise(state, false, [], createEngineError('INVALID_COMMAND', 'This completion path is only available for targeting=all Chaos prompts.'));
+  }
+  if (!isRequiredCompletionPlayer(social, command.playerId)) {
+    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may submit this completion.'));
+  }
+  if (social.completedCompletionPlayerIds.includes(command.playerId)) {
+    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
+  }
+
+  const currentRecord = getCompletionRecord(social, command.playerId);
+  const nextRecord = updateRecord(currentRecord);
+  const nextState = cloneState(state);
+  const nextSocial = nextState.social!;
+  setCompletionRecord(nextSocial, command.playerId, nextRecord);
+  if (nextRecord.status === 'SUBMITTED') {
+    nextSocial.completedCompletionPlayerIds = [...new Set([...nextSocial.completedCompletionPlayerIds, command.playerId])];
+  }
+
+  const events: GameEvent[] = [
+    makeEvent(nextState, eventType, payload, 0, 'PLAYER_PRIVATE', [command.playerId])
+  ];
+
+  if (markCompletionResolvedIfAll(nextSocial)) {
+    const actor = nextState.players.find(item => item.id === nextSocial.actorId)!;
+    completeSocialResolution(nextState, actor, nextSocial.cardKind, events);
+  }
+
+  nextState.revision = state.revision + 1;
+  events.forEach(event => {
+    event.revision = nextState.revision;
+  });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
 function handleSelectAnswerMode<TState extends GameState>(
   state: TState,
   command: GameCommand & { type: 'SELECT_ANSWER_MODE' }
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
   if (error) return finalise(state, false, [], error);
-  if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
-    return finalise(state, false, [], createEngineError('NOT_YOUR_TURN', 'Only the triggering player may choose an answer mode.'));
-  }
   if (!social.prompt) {
     return finalise(state, false, [], createEngineError('NO_PENDING_PROMPT', 'No social prompt is currently selected.'));
   }
   if (command.mode === 'CHOOSE' && !social.prompt.options?.length) {
     return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'This prompt does not provide selectable answer options.'));
+  }
+
+  if (isAllPlayerCompletionSocial(social)) {
+    if (!isRequiredCompletionPlayer(social, command.playerId)) {
+      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may select an answer mode.'));
+    }
+    if (social.completedCompletionPlayerIds.includes(command.playerId)) {
+      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
+    }
+
+    const nextState = cloneState(state);
+    const nextSocial = nextState.social!;
+    const nextRecord = {
+      ...getCompletionRecord(social, command.playerId),
+      status: 'MODE_SELECTED',
+      mode: command.mode
+    } satisfies SocialAnswerRecord;
+    if (command.mode === 'ANSWERED_LIVE') {
+      nextRecord.completionOnly = true;
+    }
+    setCompletionRecord(nextSocial, command.playerId, nextRecord);
+    const events: GameEvent[] = [
+      makeEvent(nextState, 'ANSWER_MODE_SELECTED', { playerId: command.playerId, mode: command.mode, cardKind: nextSocial.cardKind }, 0, 'PLAYER_PRIVATE', [command.playerId])
+    ];
+    nextState.revision = state.revision + 1;
+    events.forEach(event => {
+      event.revision = nextState.revision;
+    });
+    const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+    committedState.revision = state.revision + 1;
+    return finalise(committedState, true, events);
+  }
+
+  if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
+    return finalise(state, false, [], createEngineError('NOT_YOUR_TURN', 'Only the triggering player may choose an answer mode.'));
   }
 
   const nextState = cloneState(state);
@@ -430,11 +532,51 @@ function handleReviewAnswer<TState extends GameState>(
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
   if (error) return finalise(state, false, [], error);
-  if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
-    return finalise(state, false, [], createEngineError('NOT_YOUR_TURN', 'Only the triggering player may review the answer.'));
-  }
   if (!social.prompt) {
     return finalise(state, false, [], createEngineError('NO_PENDING_PROMPT', 'No social prompt is currently selected.'));
+  }
+
+  if (isAllPlayerCompletionSocial(social)) {
+    if (!isRequiredCompletionPlayer(social, command.playerId)) {
+      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may review the answer.'));
+    }
+    if (social.completedCompletionPlayerIds.includes(command.playerId)) {
+      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
+    }
+    const currentRecord = getCompletionRecord(social, command.playerId);
+    if (!currentRecord.mode) {
+      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Select an answer mode before review.'));
+    }
+
+    const nextState = cloneState(state);
+    const nextSocial = nextState.social!;
+    const nextRecord = {
+      ...currentRecord,
+      status: 'REVIEW',
+      value: command.value ?? currentRecord.value,
+      choice: command.choice ?? currentRecord.choice,
+      completionOnly: command.completionOnly ?? currentRecord.completionOnly
+    } satisfies SocialAnswerRecord;
+    setCompletionRecord(nextSocial, command.playerId, nextRecord);
+    const events: GameEvent[] = [
+      makeEvent(nextState, 'ANSWER_REQUIRED', {
+        playerId: command.playerId,
+        cardKind: nextSocial.cardKind,
+        mode: nextRecord.mode,
+        status: nextRecord.status
+      }, 0, 'PLAYER_PRIVATE', [command.playerId])
+    ];
+    nextState.revision = state.revision + 1;
+    events.forEach(event => {
+      event.revision = nextState.revision;
+    });
+    const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+    committedState.revision = state.revision + 1;
+    return finalise(committedState, true, events);
+  }
+
+  if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
+    return finalise(state, false, [], createEngineError('NOT_YOUR_TURN', 'Only the triggering player may review the answer.'));
   }
   if (!social.answerState.mode) {
     return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Select an answer mode before review.'));
@@ -510,6 +652,43 @@ function handleSubmitAnswer<TState extends GameState>(
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
   if (error) return finalise(state, false, [], error);
+  if (isAllPlayerCompletionSocial(social)) {
+    const currentRecord = getCompletionRecord(social, command.playerId);
+    if (!isRequiredCompletionPlayer(social, command.playerId)) {
+      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may submit an answer.'));
+    }
+    if (social.completedCompletionPlayerIds.includes(command.playerId)) {
+      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
+    }
+    if (!currentRecord.mode) {
+      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Select an answer mode before submitting.'));
+    }
+    if (currentRecord.mode === 'CHOOSE' && !currentRecord.choice) {
+      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an explicit answer before submitting.'));
+    }
+    if ((currentRecord.mode === 'SPEAK' || currentRecord.mode === 'TYPE') && !currentRecord.value && !currentRecord.completionOnly) {
+      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Provide answer content before submitting.'));
+    }
+    return resolveAllPlayerCompletion(
+      state,
+      command,
+      'ANSWER_SUBMITTED',
+      {
+        playerId: command.playerId,
+        cardKind: social.cardKind,
+        mode: currentRecord.mode,
+        value: currentRecord.value ?? null,
+        choice: currentRecord.choice ?? null,
+        completionOnly: currentRecord.completionOnly
+      },
+      record => ({
+        ...record,
+        status: 'SUBMITTED',
+        submittedByPlayerId: command.playerId,
+        submittedAtRevision: state.revision + 1
+      })
+    );
+  }
   if (social.cardKind === 'duel') {
     return finalise(state, false, [], createEngineError('INVALID_COMMAND', 'Use SUBMIT_DUEL_RESPONSE for Duel resolution.'));
   }
@@ -544,6 +723,39 @@ function handleSubmitChoice<TState extends GameState>(
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
   if (error) return finalise(state, false, [], error);
+  if (isAllPlayerCompletionSocial(social)) {
+    const currentRecord = getCompletionRecord(social, command.playerId);
+    if (!isRequiredCompletionPlayer(social, command.playerId)) {
+      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may submit a choice.'));
+    }
+    if (social.completedCompletionPlayerIds.includes(command.playerId)) {
+      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
+    }
+    if (!currentRecord.mode || currentRecord.mode !== 'CHOOSE') {
+      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose mode must be selected before submitting a choice.'));
+    }
+    if (!social.prompt?.options?.includes(command.choice)) {
+      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an option supplied by the prompt.'));
+    }
+    return resolveAllPlayerCompletion(
+      state,
+      command,
+      'ANSWER_CHOICE_SUBMITTED',
+      {
+        playerId: command.playerId,
+        cardKind: social.cardKind,
+        mode: currentRecord.mode,
+        choice: command.choice
+      },
+      record => ({
+        ...record,
+        choice: command.choice,
+        status: 'SUBMITTED',
+        submittedByPlayerId: command.playerId,
+        submittedAtRevision: state.revision + 1
+      })
+    );
+  }
   if (social.cardKind === 'duel') {
     return finalise(state, false, [], createEngineError('INVALID_COMMAND', 'Use SUBMIT_DUEL_RESPONSE for Duel resolution.'));
   }
@@ -573,6 +785,35 @@ function handleMarkAnsweredLive<TState extends GameState>(
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
   if (error) return finalise(state, false, [], error);
+  if (isAllPlayerCompletionSocial(social)) {
+    const currentRecord = getCompletionRecord(social, command.playerId);
+    if (!isRequiredCompletionPlayer(social, command.playerId)) {
+      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may mark completion.'));
+    }
+    if (social.completedCompletionPlayerIds.includes(command.playerId)) {
+      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
+    }
+    if (!currentRecord.mode || currentRecord.mode !== 'ANSWERED_LIVE') {
+      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Answered Live must be selected before marking completion.'));
+    }
+    return resolveAllPlayerCompletion(
+      state,
+      command,
+      'ANSWERED_LIVE_MARKED',
+      {
+        playerId: command.playerId,
+        cardKind: social.cardKind,
+        completionOnly: true
+      },
+      record => ({
+        ...record,
+        completionOnly: true,
+        status: 'SUBMITTED',
+        submittedByPlayerId: command.playerId,
+        submittedAtRevision: state.revision + 1
+      })
+    );
+  }
   if (social.cardKind === 'duel') {
     return finalise(state, false, [], createEngineError('INVALID_COMMAND', 'Use SUBMIT_DUEL_RESPONSE for Duel resolution.'));
   }
@@ -713,7 +954,7 @@ function handleSubmitDuelResponse<TState extends GameState>(
 
   const nextState = cloneState(state);
   const nextSocial = nextState.social!;
-  if (nextSocial.pendingReaction?.eligible && !nextSocial.pendingReaction.blocked) {
+  if (command.side === 'opponent' && nextSocial.pendingReaction?.eligible && !nextSocial.pendingReaction.blocked) {
     nextSocial.pendingReaction = null;
   }
   const pendingDuel = nextSocial.pendingDuel!;
