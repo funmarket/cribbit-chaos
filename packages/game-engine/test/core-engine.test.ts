@@ -1760,6 +1760,24 @@ test('Choose answers validate authoritative options, cache failed reviews, and k
   assert.equal(modeResult.ok, true);
   assert.equal(modeResult.state.social?.answerState.status, 'MODE_SELECTED');
 
+  const invalidDirectChoice = applyCommand(modeResult.state, submitChoiceCommand(modeResult.state, 'truth-submit-invalid-direct', 'gamma'));
+  assert.equal(invalidDirectChoice.ok, false);
+  assert.equal(invalidDirectChoice.error?.code, 'INVALID_SOCIAL_RESPONSE');
+  const invalidDirectChoiceReplay = applyCommand(invalidDirectChoice.state, submitChoiceCommand(invalidDirectChoice.state, 'truth-submit-invalid-direct', 'gamma', 'player-1', invalidDirectChoice.state.revision));
+  assert.equal(invalidDirectChoiceReplay.ok, false);
+  assert.equal(invalidDirectChoiceReplay.idempotentReplay, true);
+  const invalidDirectChoiceCollision = applyCommand(invalidDirectChoice.state, submitChoiceCommand(invalidDirectChoice.state, 'truth-submit-invalid-direct', 'alpha', 'player-1', invalidDirectChoice.state.revision));
+  assert.equal(invalidDirectChoiceCollision.ok, false);
+  assert.equal(invalidDirectChoiceCollision.error?.code, 'COMMAND_ID_COLLISION');
+
+  const directChoiceResult = applyCommand(modeResult.state, submitChoiceCommand(modeResult.state, 'truth-submit-direct', 'alpha'));
+  assert.equal(directChoiceResult.ok, true);
+  assert.equal(directChoiceResult.state.social, null);
+  assert.equal(directChoiceResult.state.status, 'FINISHED');
+  assert.equal(directChoiceResult.state.winnerId, 'player-1');
+  assert.deepEqual(directChoiceResult.events.map(event => event.type), ['ANSWER_CHOICE_SUBMITTED', 'SOCIAL_EFFECT_RESOLVED', 'GAME_WON']);
+  assert.equal(JSON.stringify(directChoiceResult.events.filter(event => event.visibility === 'PUBLIC')).includes('alpha'), false);
+
   const invalidReview = applyCommand(modeResult.state, reviewAnswerCommand(modeResult.state, 'truth-review-invalid', { choice: 'gamma' }));
   assert.equal(invalidReview.ok, false);
   assert.equal(invalidReview.error?.code, 'INVALID_SOCIAL_RESPONSE');
@@ -1818,16 +1836,14 @@ test('Answered Live marks completion privately, rejects wrong modes, and stays r
 
   const liveMode = applyCommand(livePlay.state, answerModeCommand(livePlay.state, 'live-mode', 'ANSWERED_LIVE'));
   assert.equal(liveMode.ok, true);
-  const liveReview = applyCommand(liveMode.state, reviewAnswerCommand(liveMode.state, 'live-review', { completionOnly: true }));
-  assert.equal(liveReview.ok, true);
-  assert.equal(liveReview.state.social?.answerState.completionOnly, true);
-  const liveMark = applyCommand(liveReview.state, markAnsweredLiveCommand(liveReview.state, 'live-mark'));
+  const liveMark = applyCommand(liveMode.state, markAnsweredLiveCommand(liveMode.state, 'live-mark'));
   assert.equal(liveMark.ok, true);
   assert.equal(liveMark.state.social, null);
   assert.equal(liveMark.state.status, 'FINISHED');
   assert.equal(liveMark.state.winnerId, 'player-1');
+  assert.deepEqual(liveMark.events[0]?.payload, { playerId: 'player-1', cardKind: 'truth', completionOnly: true });
   assert.equal(JSON.stringify(liveMark.events.filter(event => event.visibility === 'PUBLIC')).includes('live'), false);
-  const liveReplay = applyCommand(liveMark.state, markAnsweredLiveCommand(liveMark.state, 'live-mark', 'player-1', liveReview.state.revision));
+  const liveReplay = applyCommand(liveMark.state, markAnsweredLiveCommand(liveMark.state, 'live-mark', 'player-1', liveMode.state.revision));
   assert.equal(liveReplay.ok, true);
   assert.equal(liveReplay.idempotentReplay, true);
 });
