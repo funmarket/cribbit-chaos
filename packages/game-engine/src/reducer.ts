@@ -93,6 +93,17 @@ function cacheOutcome<TState extends GameState>(
   return rememberCommand(state, command, outcome, revision);
 }
 
+function failCommand<TState extends GameState>(
+  state: TState,
+  command: GameCommand,
+  error: ReturnType<typeof createEngineError>,
+  events: GameEvent[] = [],
+  revision = state.revision
+): GameTransition<TState> {
+  const nextState = cacheOutcome(state, command, { ok: false, error, events }, revision);
+  return finalise(nextState, false, events, error);
+}
+
 function resolveNormalTurn<TState extends GameState>(state: TState, player: Player, events: GameEvent[], steps = 1): GameTransition<TState> {
   if (player.hand.length === 0) {
     state.status = 'FINISHED';
@@ -418,15 +429,15 @@ function resolveAllPlayerCompletion<TState extends GameState>(
   updateRecord: (record: SocialAnswerRecord) => SocialAnswerRecord
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
-  if (error) return finalise(state, false, [], error);
+  if (error) return failCommand(state, command, error);
   if (!isAllPlayerCompletionSocial(social)) {
-    return finalise(state, false, [], createEngineError('INVALID_COMMAND', 'This completion path is only available for targeting=all Chaos prompts.'));
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'This completion path is only available for targeting=all Chaos prompts.'));
   }
   if (!isRequiredCompletionPlayer(social, command.playerId)) {
-    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may submit this completion.'));
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may submit this completion.'));
   }
   if (social.completedCompletionPlayerIds.includes(command.playerId)) {
-    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
   }
 
   const currentRecord = getCompletionRecord(social, command.playerId);
@@ -461,20 +472,20 @@ function handleSelectAnswerMode<TState extends GameState>(
   command: GameCommand & { type: 'SELECT_ANSWER_MODE' }
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
-  if (error) return finalise(state, false, [], error);
+  if (error) return failCommand(state, command, error);
   if (!social.prompt) {
-    return finalise(state, false, [], createEngineError('NO_PENDING_PROMPT', 'No social prompt is currently selected.'));
+    return failCommand(state, command, createEngineError('NO_PENDING_PROMPT', 'No social prompt is currently selected.'));
   }
   if (command.mode === 'CHOOSE' && !social.prompt.options?.length) {
-    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'This prompt does not provide selectable answer options.'));
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'This prompt does not provide selectable answer options.'));
   }
 
   if (isAllPlayerCompletionSocial(social)) {
     if (!isRequiredCompletionPlayer(social, command.playerId)) {
-      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may select an answer mode.'));
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may select an answer mode.'));
     }
     if (social.completedCompletionPlayerIds.includes(command.playerId)) {
-      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
     }
 
     const nextState = cloneState(state);
@@ -501,7 +512,7 @@ function handleSelectAnswerMode<TState extends GameState>(
   }
 
   if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
-    return finalise(state, false, [], createEngineError('NOT_YOUR_TURN', 'Only the triggering player may choose an answer mode.'));
+    return failCommand(state, command, createEngineError('NOT_YOUR_TURN', 'Only the triggering player may choose an answer mode.'));
   }
 
   const nextState = cloneState(state);
@@ -531,21 +542,21 @@ function handleReviewAnswer<TState extends GameState>(
   command: GameCommand & { type: 'REVIEW_ANSWER' }
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
-  if (error) return finalise(state, false, [], error);
+  if (error) return failCommand(state, command, error);
   if (!social.prompt) {
-    return finalise(state, false, [], createEngineError('NO_PENDING_PROMPT', 'No social prompt is currently selected.'));
+    return failCommand(state, command, createEngineError('NO_PENDING_PROMPT', 'No social prompt is currently selected.'));
   }
 
   if (isAllPlayerCompletionSocial(social)) {
     if (!isRequiredCompletionPlayer(social, command.playerId)) {
-      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may review the answer.'));
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may review the answer.'));
     }
     if (social.completedCompletionPlayerIds.includes(command.playerId)) {
-      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
     }
     const currentRecord = getCompletionRecord(social, command.playerId);
     if (!currentRecord.mode) {
-      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Select an answer mode before review.'));
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Select an answer mode before review.'));
     }
 
     const nextState = cloneState(state);
@@ -576,10 +587,10 @@ function handleReviewAnswer<TState extends GameState>(
   }
 
   if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
-    return finalise(state, false, [], createEngineError('NOT_YOUR_TURN', 'Only the triggering player may review the answer.'));
+    return failCommand(state, command, createEngineError('NOT_YOUR_TURN', 'Only the triggering player may review the answer.'));
   }
   if (!social.answerState.mode) {
-    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Select an answer mode before review.'));
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Select an answer mode before review.'));
   }
 
   const nextState = cloneState(state);
@@ -616,12 +627,12 @@ function finaliseAnswerSocial<TState extends GameState>(
   recipients: readonly string[]
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
-  if (error) return finalise(state, false, [], error);
+  if (error) return failCommand(state, command, error);
   if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
-    return finalise(state, false, [], createEngineError('NOT_YOUR_TURN', 'Only the triggering player may resolve the active social effect.'));
+    return failCommand(state, command, createEngineError('NOT_YOUR_TURN', 'Only the triggering player may resolve the active social effect.'));
   }
   if (!social.prompt) {
-    return finalise(state, false, [], createEngineError('NO_PENDING_PROMPT', 'No social prompt is currently selected.'));
+    return failCommand(state, command, createEngineError('NO_PENDING_PROMPT', 'No social prompt is currently selected.'));
   }
 
   const nextState = cloneState(state);
@@ -651,23 +662,23 @@ function handleSubmitAnswer<TState extends GameState>(
   command: GameCommand & { type: 'SUBMIT_ANSWER' }
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
-  if (error) return finalise(state, false, [], error);
+  if (error) return failCommand(state, command, error);
   if (isAllPlayerCompletionSocial(social)) {
     const currentRecord = getCompletionRecord(social, command.playerId);
     if (!isRequiredCompletionPlayer(social, command.playerId)) {
-      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may submit an answer.'));
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may submit an answer.'));
     }
     if (social.completedCompletionPlayerIds.includes(command.playerId)) {
-      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
     }
     if (!currentRecord.mode) {
-      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Select an answer mode before submitting.'));
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Select an answer mode before submitting.'));
     }
     if (currentRecord.mode === 'CHOOSE' && !currentRecord.choice) {
-      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an explicit answer before submitting.'));
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an explicit answer before submitting.'));
     }
     if ((currentRecord.mode === 'SPEAK' || currentRecord.mode === 'TYPE') && !currentRecord.value && !currentRecord.completionOnly) {
-      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Provide answer content before submitting.'));
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Provide answer content before submitting.'));
     }
     return resolveAllPlayerCompletion(
       state,
@@ -690,16 +701,16 @@ function handleSubmitAnswer<TState extends GameState>(
     );
   }
   if (social.cardKind === 'duel') {
-    return finalise(state, false, [], createEngineError('INVALID_COMMAND', 'Use SUBMIT_DUEL_RESPONSE for Duel resolution.'));
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'Use SUBMIT_DUEL_RESPONSE for Duel resolution.'));
   }
   if (!social.answerState.mode) {
-    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Select an answer mode before submitting.'));
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Select an answer mode before submitting.'));
   }
   if (social.answerState.mode === 'CHOOSE' && !social.answerState.choice) {
-    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an explicit answer before submitting.'));
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an explicit answer before submitting.'));
   }
   if ((social.answerState.mode === 'SPEAK' || social.answerState.mode === 'TYPE') && !social.answerState.value && !social.answerState.completionOnly) {
-    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Provide answer content before submitting.'));
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Provide answer content before submitting.'));
   }
   return finaliseAnswerSocial(
     state,
@@ -722,20 +733,20 @@ function handleSubmitChoice<TState extends GameState>(
   command: GameCommand & { type: 'SUBMIT_CHOICE' }
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
-  if (error) return finalise(state, false, [], error);
+  if (error) return failCommand(state, command, error);
   if (isAllPlayerCompletionSocial(social)) {
     const currentRecord = getCompletionRecord(social, command.playerId);
     if (!isRequiredCompletionPlayer(social, command.playerId)) {
-      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may submit a choice.'));
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may submit a choice.'));
     }
     if (social.completedCompletionPlayerIds.includes(command.playerId)) {
-      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
     }
     if (!currentRecord.mode || currentRecord.mode !== 'CHOOSE') {
-      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose mode must be selected before submitting a choice.'));
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose mode must be selected before submitting a choice.'));
     }
     if (!social.prompt?.options?.includes(command.choice)) {
-      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an option supplied by the prompt.'));
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an option supplied by the prompt.'));
     }
     return resolveAllPlayerCompletion(
       state,
@@ -757,13 +768,13 @@ function handleSubmitChoice<TState extends GameState>(
     );
   }
   if (social.cardKind === 'duel') {
-    return finalise(state, false, [], createEngineError('INVALID_COMMAND', 'Use SUBMIT_DUEL_RESPONSE for Duel resolution.'));
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'Use SUBMIT_DUEL_RESPONSE for Duel resolution.'));
   }
   if (!social.answerState.mode || social.answerState.mode !== 'CHOOSE') {
-    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose mode must be selected before submitting a choice.'));
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose mode must be selected before submitting a choice.'));
   }
   if (!social.prompt?.options?.includes(command.choice)) {
-    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an option supplied by the prompt.'));
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an option supplied by the prompt.'));
   }
   return finaliseAnswerSocial(
     state,
@@ -784,17 +795,17 @@ function handleMarkAnsweredLive<TState extends GameState>(
   command: GameCommand & { type: 'MARK_ANSWERED_LIVE' }
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
-  if (error) return finalise(state, false, [], error);
+  if (error) return failCommand(state, command, error);
   if (isAllPlayerCompletionSocial(social)) {
     const currentRecord = getCompletionRecord(social, command.playerId);
     if (!isRequiredCompletionPlayer(social, command.playerId)) {
-      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may mark completion.'));
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may mark completion.'));
     }
     if (social.completedCompletionPlayerIds.includes(command.playerId)) {
-      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
     }
     if (!currentRecord.mode || currentRecord.mode !== 'ANSWERED_LIVE') {
-      return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Answered Live must be selected before marking completion.'));
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Answered Live must be selected before marking completion.'));
     }
     return resolveAllPlayerCompletion(
       state,
@@ -815,10 +826,10 @@ function handleMarkAnsweredLive<TState extends GameState>(
     );
   }
   if (social.cardKind === 'duel') {
-    return finalise(state, false, [], createEngineError('INVALID_COMMAND', 'Use SUBMIT_DUEL_RESPONSE for Duel resolution.'));
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'Use SUBMIT_DUEL_RESPONSE for Duel resolution.'));
   }
   if (!social.answerState.mode || social.answerState.mode !== 'ANSWERED_LIVE') {
-    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Answered Live must be selected before marking completion.'));
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Answered Live must be selected before marking completion.'));
   }
   return finaliseAnswerSocial(
     state,
@@ -838,15 +849,15 @@ function handleSelectParanoiaTarget<TState extends GameState>(
   command: GameCommand & { type: 'SELECT_PARANOIA_TARGET' }
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state, 'paranoia');
-  if (error) return finalise(state, false, [], error);
+  if (error) return failCommand(state, command, error);
   if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
-    return finalise(state, false, [], createEngineError('NOT_YOUR_TURN', 'Only the triggering player may choose the Paranoia target.'));
+    return failCommand(state, command, createEngineError('NOT_YOUR_TURN', 'Only the triggering player may choose the Paranoia target.'));
   }
   if (!social.pendingTargetIds.length) {
-    return finalise(state, false, [], createEngineError('NO_PENDING_TARGET', 'No Paranoia target is currently pending.'));
+    return failCommand(state, command, createEngineError('NO_PENDING_TARGET', 'No Paranoia target is currently pending.'));
   }
   if (!social.pendingTargetIds.includes(command.targetId) || command.targetId === command.playerId) {
-    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_TARGET', 'Choose another eligible player for Paranoia.'));
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Choose another eligible player for Paranoia.'));
   }
 
   const nextState = cloneState(state);
@@ -878,15 +889,15 @@ function handleSelectDuelTarget<TState extends GameState>(
   context: GameCommandContext
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state, 'duel');
-  if (error) return finalise(state, false, [], error);
+  if (error) return failCommand(state, command, error);
   if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
-    return finalise(state, false, [], createEngineError('NOT_YOUR_TURN', 'Only the triggering player may choose the Duel opponent.'));
+    return failCommand(state, command, createEngineError('NOT_YOUR_TURN', 'Only the triggering player may choose the Duel opponent.'));
   }
   if (!social.pendingTargetIds.length) {
-    return finalise(state, false, [], createEngineError('NO_PENDING_TARGET', 'No Duel target is currently pending.'));
+    return failCommand(state, command, createEngineError('NO_PENDING_TARGET', 'No Duel target is currently pending.'));
   }
   if (!social.pendingTargetIds.includes(command.targetId) || command.targetId === command.playerId) {
-    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_TARGET', 'Choose another eligible player for the Duel.'));
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Choose another eligible player for the Duel.'));
   }
 
   const preview = selectPromptForSocialEffect(state, 'duel', 'specific', context);
@@ -943,13 +954,23 @@ function handleSubmitDuelResponse<TState extends GameState>(
   command: GameCommand & { type: 'SUBMIT_DUEL_RESPONSE' }
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state, 'duel');
-  if (error) return finalise(state, false, [], error);
+  if (error) return failCommand(state, command, error);
   if (!social.pendingDuel?.opponentId) {
-    return finalise(state, false, [], createEngineError('NO_PENDING_DUEL', 'No Duel opponent has been selected.'));
+    return failCommand(state, command, createEngineError('NO_PENDING_DUEL', 'No Duel opponent has been selected.'));
   }
   const expectedPlayerId = command.side === 'initiator' ? social.pendingDuel.initiatorId : social.pendingDuel.opponentId;
   if (command.playerId !== expectedPlayerId) {
-    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_TARGET', 'Only the active Duel participant may submit this response.'));
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Only the active Duel participant may submit this response.'));
+  }
+  const promptOptions = social.pendingDuel.prompt?.options;
+  const hasValue = Boolean(command.value?.trim());
+  const hasCompletionOnly = command.completionOnly === true;
+  const hasValidChoice = Boolean(command.choice) && Boolean(promptOptions?.length) && promptOptions!.includes(command.choice!);
+  if (command.choice && promptOptions?.length && !promptOptions.includes(command.choice)) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an option supplied by the prompt.'));
+  }
+  if (!hasValue && !hasValidChoice && !hasCompletionOnly) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Provide a non-empty value, a valid choice, or completionOnly=true.'));
   }
 
   const nextState = cloneState(state);
@@ -1021,19 +1042,19 @@ function handlePlayNope<TState extends GameState>(
   command: GameCommand & { type: 'PLAY_NOPE' }
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
-  if (error) return finalise(state, false, [], error);
+  if (error) return failCommand(state, command, error);
   if (social.cardKind !== 'duel') {
-    return finalise(state, false, [], createEngineError('INELIGIBLE_NOPE', 'The current effect cannot be blocked with Nope.'));
+    return failCommand(state, command, createEngineError('INELIGIBLE_NOPE', 'The current effect cannot be blocked with Nope.'));
   }
   const reaction = social.pendingReaction;
   if (!reaction) {
-    return finalise(state, false, [], createEngineError('NO_PENDING_REACTION', 'No Nope reaction window is currently open.'));
+    return failCommand(state, command, createEngineError('NO_PENDING_REACTION', 'No Nope reaction window is currently open.'));
   }
   if (!reaction.eligible || reaction.blocked) {
-    return finalise(state, false, [], createEngineError('INELIGIBLE_NOPE', 'The current effect cannot be blocked with Nope.'));
+    return failCommand(state, command, createEngineError('INELIGIBLE_NOPE', 'The current effect cannot be blocked with Nope.'));
   }
   if (command.playerId !== reaction.targetPlayerId) {
-    return finalise(state, false, [], createEngineError('NOT_YOUR_TURN', 'Only the affected player may play Nope against this effect.'));
+    return failCommand(state, command, createEngineError('NOT_YOUR_TURN', 'Only the affected player may play Nope against this effect.'));
   }
 
   const nextState = cloneState(state);
@@ -1041,11 +1062,11 @@ function handlePlayNope<TState extends GameState>(
   const target = nextState.players.find(item => item.id === command.playerId)!;
   const nopeIndex = target.hand.findIndex(card => card.id === command.cardId);
   if (nopeIndex < 0) {
-    return finalise(state, false, [], createEngineError('CARD_NOT_IN_HAND', 'That Nope card is not in the reacting player hand.'));
+    return failCommand(state, command, createEngineError('CARD_NOT_IN_HAND', 'That Nope card is not in the reacting player hand.'));
   }
   const nopeCard = target.hand[nopeIndex];
   if (nopeCard.kind !== 'nope') {
-    return finalise(state, false, [], createEngineError('NO_NOPE_CARD', 'The selected card is not a Nope card.'));
+    return failCommand(state, command, createEngineError('NO_NOPE_CARD', 'The selected card is not a Nope card.'));
   }
   target.hand.splice(nopeIndex, 1);
   nextState.discardPile.push(nopeCard);
