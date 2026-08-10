@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import type { Card, GameCommand, GameEvent, GameState, GameTransition } from '@cribbit/contracts';
 import { applyCommand, buildCoreDeck, createGame, drawCards, recycleDiscardPile, validatePlay } from '../src/index.ts';
+import { createSeededRandom } from '../src/rng.ts';
 
 function makeCard(id: string, kind: Card['kind'], fields: Partial<Card> = {}): Card {
   return {
@@ -162,6 +163,23 @@ test('createGame is deterministic for the same seed and respects configurable st
     first.state.discardPile.length +
     first.state.players.reduce((sum, player) => sum + player.hand.length, 0);
   assert.equal(totalCards, 104);
+});
+
+test('initial discard selection remains a provisional setup strategy', () => {
+  const seed = 'discard-strategy-seed';
+  const players = [{ id: 'alice' }, { id: 'bob' }];
+  const shuffledDeck = buildCoreDeck(seed, createSeededRandom(seed));
+  const deckAfterDeal = [...shuffledDeck];
+  deckAfterDeal.splice(0, 7 * players.length);
+
+  const firstNumberResult = createGame({ seed, initialDiscardStrategy: 'FIRST_NUMBER_CARD' }, players);
+  assert.equal(firstNumberResult.ok, true);
+  const firstNumberStarter = deckAfterDeal.find(card => card.kind === 'number') ?? deckAfterDeal.at(-1);
+  assert.equal(firstNumberResult.state.discardPile[0].id, firstNumberStarter?.id);
+
+  const topShuffledResult = createGame({ seed, initialDiscardStrategy: 'TOP_SHUFFLED_CARD' }, players);
+  assert.equal(topShuffledResult.ok, true);
+  assert.equal(topShuffledResult.state.discardPile[0].id, deckAfterDeal.at(-1)?.id);
 });
 
 test('playing a matching card advances the turn, updates the discard, and records the command', () => {
@@ -358,6 +376,50 @@ test('draw effects force the next player to draw the configured penalty amount',
   assert.equal(result.state.currentPlayerId, 'player-2');
   assert.equal(result.state.discardPile.at(-1)?.id, 'draw-card');
   assert.deepEqual(result.events.map(event => event.type), ['CARD_PLAYED', 'DRAW_EFFECT_APPLIED', 'TURN_ADVANCED']);
+});
+
+test('draw turn behavior follows the configured drawPenaltySkipsTurn rule', () => {
+  const keepTurnState = baseState(3);
+  const keepTurnCard = makeCard('draw-card-keep', 'draw', { color: 'cyan', symbol: 'draw' });
+  keepTurnState.currentPlayerId = 'player-1';
+  keepTurnState.config.drawPenalty = 2;
+  keepTurnState.config.drawPenaltySkipsTurn = false;
+  keepTurnState.drawPile = [
+    makeCard('keep-1', 'number', { color: 'lime', value: 4, symbol: '4' }),
+    makeCard('keep-2', 'number', { color: 'purple', value: 6, symbol: '6' })
+  ];
+  setTopDiscard(keepTurnState, makeCard('starter', 'number', { color: 'cyan', value: 1, symbol: '1' }));
+  setHands(keepTurnState, {
+    'player-1': [keepTurnCard, makeCard('keep-filler', 'number', { color: 'orange', value: 5, symbol: '5' })],
+    'player-2': [],
+    'player-3': []
+  });
+
+  const keepTurnResult = applyCommand(keepTurnState, playCommand(keepTurnState, 'draw-keep-turn', 'draw-card-keep'));
+  assert.equal(keepTurnResult.ok, true);
+  assert.equal(keepTurnResult.state.currentPlayerId, 'player-2');
+  assert.deepEqual(keepTurnResult.events.map(event => event.type), ['CARD_PLAYED', 'DRAW_EFFECT_APPLIED', 'TURN_ADVANCED']);
+
+  const skipTurnState = baseState(3);
+  const skipTurnCard = makeCard('draw-card-skip', 'draw', { color: 'cyan', symbol: 'draw' });
+  skipTurnState.currentPlayerId = 'player-1';
+  skipTurnState.config.drawPenalty = 2;
+  skipTurnState.config.drawPenaltySkipsTurn = true;
+  skipTurnState.drawPile = [
+    makeCard('skip-1', 'number', { color: 'lime', value: 4, symbol: '4' }),
+    makeCard('skip-2', 'number', { color: 'purple', value: 6, symbol: '6' })
+  ];
+  setTopDiscard(skipTurnState, makeCard('starter', 'number', { color: 'cyan', value: 1, symbol: '1' }));
+  setHands(skipTurnState, {
+    'player-1': [skipTurnCard, makeCard('skip-filler', 'number', { color: 'orange', value: 5, symbol: '5' })],
+    'player-2': [],
+    'player-3': []
+  });
+
+  const skipTurnResult = applyCommand(skipTurnState, playCommand(skipTurnState, 'draw-skip-turn', 'draw-card-skip'));
+  assert.equal(skipTurnResult.ok, true);
+  assert.equal(skipTurnResult.state.currentPlayerId, 'player-3');
+  assert.deepEqual(skipTurnResult.events.map(event => event.type), ['CARD_PLAYED', 'DRAW_EFFECT_APPLIED', 'TURN_ADVANCED']);
 });
 
 test('skip and reverse resolve turn order correctly, including the two-player reverse rule', () => {

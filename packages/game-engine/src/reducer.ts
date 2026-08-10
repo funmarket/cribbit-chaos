@@ -126,7 +126,8 @@ function resolvePlayedCard<TState extends GameState>(state: TState, player: Play
       drawnCardIds: drawn.map(item => item.id)
     }, 0, 'PLAYER_PRIVATE'));
     state.phase = 'WIN_CHECK';
-    const result = resolveNormalTurn(state, player, events, 1);
+    const steps = state.config.drawPenaltySkipsTurn ? 2 : 1;
+    const result = resolveNormalTurn(state, player, events, steps);
     return result;
   }
 
@@ -196,8 +197,9 @@ function handleDrawCard<TState extends GameState>(state: TState, command: GameCo
   nextState.phase = 'WIN_CHECK';
   events.push(makeEvent(nextState, 'CARD_DRAWN', { playerId: player.id, card }, 0, 'PLAYER_PRIVATE'));
   const previousPlayerId = player.id;
-  const { nextPlayerId } = advanceTurn(nextState, 1);
-  events.push(makeEvent(nextState, 'TURN_ADVANCED', { previousPlayerId, nextPlayerId, steps: 1, direction: nextState.direction }));
+  const turnSteps = state.config.drawPenaltySkipsTurn ? 2 : 1;
+  const { nextPlayerId } = advanceTurn(nextState, turnSteps);
+  events.push(makeEvent(nextState, 'TURN_ADVANCED', { previousPlayerId, nextPlayerId, steps: turnSteps, direction: nextState.direction }));
   nextState.revision = state.revision + 1;
   events.forEach(event => {
     event.revision = nextState.revision;

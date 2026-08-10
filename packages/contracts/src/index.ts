@@ -35,10 +35,11 @@ export interface GameConfig {
   seed: string | number;
   startingHandCount: number;
   drawPenalty: number;
+  drawPenaltySkipsTurn: boolean;
   allowVoluntaryDraw: boolean;
   startingDirection: 1 | -1;
   startingPlayerIndex: number;
-  initialDiscardStrategy: 'FIRST_NUMBER_CARD';
+  initialDiscardStrategy: 'FIRST_NUMBER_CARD' | 'TOP_SHUFFLED_CARD';
 }
 
 export interface GameConfigInput extends Partial<Omit<GameConfig, 'seed'>> {

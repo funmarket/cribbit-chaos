@@ -8,6 +8,7 @@ import { makeEvent } from './events.ts';
 const DEFAULT_CONFIG: Omit<GameConfig, 'seed'> = {
   startingHandCount: 7,
   drawPenalty: 2,
+  drawPenaltySkipsTurn: false,
   allowVoluntaryDraw: false,
   startingDirection: 1,
   startingPlayerIndex: 0,
@@ -19,6 +20,7 @@ function resolveConfig(input: GameConfigInput): GameConfig {
     seed: input.seed,
     startingHandCount: input.startingHandCount ?? DEFAULT_CONFIG.startingHandCount,
     drawPenalty: input.drawPenalty ?? DEFAULT_CONFIG.drawPenalty,
+    drawPenaltySkipsTurn: input.drawPenaltySkipsTurn ?? DEFAULT_CONFIG.drawPenaltySkipsTurn,
     allowVoluntaryDraw: input.allowVoluntaryDraw ?? DEFAULT_CONFIG.allowVoluntaryDraw,
     startingDirection: input.startingDirection ?? DEFAULT_CONFIG.startingDirection,
     startingPlayerIndex: input.startingPlayerIndex ?? DEFAULT_CONFIG.startingPlayerIndex,
@@ -49,7 +51,15 @@ function createPlayers(players: readonly GamePlayerSetup[]): Player[] {
   }));
 }
 
-function pickStarterCard(deck: Card[]): Card {
+function pickStarterCard(deck: Card[], strategy: GameConfig['initialDiscardStrategy']): Card {
+  if (strategy === 'TOP_SHUFFLED_CARD') {
+    const starter = deck.pop();
+    if (!starter) {
+      throw createEngineError('INVALID_SETUP', 'The deck did not contain a valid starter card.');
+    }
+    return starter;
+  }
+
   let starterIndex = deck.findIndex(card => card.kind === 'number');
   if (starterIndex < 0) starterIndex = deck.length - 1;
   const [starter] = deck.splice(starterIndex, 1);
@@ -79,7 +89,7 @@ export function createGame(
     dealtHands[player.id] = player.hand.map(card => card.id);
   }
 
-  const starter = pickStarterCard(deck);
+  const starter = pickStarterCard(deck, resolvedConfig.initialDiscardStrategy);
   const startingPlayerIndex = ((resolvedConfig.startingPlayerIndex % nextPlayers.length) + nextPlayers.length) % nextPlayers.length;
   const currentPlayerId = nextPlayers[startingPlayerIndex]?.id ?? nextPlayers[0].id;
   const state: GameState = {
