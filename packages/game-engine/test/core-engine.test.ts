@@ -1382,7 +1382,7 @@ test('PASS_PROMPT resolves eligible Truth and Dare prompts privately, advances e
   assert.deepEqual(paranoiaPass.events.map(event => event.type), ['SOCIAL_PASSED', 'SOCIAL_EFFECT_RESOLVED', 'TURN_ADVANCED']);
 });
 
-test('PASS_PROMPT lets Chaos participants complete independently and rejects Duel Pass semantics', () => {
+test('PASS_PROMPT lets Chaos participants complete independently and supports Duel Pass before and after target selection', () => {
   const chaosPrompt = socialPrompt('chaos-pass', 'chaos', 'all', { text: 'chaos pass prompt', groupSizeMin: 3, groupSizeMax: 3 });
 
   const chaosState = baseState(3);
@@ -1430,6 +1430,47 @@ test('PASS_PROMPT lets Chaos participants complete independently and rejects Due
 
   const duelPlay = applyCommand(duelState, playCommand(duelState, 'duel-pass-play', 'duel-card'), socialContext([duelPrompt]));
   assert.equal(duelPlay.ok, true);
+  const duelPrePassWrong = applyCommand(duelPlay.state, passCommand(duelPlay.state, 'duel-pre-pass-wrong', 'player-2'));
+  assert.equal(duelPrePassWrong.ok, false);
+  assert.equal(duelPrePassWrong.error?.code, 'NOT_YOUR_TURN');
+  const duelPrePass = applyCommand(duelPlay.state, passCommand(duelPlay.state, 'duel-pre-pass', 'player-1'));
+  assert.equal(duelPrePass.ok, true);
+  assert.equal(duelPrePass.state.social, null);
+  assert.equal(duelPrePass.state.status, 'ACTIVE');
+  assert.equal(duelPrePass.state.winnerId, null);
+  assert.equal(duelPrePass.state.currentPlayerId, 'player-2');
+  assert.equal(duelPrePass.state.players[0].hand.length, 1);
+  assert.equal(duelPrePass.state.players[1].hand.length, 1);
+  assert.deepEqual(duelPrePass.events.map(event => event.type), ['SOCIAL_PASSED', 'SOCIAL_EFFECT_RESOLVED', 'TURN_ADVANCED']);
+  assert.equal(duelPrePass.events[0].visibility, 'PLAYER_PRIVATE');
+  assert.deepEqual(duelPrePass.events[0].recipientPlayerIds, ['player-1']);
+
+  const replayPrePass = applyCommand(duelPrePass.state, passCommand(duelPrePass.state, 'duel-pre-pass', 'player-1', duelPlay.state.revision));
+  assert.equal(replayPrePass.ok, true);
+  assert.equal(replayPrePass.idempotentReplay, true);
+
+  const collisionPrePass = applyCommand(duelPrePass.state, passCommand(duelPrePass.state, 'duel-pre-pass', 'player-2', duelPrePass.state.revision));
+  assert.equal(collisionPrePass.ok, false);
+  assert.equal(collisionPrePass.error?.code, 'COMMAND_ID_COLLISION');
+
+  const duelFinalState = baseState(2);
+  duelFinalState.currentPlayerId = 'player-1';
+  setTopDiscard(duelFinalState, makeCard('starter-duel-final', 'number', { color: 'lime', value: 3, symbol: '3' }));
+  setHands(duelFinalState, {
+    'player-1': [makeCard('duel-final-card', 'duel', { symbol: 'duel', color: 'lime' })],
+    'player-2': [makeCard('duel-final-nope', 'nope', { symbol: 'nope' })]
+  });
+
+  const duelFinalPlay = applyCommand(duelFinalState, playCommand(duelFinalState, 'duel-final-play', 'duel-final-card'), socialContext([duelPrompt]));
+  assert.equal(duelFinalPlay.ok, true);
+  const duelFinalPass = applyCommand(duelFinalPlay.state, passCommand(duelFinalPlay.state, 'duel-final-pass', 'player-1'));
+  assert.equal(duelFinalPass.ok, true);
+  assert.equal(duelFinalPass.state.social, null);
+  assert.equal(duelFinalPass.state.status, 'FINISHED');
+  assert.equal(duelFinalPass.state.winnerId, 'player-1');
+  assert.deepEqual(duelFinalPass.events.map(event => event.type), ['SOCIAL_PASSED', 'SOCIAL_EFFECT_RESOLVED', 'GAME_WON']);
+  assert.equal(duelFinalPass.events[0].visibility, 'PLAYER_PRIVATE');
+
   const duelTarget = applyCommand(duelPlay.state, selectDuelTargetCommand(duelPlay.state, 'duel-pass-target', 'player-2'), socialContext([duelPrompt]));
   assert.equal(duelTarget.ok, true);
   const duelPassDenied = applyCommand(duelTarget.state, passCommand(duelTarget.state, 'duel-pass-denied', 'player-3'));

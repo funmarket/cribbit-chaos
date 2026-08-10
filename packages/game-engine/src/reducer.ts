@@ -1150,6 +1150,32 @@ function handlePassPrompt<TState extends GameState>(
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
   if (error) return failCommand(state, command, error);
+
+  if (social.cardKind === 'duel' && !social.prompt) {
+    if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
+      return failCommand(state, command, createEngineError('NOT_YOUR_TURN', 'Only the triggering player may Pass this prompt.'));
+    }
+
+    const nextState = cloneState(state);
+    const nextSocial = nextState.social!;
+    const actor = nextState.players.find(item => item.id === command.playerId)!;
+    const events: GameEvent[] = [
+      makeEvent(nextState, 'SOCIAL_PASSED', {
+        playerId: command.playerId,
+        cardKind: nextSocial.cardKind,
+        completionOnly: true
+      }, 0, 'PLAYER_PRIVATE', [command.playerId])
+    ];
+    completeSocialResolution(nextState, actor, nextSocial.cardKind, events);
+    nextState.revision = state.revision + 1;
+    events.forEach(event => {
+      event.revision = nextState.revision;
+    });
+    const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+    committedState.revision = state.revision + 1;
+    return finalise(committedState, true, events);
+  }
+
   if (!social.prompt) {
     return failCommand(state, command, createEngineError('NO_PENDING_PROMPT', 'No social prompt is currently selected.'));
   }
