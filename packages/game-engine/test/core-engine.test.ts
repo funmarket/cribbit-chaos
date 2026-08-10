@@ -1310,6 +1310,7 @@ test('PLAY_NOPE is rejected for an ineligible social effect', () => {
 test('PASS_PROMPT resolves eligible Truth and Dare prompts privately, advances exactly once, and caches failures safely', () => {
   const truthPrompt = socialPrompt('truth-pass-a', 'truth', 'current', { text: 'truth pass prompt a' });
   const darePrompt = socialPrompt('dare-pass-a', 'dare', 'current', { text: 'dare pass prompt a', groupSizeMin: 2, groupSizeMax: 2 });
+  const paranoiaPrompt = socialPrompt('paranoia-pass-a', 'paranoia', 'specific', { text: 'paranoia pass prompt a' });
 
   const truthState = baseState(3);
   truthState.currentPlayerId = 'player-1';
@@ -1361,6 +1362,24 @@ test('PASS_PROMPT resolves eligible Truth and Dare prompts privately, advances e
   assert.equal(darePass.state.status, 'FINISHED');
   assert.equal(darePass.state.winnerId, 'player-1');
   assert.deepEqual(darePass.events.map(event => event.type), ['SOCIAL_PASSED', 'SOCIAL_EFFECT_RESOLVED', 'GAME_WON']);
+
+  const paranoiaState = baseState(3);
+  paranoiaState.currentPlayerId = 'player-1';
+  setTopDiscard(paranoiaState, makeCard('starter-paranoia', 'number', { color: 'purple', value: 4, symbol: '4' }));
+  setHands(paranoiaState, {
+    'player-1': [makeCard('paranoia-card', 'paranoia', { symbol: 'paranoia', color: 'purple' }), makeCard('paranoia-filler', 'number', { color: 'cyan', value: 7, symbol: '7' })],
+    'player-2': [makeCard('paranoia-p2', 'number', { color: 'lime', value: 4, symbol: '4' })],
+    'player-3': [makeCard('paranoia-p3', 'number', { color: 'orange', value: 8, symbol: '8' })]
+  });
+
+  const paranoiaPlay = applyCommand(paranoiaState, playCommand(paranoiaState, 'paranoia-pass-play', 'paranoia-card'), socialContext([paranoiaPrompt]));
+  assert.equal(paranoiaPlay.ok, true);
+  const paranoiaPass = applyCommand(paranoiaPlay.state, passCommand(paranoiaPlay.state, 'paranoia-pass'));
+  assert.equal(paranoiaPass.ok, true);
+  assert.equal(paranoiaPass.state.social, null);
+  assert.equal(paranoiaPass.state.currentPlayerId, 'player-2');
+  assert.equal(paranoiaPass.state.players[0].hand.length, 1);
+  assert.deepEqual(paranoiaPass.events.map(event => event.type), ['SOCIAL_PASSED', 'SOCIAL_EFFECT_RESOLVED', 'TURN_ADVANCED']);
 });
 
 test('PASS_PROMPT lets Chaos participants complete independently and rejects Duel Pass semantics', () => {
@@ -1413,9 +1432,18 @@ test('PASS_PROMPT lets Chaos participants complete independently and rejects Due
   assert.equal(duelPlay.ok, true);
   const duelTarget = applyCommand(duelPlay.state, selectDuelTargetCommand(duelPlay.state, 'duel-pass-target', 'player-2'), socialContext([duelPrompt]));
   assert.equal(duelTarget.ok, true);
-  const duelPass = applyCommand(duelTarget.state, passCommand(duelTarget.state, 'duel-pass'));
-  assert.equal(duelPass.ok, false);
-  assert.equal(duelPass.error?.code, 'PASS_NOT_ALLOWED');
+  const duelPassDenied = applyCommand(duelTarget.state, passCommand(duelTarget.state, 'duel-pass-denied', 'player-3'));
+  assert.equal(duelPassDenied.ok, false);
+  assert.equal(duelPassDenied.error?.code, 'NOT_YOUR_TURN');
+  const duelPass = applyCommand(duelTarget.state, passCommand(duelTarget.state, 'duel-pass', 'player-2'));
+  assert.equal(duelPass.ok, true);
+  assert.equal(duelPass.state.social, null);
+  assert.equal(duelPass.state.status, 'ACTIVE');
+  assert.equal(duelPass.state.winnerId, null);
+  assert.equal(duelPass.state.currentPlayerId, 'player-2');
+  assert.equal(duelPass.state.players[0].hand.length, 1);
+  assert.equal(duelPass.state.players[1].hand.length, 1);
+  assert.deepEqual(duelPass.events.map(event => event.type), ['SOCIAL_PASSED', 'SOCIAL_EFFECT_RESOLVED', 'TURN_ADVANCED']);
 });
 
 test('REWIND_PROMPT replaces eligible Truth and Dare prompts deterministically and stays private', () => {
@@ -1550,6 +1578,24 @@ test('FLAG_PROMPT records private moderation metadata without mutating gameplay 
   const invalidTarget = applyCommand(playResult.state, flagCommand(playResult.state, 'flag-invalid', 'other-prompt', 'player-1', playResult.state.revision, 'harassment'));
   assert.equal(invalidTarget.ok, false);
   assert.equal(invalidTarget.error?.code, 'INVALID_FLAG_TARGET');
+
+  const paranoiaPrompt = socialPrompt('paranoia-flag-prompt', 'paranoia', 'specific', { text: 'paranoia flag prompt' });
+  const paranoiaState = baseState(3);
+  paranoiaState.currentPlayerId = 'player-1';
+  setTopDiscard(paranoiaState, makeCard('starter-paranoia-flag', 'number', { color: 'purple', value: 4, symbol: '4' }));
+  setHands(paranoiaState, {
+    'player-1': [makeCard('paranoia-truth', 'paranoia', { symbol: 'paranoia', color: 'purple' })],
+    'player-2': [makeCard('paranoia-flag-p2', 'number', { color: 'lime', value: 4, symbol: '4' })],
+    'player-3': [makeCard('paranoia-flag-p3', 'number', { color: 'cyan', value: 5, symbol: '5' })]
+  });
+
+  const paranoiaPlay = applyCommand(paranoiaState, playCommand(paranoiaState, 'paranoia-flag-play', 'paranoia-truth'), socialContext([paranoiaPrompt]));
+  assert.equal(paranoiaPlay.ok, true);
+  const paranoiaCandidateFlag = applyCommand(paranoiaPlay.state, flagCommand(paranoiaPlay.state, 'paranoia-flag-candidate', 'paranoia-flag-prompt', 'player-2', paranoiaPlay.state.revision, 'harassment'));
+  assert.equal(paranoiaCandidateFlag.ok, false);
+  assert.equal(paranoiaCandidateFlag.error?.code, 'INVALID_FLAG_TARGET');
+  const paranoiaActorFlag = applyCommand(paranoiaPlay.state, flagCommand(paranoiaPlay.state, 'paranoia-flag-actor', 'paranoia-flag-prompt', 'player-1', paranoiaPlay.state.revision, 'harassment'));
+  assert.equal(paranoiaActorFlag.ok, true);
 });
 
 test('Answer submission resolves the pending prompt only after resolution commands complete and win occurs after the social effect', () => {

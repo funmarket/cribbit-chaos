@@ -429,7 +429,7 @@ function getSocialParticipantIds(social: NonNullable<GameState['social']>): read
     return [social.pendingDuel?.initiatorId ?? social.actorId, ...(social.pendingDuel?.opponentId ? [social.pendingDuel.opponentId] : [])];
   }
   if (social.cardKind === 'paranoia') {
-    return [social.actorId, ...social.pendingTargetIds];
+    return [social.actorId, ...(social.pendingTargetId ? [social.pendingTargetId] : [])];
   }
   return [social.actorId];
 }
@@ -1187,6 +1187,65 @@ function handlePassPrompt<TState extends GameState>(
     return finalise(committedState, true, events);
   }
 
+  if (social.cardKind === 'paranoia') {
+    if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
+      return failCommand(state, command, createEngineError('NOT_YOUR_TURN', 'Only the triggering player may Pass this prompt.'));
+    }
+
+    const nextState = cloneState(state);
+    const nextSocial = nextState.social!;
+    nextSocial.answerState = {
+      ...nextSocial.answerState,
+      status: 'SUBMITTED',
+      completionOnly: true,
+      submittedByPlayerId: command.playerId,
+      submittedAtRevision: state.revision + 1
+    };
+    const actor = nextState.players.find(item => item.id === command.playerId)!;
+    const events: GameEvent[] = [
+      makeEvent(nextState, 'SOCIAL_PASSED', {
+        playerId: command.playerId,
+        cardKind: nextSocial.cardKind,
+        promptId: social.prompt.id,
+        completionOnly: true
+      }, 0, 'PLAYER_PRIVATE', [command.playerId])
+    ];
+    completeSocialResolution(nextState, actor, nextSocial.cardKind, events);
+    nextState.revision = state.revision + 1;
+    events.forEach(event => {
+      event.revision = nextState.revision;
+    });
+    const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+    committedState.revision = state.revision + 1;
+    return finalise(committedState, true, events);
+  }
+
+  if (social.cardKind === 'duel') {
+    if (!getSocialParticipantIds(social).includes(command.playerId)) {
+      return failCommand(state, command, createEngineError('NOT_YOUR_TURN', 'Only an active Duel participant may Pass this prompt.'));
+    }
+
+    const nextState = cloneState(state);
+    const nextSocial = nextState.social!;
+    const actor = nextState.players.find(item => item.id === nextSocial.actorId)!;
+    const events: GameEvent[] = [
+      makeEvent(nextState, 'SOCIAL_PASSED', {
+        playerId: command.playerId,
+        cardKind: nextSocial.cardKind,
+        promptId: social.prompt.id,
+        completionOnly: true
+      }, 0, 'PLAYER_PRIVATE', [command.playerId])
+    ];
+    completeSocialResolution(nextState, actor, nextSocial.cardKind, events);
+    nextState.revision = state.revision + 1;
+    events.forEach(event => {
+      event.revision = nextState.revision;
+    });
+    const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+    committedState.revision = state.revision + 1;
+    return finalise(committedState, true, events);
+  }
+
   if (isAllPlayerCompletionSocial(social)) {
     if (!isRequiredCompletionPlayer(social, command.playerId)) {
       return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may Pass.'));
@@ -1230,7 +1289,7 @@ function handlePassPrompt<TState extends GameState>(
     return finalise(committedState, true, events);
   }
 
-  return failCommand(state, command, createEngineError('PASS_NOT_ALLOWED', 'Pass is only available for eligible Truth, Dare, or Chaos prompts.'));
+  return failCommand(state, command, createEngineError('PASS_NOT_ALLOWED', 'Pass is only available for eligible Truth, Dare, Paranoia, Duel, or Chaos prompts.'));
 }
 
 function handleRewindPrompt<TState extends GameState>(
