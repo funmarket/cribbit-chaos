@@ -1,4 +1,5 @@
 import type { Card, GameCommand, GameEvent, GameState, GameTransition, Player, SocialAnswerRecord, SocialCardKind, SocialDuelResponseRecord } from '@cribbit/contracts';
+import { getEligiblePrompts } from '@cribbit/prompts';
 import { createEngineError } from './errors.ts';
 import { drawCards } from './deck.ts';
 import { makeEvent } from './events.ts';
@@ -62,6 +63,12 @@ function fingerprintCommand(command: GameCommand): string {
       return [command.sessionId, command.type, command.playerId].join('|');
     case 'SELECT_WILD_COLOR':
       return [command.sessionId, command.type, command.playerId, command.color].join('|');
+    case 'PASS_PROMPT':
+      return [command.sessionId, command.type, command.playerId].join('|');
+    case 'REWIND_PROMPT':
+      return [command.sessionId, command.type, command.playerId].join('|');
+    case 'FLAG_PROMPT':
+      return [command.sessionId, command.type, command.playerId, command.promptId, command.reasonCode ?? ''].join('|');
     case 'SELECT_ANSWER_MODE':
       return [command.sessionId, command.type, command.playerId, command.mode].join('|');
     case 'REVIEW_ANSWER':
@@ -410,6 +417,31 @@ function completeSocialResolution<TState extends GameState>(
 
 function isAllPlayerCompletionSocial(social: NonNullable<GameState['social']>): boolean {
   return social.cardKind === 'chaos' && social.promptSelection?.selection.targeting === 'all';
+}
+
+function isTruthOrDareSocial(social: NonNullable<GameState['social']>): boolean {
+  return social.cardKind === 'truth' || social.cardKind === 'dare';
+}
+
+function getSocialParticipantIds(social: NonNullable<GameState['social']>): readonly string[] {
+  if (isAllPlayerCompletionSocial(social)) return social.pendingCompletionPlayerIds;
+  if (social.cardKind === 'duel') {
+    return [social.pendingDuel?.initiatorId ?? social.actorId, ...(social.pendingDuel?.opponentId ? [social.pendingDuel.opponentId] : [])];
+  }
+  if (social.cardKind === 'paranoia') {
+    return [social.actorId, ...social.pendingTargetIds];
+  }
+  return [social.actorId];
+}
+
+function hasUsedRewind(state: GameState, playerId: string): boolean {
+  return state.rewindUsedByPlayerIds.includes(playerId);
+}
+
+function markRewindUsed(state: GameState, playerId: string): void {
+  if (!state.rewindUsedByPlayerIds.includes(playerId)) {
+    state.rewindUsedByPlayerIds = [...state.rewindUsedByPlayerIds, playerId];
+  }
 }
 
 function getCompletionRecord(social: NonNullable<GameState['social']>, playerId: string): SocialAnswerRecord {
@@ -1112,6 +1144,218 @@ function handlePlayNope<TState extends GameState>(
   return finalise(committedState, true, events);
 }
 
+function handlePassPrompt<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'PASS_PROMPT' }
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state);
+  if (error) return failCommand(state, command, error);
+  if (!social.prompt) {
+    return failCommand(state, command, createEngineError('NO_PENDING_PROMPT', 'No social prompt is currently selected.'));
+  }
+
+  if (isTruthOrDareSocial(social)) {
+    if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
+      return failCommand(state, command, createEngineError('NOT_YOUR_TURN', 'Only the triggering player may Pass this prompt.'));
+    }
+
+    const nextState = cloneState(state);
+    const nextSocial = nextState.social!;
+    nextSocial.answerState = {
+      ...nextSocial.answerState,
+      status: 'SUBMITTED',
+      completionOnly: true,
+      submittedByPlayerId: command.playerId,
+      submittedAtRevision: state.revision + 1
+    };
+    const actor = nextState.players.find(item => item.id === command.playerId)!;
+    const events: GameEvent[] = [
+      makeEvent(nextState, 'SOCIAL_PASSED', {
+        playerId: command.playerId,
+        cardKind: nextSocial.cardKind,
+        promptId: social.prompt.id,
+        completionOnly: true
+      }, 0, 'PLAYER_PRIVATE', [command.playerId])
+    ];
+    completeSocialResolution(nextState, actor, nextSocial.cardKind, events);
+    nextState.revision = state.revision + 1;
+    events.forEach(event => {
+      event.revision = nextState.revision;
+    });
+    const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+    committedState.revision = state.revision + 1;
+    return finalise(committedState, true, events);
+  }
+
+  if (isAllPlayerCompletionSocial(social)) {
+    if (!isRequiredCompletionPlayer(social, command.playerId)) {
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may Pass.'));
+    }
+    if (social.completedCompletionPlayerIds.includes(command.playerId)) {
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
+    }
+
+    const currentRecord = getCompletionRecord(social, command.playerId);
+    const nextState = cloneState(state);
+    const nextSocial = nextState.social!;
+    const nextRecord = {
+      ...currentRecord,
+      status: 'SUBMITTED' as const,
+      completionOnly: true,
+      submittedByPlayerId: command.playerId,
+      submittedAtRevision: state.revision + 1
+    };
+    setCompletionRecord(nextSocial, command.playerId, nextRecord);
+    nextSocial.completedCompletionPlayerIds = [...new Set([...nextSocial.completedCompletionPlayerIds, command.playerId])];
+
+    const events: GameEvent[] = [
+      makeEvent(nextState, 'SOCIAL_PASSED', {
+        playerId: command.playerId,
+        cardKind: nextSocial.cardKind,
+        completionOnly: true
+      }, 0, 'PLAYER_PRIVATE', [command.playerId])
+    ];
+
+    if (markCompletionResolvedIfAll(nextSocial)) {
+      const actor = nextState.players.find(item => item.id === nextSocial.actorId)!;
+      completeSocialResolution(nextState, actor, nextSocial.cardKind, events);
+    }
+
+    nextState.revision = state.revision + 1;
+    events.forEach(event => {
+      event.revision = nextState.revision;
+    });
+    const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+    committedState.revision = state.revision + 1;
+    return finalise(committedState, true, events);
+  }
+
+  return failCommand(state, command, createEngineError('PASS_NOT_ALLOWED', 'Pass is only available for eligible Truth, Dare, or Chaos prompts.'));
+}
+
+function handleRewindPrompt<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'REWIND_PROMPT' },
+  context: GameCommandContext
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state);
+  if (error) return failCommand(state, command, error);
+  if (!isTruthOrDareSocial(social)) {
+    return failCommand(state, command, createEngineError('REWIND_NOT_ALLOWED', 'Rewind is only defined for Truth or Dare prompts.'));
+  }
+  if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
+    return failCommand(state, command, createEngineError('NOT_YOUR_TURN', 'Only the triggering player may rewind this prompt.'));
+  }
+  if (!social.prompt || !social.promptSelection) {
+    return failCommand(state, command, createEngineError('REWIND_NOT_ALLOWED', 'No private Truth or Dare prompt is currently selected.'));
+  }
+  if (social.answerState.status !== 'WAITING') {
+    return failCommand(state, command, createEngineError('REWIND_NOT_ALLOWED', 'Rewind is only available before the prompt is publicly committed.'));
+  }
+  if (hasUsedRewind(state, command.playerId)) {
+    return failCommand(state, command, createEngineError('REWIND_ALREADY_USED', 'This player has already used the once-per-session Rewind.'));
+  }
+  if (!context.promptPool?.length) {
+    return failCommand(state, command, createEngineError('NO_ALTERNATE_PROMPT', 'A deterministic prompt pool is required to rewind this prompt.'));
+  }
+
+  const rewindSelection = {
+    ...social.promptSelection.selection,
+    excludePromptIds: [...(social.promptSelection.selection.excludePromptIds ?? []), social.prompt.id]
+  };
+  const eligiblePrompts = getEligiblePrompts(context.promptPool, rewindSelection);
+  const replacement = eligiblePrompts[0];
+  if (!replacement) {
+    return failCommand(state, command, createEngineError('NO_ALTERNATE_PROMPT', 'No alternate eligible prompt is available for Rewind.'));
+  }
+
+  const nextState = cloneState(state);
+  markRewindUsed(nextState, command.playerId);
+  const nextSocial = nextState.social!;
+  const rewindedSocial = createSocialState(
+    nextState,
+    nextSocial.cardId,
+    nextSocial.cardKind,
+    nextSocial.actorId,
+    replacement,
+    rewindSelection,
+    {
+      type: nextSocial.roulettePresentation?.type ?? 'PROMPT',
+      candidateResultIds: eligiblePrompts.map(item => item.id)
+    },
+    context
+  );
+  rewindedSocial.promptSelection = {
+    ...rewindedSocial.promptSelection!,
+    selectedAtRevision: state.revision + 1
+  };
+  rewindedSocial.roulettePresentation = createRoulettePresentation(
+    nextState,
+    nextSocial.roulettePresentation?.type ?? 'PROMPT',
+    replacement.id,
+    eligiblePrompts.map(item => item.id),
+    'SEALED'
+  );
+  nextState.social = rewindedSocial;
+
+  const events: GameEvent[] = [
+    makeEvent(nextState, 'PROMPT_REWOUND', {
+      playerId: command.playerId,
+      cardId: nextSocial.cardId,
+      cardKind: nextSocial.cardKind,
+      promptId: replacement.id,
+      prompt: replacement
+    }, 0, 'PLAYER_PRIVATE', [command.playerId]),
+    makeEvent(nextState, 'ROULETTE_PRESENTATION_STARTED', projectRoulettePresentation(rewindedSocial.roulettePresentation!), 1, 'PLAYER_PRIVATE', [command.playerId])
+  ];
+
+  nextState.revision = state.revision + 1;
+  events.forEach(event => {
+    event.revision = nextState.revision;
+  });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
+function handleFlagPrompt<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'FLAG_PROMPT' }
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state);
+  if (error) return failCommand(state, command, error);
+  if (!social.prompt) {
+    return failCommand(state, command, createEngineError('INVALID_FLAG_TARGET', 'No current prompt is available to flag.'));
+  }
+
+  const promptId = command.promptId;
+  if (!promptId || promptId !== social.prompt.id) {
+    return failCommand(state, command, createEngineError('INVALID_FLAG_TARGET', 'The flagged prompt does not match the current authoritative prompt.'));
+  }
+
+  if (!getSocialParticipantIds(social).includes(command.playerId)) {
+    return failCommand(state, command, createEngineError('INVALID_FLAG_TARGET', 'Only a participant in the active social effect may flag it.'));
+  }
+
+  const nextState = cloneState(state);
+  const events: GameEvent[] = [
+    makeEvent(nextState, 'CONTENT_FLAGGED', {
+      reporterPlayerId: command.playerId,
+      cardId: social.cardId,
+      cardKind: social.cardKind,
+      promptId,
+      reasonCode: command.reasonCode ?? null
+    }, 0, 'PLAYER_PRIVATE', [command.playerId])
+  ];
+  nextState.revision = state.revision + 1;
+  events.forEach(event => {
+    event.revision = nextState.revision;
+  });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
 export function applyCommand<TState extends GameState>(state: TState, command: GameCommand, context: GameCommandContext = {}): GameTransition<TState> {
   if (command.sessionId !== state.id) {
     return finalise(state, false, [], createEngineError('SESSION_MISMATCH', 'The command was addressed to a different game session.', { expectedSessionId: state.id, actualSessionId: command.sessionId }));
@@ -1158,6 +1402,9 @@ export function applyCommand<TState extends GameState>(state: TState, command: G
   if (command.type === 'SUBMIT_ANSWER') return handleSubmitAnswer(state, command);
   if (command.type === 'SUBMIT_CHOICE') return handleSubmitChoice(state, command);
   if (command.type === 'MARK_ANSWERED_LIVE') return handleMarkAnsweredLive(state, command);
+  if (command.type === 'PASS_PROMPT') return handlePassPrompt(state, command);
+  if (command.type === 'REWIND_PROMPT') return handleRewindPrompt(state, command, context);
+  if (command.type === 'FLAG_PROMPT') return handleFlagPrompt(state, command);
   if (command.type === 'SELECT_PARANOIA_TARGET' || command.type === 'PARANOIA_CHOICE') return handleSelectParanoiaTarget(state, command as GameCommand & { type: 'SELECT_PARANOIA_TARGET' });
   if (command.type === 'SELECT_DUEL_TARGET' || command.type === 'DUEL_TARGET') return handleSelectDuelTarget(state, command as GameCommand & { type: 'SELECT_DUEL_TARGET' }, context);
   if (command.type === 'SUBMIT_DUEL_RESPONSE') return handleSubmitDuelResponse(state, command);

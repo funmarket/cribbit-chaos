@@ -50,9 +50,9 @@
 
 ## Phase 3 — Safety & answers
 
-- [ ] Pass
-- [ ] Rewind
-- [ ] Flag
+- [x] Pass
+- [x] Rewind
+- [x] Flag
 - [ ] Speak
 - [ ] Type
 - [ ] Choose
@@ -135,4 +135,4 @@
 
 ## Current Next Task
 
-Phase 3 Safety & Answers is next. This task does not begin Phase 3 implementation.
+Phase 3B — Answer modes: Speak, Type, Choose, Answered Live is next. Phase 3A Safety Controls is complete.
