@@ -351,6 +351,42 @@ test('drawing a card advances play to the next player when no legal play exists'
   assert.deepEqual(result.events.map(event => event.type), ['CARD_DRAWN', 'TURN_ADVANCED']);
 });
 
+test('normal DRAW_CARD advances exactly one player regardless of drawPenaltySkipsTurn', () => {
+  const keepTurnState = baseState(3);
+  keepTurnState.currentPlayerId = 'player-1';
+  keepTurnState.config.allowVoluntaryDraw = true;
+  keepTurnState.config.drawPenaltySkipsTurn = false;
+  keepTurnState.drawPile = [makeCard('keep-turn-drawn', 'number', { color: 'purple', value: 2, symbol: '2' })];
+  setTopDiscard(keepTurnState, makeCard('starter', 'number', { color: 'orange', value: 1, symbol: '1' }));
+  setHands(keepTurnState, {
+    'player-1': [makeCard('dead-card-a', 'number', { color: 'lime', value: 7, symbol: '7' })],
+    'player-2': [],
+    'player-3': []
+  });
+
+  const keepTurnResult = applyCommand(keepTurnState, drawCommand(keepTurnState, 'normal-draw-keep'));
+  assert.equal(keepTurnResult.ok, true);
+  assert.equal(keepTurnResult.state.currentPlayerId, 'player-2');
+  assert.deepEqual(keepTurnResult.events.map(event => event.type), ['CARD_DRAWN', 'TURN_ADVANCED']);
+
+  const skipTurnState = baseState(3);
+  skipTurnState.currentPlayerId = 'player-1';
+  skipTurnState.config.allowVoluntaryDraw = true;
+  skipTurnState.config.drawPenaltySkipsTurn = true;
+  skipTurnState.drawPile = [makeCard('skip-turn-drawn', 'number', { color: 'purple', value: 2, symbol: '2' })];
+  setTopDiscard(skipTurnState, makeCard('starter', 'number', { color: 'orange', value: 1, symbol: '1' }));
+  setHands(skipTurnState, {
+    'player-1': [makeCard('dead-card-b', 'number', { color: 'lime', value: 7, symbol: '7' })],
+    'player-2': [],
+    'player-3': []
+  });
+
+  const skipTurnResult = applyCommand(skipTurnState, drawCommand(skipTurnState, 'normal-draw-skip'));
+  assert.equal(skipTurnResult.ok, true);
+  assert.equal(skipTurnResult.state.currentPlayerId, 'player-2');
+  assert.deepEqual(skipTurnResult.events.map(event => event.type), ['CARD_DRAWN', 'TURN_ADVANCED']);
+});
+
 test('draw effects force the next player to draw the configured penalty amount', () => {
   const state = baseState(3);
   const drawCard = makeCard('draw-card', 'draw', { color: 'cyan', symbol: 'draw' });
