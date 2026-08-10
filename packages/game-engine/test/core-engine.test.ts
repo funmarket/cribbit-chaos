@@ -3,7 +3,16 @@ import test from 'node:test';
 
 import type { Card, GameCommand, GameEvent, GameState, GameTransition, SocialPrompt } from '@cribbit/contracts';
 import type { GameCommandContext } from '../src/index.ts';
-import { applyCommand, buildCoreDeck, createGame, drawCards, recycleDiscardPile, validatePlay } from '../src/index.ts';
+import {
+  applyCommand,
+  buildCoreDeck,
+  createGame,
+  drawCards,
+  projectAuthorship,
+  projectRoulettePresentation,
+  recycleDiscardPile,
+  validatePlay
+} from '../src/index.ts';
 import { createSeededRandom } from '../src/rng.ts';
 
 function makeCard(id: string, kind: Card['kind'], fields: Partial<Card> = {}): Card {
@@ -849,9 +858,10 @@ test('Truth plays select the first eligible prompt, stay pending, and block norm
   assert.equal(result.state.social?.prompt?.id, 'truth-a');
   assert.equal(result.state.currentPlayerId, 'player-1');
   assert.equal(result.state.phase, 'ANSWER_RESOLVE');
-  assert.deepEqual(result.events.map(event => event.type), ['CARD_PLAYED', 'SOCIAL_CARD_TRIGGERED', 'PROMPT_SELECTED', 'ANSWER_REQUIRED']);
+  assert.deepEqual(result.events.map(event => event.type), ['CARD_PLAYED', 'SOCIAL_CARD_TRIGGERED', 'PROMPT_SELECTED', 'ROULETTE_PRESENTATION_STARTED', 'ANSWER_REQUIRED']);
   assert.equal(result.events[2]?.visibility, 'PLAYER_PRIVATE');
   assert.deepEqual(result.events[2]?.recipientPlayerIds, ['player-1']);
+  assert.equal(result.state.social?.roulettePresentation?.selectedResultId, 'truth-a');
 
   const blockedDraw = applyCommand(result.state, drawCommand(result.state, 'truth-draw-blocked'));
   assert.equal(blockedDraw.ok, false);
@@ -875,6 +885,138 @@ test('Dare accepts an explicitly supplied eligible prompt and preserves its priv
   assert.equal(result.state.social?.promptSelection?.promptId, 'dare-selected');
   assert.equal(result.state.social?.promptSelection?.selectedByPlayerId, 'player-1');
   assert.equal(result.events[2]?.visibility, 'PLAYER_PRIVATE');
+  assert.equal(result.events[3]?.type, 'ROULETTE_PRESENTATION_STARTED');
+});
+
+test('roulette presentation metadata is authoritative, deterministic, and selected before presentation', () => {
+  const makeTruthState = (): GameState => {
+    const state = baseState(3);
+    state.currentPlayerId = 'player-1';
+    setTopDiscard(state, makeCard('starter', 'number', { color: 'lime', value: 1, symbol: '1' }));
+    setHands(state, {
+      'player-1': [makeCard('truth-card', 'truth', { symbol: 'truth', color: 'lime' })],
+      'player-2': [],
+      'player-3': []
+    });
+    return state;
+  };
+  const promptPool = [
+    socialPrompt('truth-b', 'truth', 'current', { text: 'second' }),
+    socialPrompt('truth-a', 'truth', 'current', { text: 'first' })
+  ];
+  const first = applyCommand(makeTruthState(), playCommand(makeTruthState(), 'unused', 'truth-card'), socialContext(promptPool));
+  const secondState = makeTruthState();
+  const second = applyCommand(secondState, playCommand(secondState, 'roulette-repeat', 'truth-card'), socialContext(promptPool));
+
+  assert.equal(first.ok, true);
+  assert.equal(second.ok, true);
+  const presentation = second.state.social?.roulettePresentation;
+  assert.ok(presentation);
+  assert.equal(presentation.selectedResultId, 'truth-a');
+  assert.deepEqual(presentation.candidateResultIds, ['truth-a', 'truth-b']);
+  assert.equal(presentation.revealState, 'REVEALED');
+  assert.equal(typeof presentation.presentationSeed, 'string');
+  assert.deepEqual(presentation, first.state.social?.roulettePresentation);
+  const selectedResultBeforeProjection = presentation.selectedResultId;
+  projectRoulettePresentation(presentation);
+  assert.equal(presentation.selectedResultId, selectedResultBeforeProjection);
+  assert.equal(second.events.find(event => event.type === 'ROULETTE_PRESENTATION_STARTED')?.visibility, 'PLAYER_PRIVATE');
+  assert.equal(second.events.filter(event => event.visibility === 'PUBLIC').some(event => JSON.stringify(event.payload).includes('truth-a')), false);
+});
+
+test('sealed roulette and authorship projections do not expose hidden values', () => {
+  const state = baseState(3);
+  state.currentPlayerId = 'player-1';
+  setTopDiscard(state, makeCard('starter', 'number', { color: 'lime', value: 1, symbol: '1' }));
+  setHands(state, {
+    'player-1': [makeCard('truth-card', 'truth', { symbol: 'truth', color: 'lime' })],
+    'player-2': [],
+    'player-3': []
+  });
+  const prompt = socialPrompt('hidden-prompt', 'truth', 'current', { authorshipMode: 'REVEAL_AFTER' });
+  const context = socialContext([], {}, prompt);
+  context.authorshipByPromptId = { 'hidden-prompt': 'author-player' };
+  const result = applyCommand(state, playCommand(state, 'hidden-authorship', 'truth-card'), context);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.state.social?.authorship?.authorPlayerId, 'author-player');
+  assert.equal(result.state.social?.authorship?.revealState, 'SEALED');
+  assert.deepEqual(projectAuthorship(result.state.social!.authorship!), { mode: 'REVEAL_AFTER', revealState: 'SEALED' });
+
+  const sealed = projectRoulettePresentation({
+    ...result.state.social!.roulettePresentation!,
+    selectedResultId: 'hidden-prompt',
+    revealState: 'SEALED'
+  });
+  assert.equal('selectedResultId' in sealed, false);
+  assert.equal('candidateResultIds' in sealed, false);
+  assert.equal(Object.prototype.hasOwnProperty.call(sealed, 'selectedResultId'), false);
+  assert.equal(JSON.stringify(sealed).includes('hidden-prompt'), false);
+
+  const multipleCandidates = projectRoulettePresentation({
+    ...result.state.social!.roulettePresentation!,
+    selectedResultId: 'candidate-b',
+    candidateResultIds: ['candidate-a', 'candidate-b'],
+    revealState: 'SEALED'
+  });
+  assert.equal('selectedResultId' in multipleCandidates, false);
+  assert.equal('candidateResultIds' in multipleCandidates, false);
+  assert.equal(JSON.stringify(multipleCandidates).includes('candidate-b'), false);
+
+  const revealed = projectRoulettePresentation({
+    ...result.state.social!.roulettePresentation!,
+    selectedResultId: 'revealed-prompt',
+    candidateResultIds: ['revealed-prompt', 'other-prompt'],
+    revealState: 'REVEALED'
+  });
+  assert.equal(revealed.selectedResultId, 'revealed-prompt');
+  assert.deepEqual(revealed.candidateResultIds, ['revealed-prompt', 'other-prompt']);
+  assert.equal(result.events.filter(event => event.visibility === 'PUBLIC').some(event => JSON.stringify(event.payload).includes('author-player')), false);
+  assert.equal(result.events.filter(event => event.visibility === 'PUBLIC').some(event => JSON.stringify(event.payload).includes('hidden-prompt')), false);
+});
+
+test('explicit selected prompts use the full eligible pool for authoritative roulette candidates', () => {
+  const state = baseState(3);
+  state.currentPlayerId = 'player-1';
+  setTopDiscard(state, makeCard('starter', 'number', { color: 'lime', value: 1, symbol: '1' }));
+  setHands(state, {
+    'player-1': [makeCard('truth-card', 'truth', { symbol: 'truth', color: 'lime' })],
+    'player-2': [],
+    'player-3': []
+  });
+  const selectedPrompt = socialPrompt('prompt-z', 'truth', 'current', { text: 'selected' });
+  const promptPool = [selectedPrompt, socialPrompt('prompt-a', 'truth', 'current', { text: 'eligible alternative' })];
+  const result = applyCommand(state, playCommand(state, 'selected-with-pool', 'truth-card'), socialContext(promptPool, {}, selectedPrompt));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.state.social?.prompt?.id, 'prompt-z');
+  assert.deepEqual(result.state.social?.roulettePresentation?.candidateResultIds, ['prompt-a', 'prompt-z']);
+  assert.equal(result.state.social?.roulettePresentation?.selectedResultId, 'prompt-z');
+});
+
+test('authorship modes retain server identity while enforcing signed, reveal-after, and taboo visibility', () => {
+  const modes: Array<['SIGNED' | 'REVEAL_AFTER' | 'TABOO', boolean]> = [
+    ['SIGNED', true],
+    ['REVEAL_AFTER', false],
+    ['TABOO', false]
+  ];
+  for (const [mode, shouldReveal] of modes) {
+    const state = baseState(3);
+    state.currentPlayerId = 'player-1';
+    setTopDiscard(state, makeCard('starter', 'number', { color: 'lime', value: 1, symbol: '1' }));
+    setHands(state, {
+      'player-1': [makeCard(`truth-${mode}`, 'truth', { symbol: 'truth', color: 'lime' })],
+      'player-2': [],
+      'player-3': []
+    });
+    const prompt = socialPrompt(`prompt-${mode}`, 'truth', 'current', { authorshipMode: mode });
+    const context = socialContext([], {}, prompt);
+    context.authorshipByPromptId = { [`prompt-${mode}`]: 'author-player' };
+    const result = applyCommand(state, playCommand(state, `authorship-${mode}`, `truth-${mode}`), context);
+    assert.equal(result.ok, true);
+    assert.equal(result.state.social?.authorship?.authorPlayerId, 'author-player');
+    assert.equal('authorPlayerId' in projectAuthorship(result.state.social!.authorship!), shouldReveal);
+  }
 });
 
 test('Prompt eligibility accepts group-size ranges and rejects out-of-range prompts', () => {
@@ -971,7 +1113,7 @@ test('Paranoia rejects invalid targets and resolves a valid private target selec
   assert.equal(validTarget.ok, true);
   assert.equal(validTarget.state.social, null);
   assert.equal(validTarget.state.currentPlayerId, 'player-2');
-  assert.deepEqual(validTarget.events.map(event => event.type), ['PARANOIA_TARGET_SELECTED', 'SOCIAL_EFFECT_RESOLVED', 'TURN_ADVANCED']);
+  assert.deepEqual(validTarget.events.map(event => event.type), ['PARANOIA_TARGET_SELECTED', 'ROULETTE_PRESENTATION_STARTED', 'SOCIAL_EFFECT_RESOLVED', 'TURN_ADVANCED']);
   assert.equal(validTarget.events[0]?.visibility, 'PLAYER_PRIVATE');
   assert.deepEqual(validTarget.events[0]?.recipientPlayerIds, ['player-1']);
 });
@@ -1000,7 +1142,7 @@ test('Duel enters target selection, opens a Nope window, and rejects bad targets
   assert.equal(duelTarget.state.social?.pendingDuel?.opponentId, 'player-2');
   assert.equal(duelTarget.state.social?.pendingReaction?.eligible, true);
   assert.equal(duelTarget.state.social?.prompt?.id, 'duel-target');
-  assert.deepEqual(duelTarget.events.map(event => event.type), ['DUEL_TARGET_SELECTED', 'PROMPT_SELECTED', 'NOPE_WINDOW_OPENED']);
+  assert.deepEqual(duelTarget.events.map(event => event.type), ['DUEL_TARGET_SELECTED', 'ROULETTE_PRESENTATION_STARTED', 'PROMPT_SELECTED', 'NOPE_WINDOW_OPENED']);
   assert.deepEqual(duelTarget.events[0]?.recipientPlayerIds, ['player-1', 'player-2']);
 });
 

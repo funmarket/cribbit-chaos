@@ -4,6 +4,8 @@ export type PromptWorld = 'UNDER_18_CLEAN' | '18+_ADULT';
 export type SocialCardKind = 'truth' | 'dare' | 'paranoia' | 'chaos' | 'duel' | 'nope';
 export type SocialTargeting = 'current' | 'specific' | 'all';
 export type SocialAnswerStatus = 'WAITING' | 'MODE_SELECTED' | 'CAPTURING' | 'REVIEW' | 'SUBMITTED';
+export type RevealState = 'SEALED' | 'REVEALED';
+export type RoulettePresentationType = 'PLAYER' | 'PROMPT' | 'CHOICE' | 'CHAOS';
 
 export interface SocialPrompt {
   id: string;
@@ -44,6 +46,36 @@ export interface SelectedPromptSnapshot {
   selection: PromptEligibilityRequest;
   selectedByPlayerId: string;
   selectedAtRevision: number;
+}
+
+export interface RoulettePresentation {
+  id: string;
+  type: RoulettePresentationType;
+  selectedResultId: string;
+  candidateResultIds: readonly string[];
+  revealState: RevealState;
+  presentationSeed?: string;
+  displayLabels?: Readonly<Record<string, string>>;
+  startTimestamp?: string;
+  durationHintMs?: number;
+}
+
+export interface RoulettePresentationView extends Omit<RoulettePresentation, 'selectedResultId' | 'candidateResultIds'> {
+  selectedResultId?: string;
+  candidateResultIds?: readonly string[];
+}
+
+export interface SocialAuthorshipState {
+  mode: AuthorshipMode;
+  authorPlayerId: string | null;
+  revealState: RevealState;
+  revealedAuthorPlayerId: string | null;
+}
+
+export interface SocialAuthorshipView {
+  mode: AuthorshipMode;
+  revealState: RevealState;
+  authorPlayerId?: string;
 }
 
 export interface SocialAnswerRecord {
@@ -94,6 +126,8 @@ export interface SocialState {
   actorId: string;
   prompt: SocialPrompt | null;
   promptSelection: SelectedPromptSnapshot | null;
+  roulettePresentation: RoulettePresentation | null;
+  authorship: SocialAuthorshipState | null;
   pendingTargetId: string | null;
   pendingTargetIds: string[];
   pendingCompletionPlayerIds: string[];

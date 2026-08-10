@@ -23,8 +23,13 @@ export function isPromptEligible(prompt: SocialPrompt, request: PromptEligibilit
 }
 
 export function selectEligiblePrompt(prompts: readonly SocialPrompt[], request: PromptEligibilityRequest): SocialPrompt | null {
-  const eligible = prompts.filter(prompt => isPromptEligible(prompt, request)).sort((left, right) => left.id.localeCompare(right.id));
-  return eligible[0] ?? null;
+  return getEligiblePrompts(prompts, request)[0] ?? null;
+}
+
+export function getEligiblePrompts(prompts: readonly SocialPrompt[], request: PromptEligibilityRequest): SocialPrompt[] {
+  return prompts
+    .filter(prompt => isPromptEligible(prompt, request))
+    .sort((left, right) => left.id.localeCompare(right.id));
 }
 
 /** Prompt contracts only; content and moderation are backend-owned. */

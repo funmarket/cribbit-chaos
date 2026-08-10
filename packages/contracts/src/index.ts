@@ -1,8 +1,14 @@
 export type {
   PromptEligibilityRequest,
   PromptWorld,
+  RevealState,
+  RoulettePresentation,
+  RoulettePresentationType,
+  RoulettePresentationView,
   SelectedPromptSnapshot,
   SocialAnswerRecord,
+  SocialAuthorshipState,
+  SocialAuthorshipView,
   SocialAnswerStatus,
   SocialCardKind,
   SocialDuelRecord,
@@ -112,6 +118,7 @@ export type CoreGameEventType =
   | 'WILD_COLOR_REQUIRED'
   | 'WILD_COLOR_SELECTED'
   | 'SOCIAL_CARD_TRIGGERED'
+  | 'ROULETTE_PRESENTATION_STARTED'
   | 'PROMPT_SELECTED'
   | 'ANSWER_REQUIRED'
   | 'TARGET_REQUIRED'
