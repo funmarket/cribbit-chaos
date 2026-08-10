@@ -26,17 +26,18 @@ function resolveConfig(input: GameConfigInput): GameConfig {
   };
 }
 
-function validatePlayers(players: readonly GamePlayerSetup[]): void {
+function validatePlayers(players: readonly GamePlayerSetup[]): ReturnType<typeof createEngineError> | null {
   if (players.length < 2 || players.length > 10) {
-    throw createEngineError('INVALID_PLAYER_COUNT', 'Cribbit CHAOS supports 2 through 10 players.', { playerCount: players.length });
+    return createEngineError('INVALID_PLAYER_COUNT', 'Cribbit CHAOS supports 2 through 10 players.', { playerCount: players.length });
   }
   const ids = new Set<string>();
   for (const player of players) {
     if (ids.has(player.id)) {
-      throw createEngineError('DUPLICATE_PLAYER_ID', 'Each player must have a unique id.', { playerId: player.id });
+      return createEngineError('DUPLICATE_PLAYER_ID', 'Each player must have a unique id.', { playerId: player.id });
     }
     ids.add(player.id);
   }
+  return null;
 }
 
 function createPlayers(players: readonly GamePlayerSetup[]): Player[] {
@@ -63,7 +64,10 @@ export function createGame(
   players: readonly GamePlayerSetup[],
   rng: RandomSource = createSeededRandom(config.seed)
 ): GameTransition<GameState> {
-  validatePlayers(players);
+  const validationError = validatePlayers(players);
+  if (validationError) {
+    return { ok: false, state: undefined as never, events: [], error: validationError };
+  }
   const resolvedConfig = resolveConfig(config);
   const gameId = `game-${toSeedString(resolvedConfig.seed)}`;
   const nextPlayers = createPlayers(players);
@@ -112,7 +116,7 @@ export function createGame(
         seat: player.seat,
         cardIds: dealtHands[player.id],
         handCount: player.hand.length
-      }, index)
+      }, index, 'PLAYER_PRIVATE')
     )
   ];
 

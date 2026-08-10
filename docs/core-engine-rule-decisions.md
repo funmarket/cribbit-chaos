@@ -1,40 +1,36 @@
 # Core engine rule decisions
 
-This note records the Phase 1 gameplay choices that were implemented while translating the approved reference behavior into the authoritative TypeScript reducer.
+This document records the Phase 1 gameplay decisions that were implemented from the cleaned repository sources, and it marks where the canonical Bible v5 is still needed before a rule should be treated as locked.
 
-## Canonical setup
+## Source gap
 
-- Starting hand size is 7 cards.
-- The starter discard is chosen as the first numbered card found in the shuffled deck, with a fallback to the last card if the deck ever contains no numbered card.
-- The core deck is the standard colored action deck for this slice: per color, one 0, two each of 1 through 9, two each of Skip / Reverse / Draw, plus 4 Wild cards.
+The cleaned repository does not currently include `Cribbit_CHAOS_Canonical_Master_Bible_v5_FINAL.pdf`.
 
-## Turn and card behavior
+That means the approved V4 HTML and the existing requirements file are useful implementation references, but they do not by themselves settle every ambiguous card rule. Bible v5 still needs to be reintroduced or otherwise verified before ambiguous behavior is treated as final canon.
 
-- Number cards are legal when either the color or the symbol matches the current discard state.
-- Skip advances past the next player.
-- Reverse flips direction, and in a two-player game it effectively returns the turn to the same player.
-- Draw gives the next player the configured penalty amount.
-- Wild pauses the turn until a color is selected.
-- Selecting a Wild color clears the pending effect and then completes the turn.
-- A player who empties their hand wins immediately once the play or Wild-color selection is resolved.
+## Rule matrix
 
-## Engine knobs
+| Rule | Source file | Source section / reference | Implementation | Configurable? | Confidence | Open question |
+| --- | --- | --- | --- | --- | --- | --- |
+| Starting hand count | `REQUIREMENTS.md` | `R5 — Game core` plus approved V4 hero copy / setup flow in `reference/approved-v4-template.html` | `GameConfig.startingHandCount` defaults to `7` and is used by `createGame` when dealing hands | Yes | Medium | Bible v5 needed to confirm whether 7 is canon or just the current balance default |
+| Draw penalty | `reference/approved-v4-template.html` | `resolvePlayedCard` draw effect section | `GameConfig.drawPenalty` defaults to `2` and is used when a Draw card resolves | Yes | Medium | Bible v5 needed to confirm whether 2 is canon or provisional |
+| Voluntary draw | `reference/approved-v4-template.html` | `commandDrawCard` flow | `GameConfig.allowVoluntaryDraw` defaults to `false`; when false, draw is rejected if a legal play exists | Yes | Medium | Bible v5 needed to confirm whether voluntary draw is canon or a balance knob |
+| Initial discard choice | `reference/approved-v4-template.html` | `starterCardFromDeck` / game-start sequence | `pickStarterCard` selects the first numbered card in the shuffled deck, falling back to the last card if needed | No for the current rule path; fallback is defensive | Medium | Bible v5 needed to confirm whether this is the intended authoritative starter selection rule |
+| Turn advancement after Draw | `reference/approved-v4-template.html` | `commandDrawCard` | Drawing one card immediately advances the turn in the reducer | No | High | None yet; this matches the approved reference flow |
+| Draw target behavior | `reference/approved-v4-template.html` | `resolvePlayedCard` draw effect section | The next player receives the draw penalty and then the turn advances | No | High | None yet; this matches the approved reference flow |
+| Two-player Reverse behavior | `reference/approved-v4-template.html` | `resolvePlayedCard` reverse branch | Reverse uses `2` steps in a 2-player game so the same player effectively gets the turn again | No | High | Bible v5 should confirm whether this is locked canon or only an approved V4 convention |
+| Number-card matching | `reference/approved-v4-template.html` | `resolvePlayedCard` matching rules | Number cards are legal when color or symbol/value matches the active discard state | No | High | None for the core slice |
+| Skip | `reference/approved-v4-template.html` | `resolvePlayedCard` skip branch | Skip advances past the next player and records a skip event | No | High | None for the core slice |
+| Reverse | `reference/approved-v4-template.html` | `resolvePlayedCard` reverse branch | Reverse flips turn direction and advances accordingly | No | High | None for the core slice, aside from the Bible-v5 confirmation noted above |
+| Wild | `reference/approved-v4-template.html` | `resolvePlayedCard` wild branch | Wild enters `PENDING_WILD_COLOR` and pauses the turn until color selection | No | High | None for the core slice |
+| Wild color selection | `reference/approved-v4-template.html` | `commandSelectWildColor` flow | The actor who played Wild chooses the active color, then the turn completes | No | High | None for the core slice |
+| Zero-card win | `REQUIREMENTS.md` | `R5 — Game core` | Empty hand on resolution ends the game and records the winner | No | High | None for the core slice |
+| Command actor identity | `REQUIREMENTS.md` | `R3 — Multiplayer authority` | Gameplay commands validate against `command.playerId`, not against `state.currentPlayerId` alone | No | High | None; this is a required authority boundary |
+| Command idempotency | `REQUIREMENTS.md` | `R13 — Idempotency` | `processedCommands` stores a command fingerprint keyed by `commandId`, `playerId`, and payload shape; exact replays return a safe replay response without reapplying effects | No | High | API persistence may later own deeper historical replay if we need it |
+| Event privacy boundary | `REQUIREMENTS.md` | `R14 — Security` plus multiplayer transport scope | `GameEvent.visibility` marks hand-reveal events as `PLAYER_PRIVATE`; the projection layer must filter private events before any broadcast | Yes at the projection layer | High | The eventual Socket.IO projection should enforce this filter before emitting to other players |
 
-- Draw penalty defaults to 2 cards, but it remains a configuration value so the rule can be tuned without changing the reducer shape.
-- Voluntary drawing is disabled by default in this slice.
+## Notes
 
-## Determinism and idempotency
-
-- Deck generation, shuffling, and starter-card selection are deterministic from the seed.
-- Successful commands are cached by command id so a replayed command does not mutate state a second time.
-- Draw recycling preserves the top discard card and reshuffles only the recyclable portion of the discard pile.
-
-## Test runner decision
-
-- The test script uses `tsx --test` instead of `node --experimental-strip-types`.
-- GitHub Actions in this repo runs Node 20, so the native strip-types path is not a reliable CI choice here.
-- `tsx` is already declared in the workspace devDependencies and runs the TypeScript test file directly without changing the supported CI runtime.
-
-## Deferred by design
-
-Social cards, safety cards, multiplayer transport, and API wiring are intentionally out of scope for this slice.
+- `startingHandCount`, `drawPenalty`, and `allowVoluntaryDraw` remain configuration knobs.
+- `CARD_DEALT`, `CARD_DRAWN`, and `DRAW_EFFECT_APPLIED` are the current private-reveal event classes.
+- This slice intentionally does not implement the social-card families, safety cards, or multiplayer transport.

@@ -70,8 +70,8 @@ app.get('/v1/games/:sessionId/snapshot', async (request:any, reply:any) => {
   return reply.code(501).send({ error:'ENGINE_NOT_MIGRATED', message:'Authoritative game-state reducer has not yet been migrated from the V4 compatibility runtime.' });
 });
 app.post('/v1/games/:sessionId/commands', async (request:any, reply:any) => {
-  const body = request.body as { type?:string; commandId?:string; expectedRevision?:number };
-  if (!body?.type || !body.commandId || !Number.isInteger(body.expectedRevision)) return reply.code(400).send({ error:'INVALID_COMMAND_ENVELOPE' });
+  const body = request.body as { type?:string; commandId?:string; playerId?:string; expectedRevision?:number };
+  if (!body?.type || !body.commandId || !body.playerId || !Number.isInteger(body.expectedRevision)) return reply.code(400).send({ error:'INVALID_COMMAND_ENVELOPE' });
   return reply.code(501).send({ error:'ENGINE_NOT_MIGRATED', commandId:body.commandId, message:`${body.type} has a production backend assignment, but the authoritative reducer is intentionally not enabled until rule-state migration/tests pass.` });
 });
 app.post('/v1/games/:sessionId/rematch', async (request:any, reply:any) => reply.code(501).send({ error:'ENGINE_NOT_MIGRATED' }));
@@ -82,7 +82,7 @@ io.on('connection', (socket:any) => {
     void socket.join(`game:${payload.sessionId}`);
     socket.emit('joined-session',{sessionId:payload.sessionId});
   });
-  socket.on('game-command', (payload:{sessionId?:string; type?:string; commandId?:string}) => {
+  socket.on('game-command', (payload:{sessionId?:string; type?:string; commandId?:string; playerId?:string}) => {
     socket.emit('command-rejected',{ commandId:payload?.commandId, code:'ENGINE_NOT_MIGRATED', message:'Realtime transport is ready; authoritative reducer is not enabled yet.' });
   });
 });

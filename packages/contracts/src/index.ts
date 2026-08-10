@@ -47,6 +47,7 @@ export interface GameConfigInput extends Partial<Omit<GameConfig, 'seed'>> {
 
 export interface CommandMeta {
   commandId: string;
+  playerId: string;
   expectedRevision: number;
   sessionId: string;
 }
@@ -95,6 +96,7 @@ export interface GameEvent<TPayload = unknown> {
   sessionId: string;
   revision: number;
   type: CoreGameEventType | string;
+  visibility?: 'PUBLIC' | 'PLAYER_PRIVATE';
   payload?: TPayload;
   createdAt: string;
 }
@@ -115,7 +117,9 @@ export interface EngineError {
     | 'INVALID_PLAYER_COUNT'
     | 'INVALID_SETUP'
     | 'DUPLICATE_PLAYER_ID'
-    | 'PENDING_WILD_COLOR';
+    | 'PENDING_WILD_COLOR'
+    | 'COMMAND_ID_COLLISION'
+    | 'SESSION_MISMATCH';
   message: string;
   details?: Record<string, unknown>;
 }
@@ -123,6 +127,8 @@ export interface EngineError {
 export interface ProcessedCommandRecord {
   commandId: string;
   type: GameCommandType;
+  playerId: string;
+  fingerprint: string;
   revision: number;
   ok: boolean;
   events: readonly GameEvent[];
