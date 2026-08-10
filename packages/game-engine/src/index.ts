@@ -1,28 +1,23 @@
-import type { GameCommand, GamePhase } from '../../contracts/src/index.ts';
+export type {
+  Card,
+  CardColor,
+  GameCommand,
+  GameConfig,
+  GameConfigInput,
+  GameEvent,
+  GamePhase,
+  GameState,
+  GameStatus,
+  GameTransition,
+  PendingEffect,
+  Player,
+  PlayerStatus
+} from '@cribbit/contracts';
 
-export interface EngineState {
-  revision: number;
-  phase: GamePhase;
-  winnerId: string | null;
-}
+export { createEngineError } from './errors.ts';
+export { buildCoreDeck, drawCards, recycleDiscardPile } from './deck.ts';
+export { applyCommand } from './reducer.ts';
+export { createGame } from './setup.ts';
+export { advanceTurn, getCurrentPlayer, getNextPlayerIndex, getPlayerIndex } from './turn.ts';
+export { isLegalPlay, validateDraw, validatePlay, validateWildColor } from './validation.ts';
 
-export interface EngineResult<TState extends EngineState = EngineState> {
-  state: TState;
-  events: Array<{ type:string; payload?:unknown }>;
-  idempotentReplay?: boolean;
-}
-
-export class EngineNotMigratedError extends Error {
-  readonly code = 'ENGINE_NOT_MIGRATED';
-  constructor(commandType:string) {
-    super(`Authoritative handler for ${commandType} is not enabled until the V4 rules are extracted and transition tests pass.`);
-  }
-}
-
-/**
- * This package is the production authority target. It deliberately fails closed
- * until Phase 3 migrates the V4 rules away from DOM/local demo state.
- */
-export function applyCommand<TState extends EngineState>(_state:TState, command:GameCommand): EngineResult<TState> {
-  throw new EngineNotMigratedError(command.type);
-}

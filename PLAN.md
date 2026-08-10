@@ -15,25 +15,25 @@
 
 ## Phase 1 — Authoritative core game engine
 
-- [ ] define canonical `GameState`
-- [ ] define `Card` model
-- [ ] define `Player` model
-- [ ] define command model
-- [ ] define event model
-- [ ] deterministic shuffle/deal
-- [ ] starting discard
-- [ ] legal-play validator
-- [ ] draw
-- [ ] normal/value card
-- [ ] Skip
-- [ ] Reverse
-- [ ] Draw effect
-- [ ] Wild
-- [ ] Wild color selection
-- [ ] next turn
-- [ ] zero-card win
-- [ ] command idempotency
-- [ ] transition tests
+- [x] define canonical `GameState`
+- [x] define `Card` model
+- [x] define `Player` model
+- [x] define command model
+- [x] define event model
+- [x] deterministic shuffle/deal
+- [x] starting discard
+- [x] legal-play validator
+- [x] draw
+- [x] normal/value card
+- [x] Skip
+- [x] Reverse
+- [x] Draw effect
+- [x] Wild
+- [x] Wild color selection
+- [x] next turn
+- [x] zero-card win
+- [x] command idempotency
+- [x] transition tests
 
 ## Phase 2 — Social card engine
 
@@ -135,4 +135,4 @@
 
 ## Current Next Task
 
-Authoritative TypeScript core game reducer.
+Core game engine slice is complete; do not begin Phase 2 without explicit direction.

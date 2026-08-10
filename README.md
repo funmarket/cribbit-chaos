@@ -165,9 +165,9 @@ See [docs/TELEGRAM.md](./docs/TELEGRAM.md) for the security boundary and client 
 
 The production monorepo, deployment scaffolding, database foundation, and button audit are in place.
 
-The authoritative game-engine migration has not started yet.
+The authoritative core game-engine slice is now implemented and covered by transition tests.
 
-`apps/api` currently fails closed for gameplay-changing routes that still depend on the not-yet-migrated engine.
+`apps/api` still needs its gameplay command wiring and multiplayer transport integration in later phases.
 
 ## Documentation
 
