@@ -199,6 +199,21 @@ function markAnsweredLiveCommand(
   };
 }
 
+function submitAnswerCommand(
+  state: GameState,
+  commandId: string,
+  playerId = state.currentPlayerId,
+  expectedRevision = state.revision
+): GameCommand {
+  return {
+    commandId,
+    playerId,
+    expectedRevision,
+    sessionId: state.id,
+    type: 'SUBMIT_ANSWER'
+  };
+}
+
 function selectParanoiaTargetCommand(
   state: GameState,
   commandId: string,
@@ -1639,7 +1654,96 @@ test('FLAG_PROMPT records private moderation metadata without mutating gameplay 
   assert.equal(paranoiaActorFlag.ok, true);
 });
 
-test('Answer submission resolves the pending prompt only after resolution commands complete and win occurs after the social effect', () => {
+test('Answer modes Speak and Type resolve privately, reject empty submissions, and delay the final-card win', () => {
+  const speakPrompt = socialPrompt('speak-answer', 'truth', 'current', { text: 'speak answer prompt', groupSizeMin: 2, groupSizeMax: 2 });
+  const speakState = baseState(2);
+  speakState.currentPlayerId = 'player-1';
+  setTopDiscard(speakState, makeCard('starter-speak', 'number', { color: 'orange', value: 2, symbol: '2' }));
+  setHands(speakState, {
+    'player-1': [makeCard('speak-card', 'truth', { symbol: 'truth', color: 'orange' })],
+    'player-2': [makeCard('speak-other', 'number', { color: 'cyan', value: 5, symbol: '5' })]
+  });
+
+  const speakPlay = applyCommand(speakState, playCommand(speakState, 'speak-play', 'speak-card'), socialContext([speakPrompt]));
+  assert.equal(speakPlay.ok, true);
+  const speakBeforeMode = applyCommand(speakPlay.state, submitAnswerCommand(speakPlay.state, 'speak-before-mode'));
+  assert.equal(speakBeforeMode.ok, false);
+  assert.equal(speakBeforeMode.error?.code, 'INVALID_SOCIAL_RESPONSE');
+  const speakBeforeModeReplay = applyCommand(speakBeforeMode.state, submitAnswerCommand(speakBeforeMode.state, 'speak-before-mode', 'player-1', speakBeforeMode.state.revision));
+  assert.equal(speakBeforeModeReplay.ok, false);
+  assert.equal(speakBeforeModeReplay.idempotentReplay, true);
+  const speakBeforeModeCollision = applyCommand(speakBeforeMode.state, submitAnswerCommand(speakBeforeMode.state, 'speak-before-mode', 'player-2', speakBeforeMode.state.revision));
+  assert.equal(speakBeforeModeCollision.ok, false);
+  assert.equal(speakBeforeModeCollision.error?.code, 'COMMAND_ID_COLLISION');
+
+  const speakMode = applyCommand(speakPlay.state, answerModeCommand(speakPlay.state, 'speak-mode', 'SPEAK'));
+  assert.equal(speakMode.ok, true);
+  const speakReview = applyCommand(speakMode.state, reviewAnswerCommand(speakMode.state, 'speak-review', { completionOnly: true }));
+  assert.equal(speakReview.ok, true);
+  assert.equal(speakReview.state.social?.answerState.mode, 'SPEAK');
+  assert.equal(speakReview.state.social?.answerState.completionOnly, true);
+  const speakSubmit = applyCommand(speakReview.state, submitAnswerCommand(speakReview.state, 'speak-submit'));
+  assert.equal(speakSubmit.ok, true);
+  assert.equal(speakSubmit.state.social, null);
+  assert.equal(speakSubmit.state.status, 'FINISHED');
+  assert.equal(speakSubmit.state.winnerId, 'player-1');
+  assert.equal(JSON.stringify(speakSubmit.events.filter(event => event.visibility === 'PUBLIC')).includes('speak'), false);
+  const speakReplay = applyCommand(speakSubmit.state, submitAnswerCommand(speakSubmit.state, 'speak-submit', 'player-1', speakReview.state.revision));
+  assert.equal(speakReplay.ok, true);
+  assert.equal(speakReplay.idempotentReplay, true);
+
+  const typePrompt = socialPrompt('type-answer', 'truth', 'current', { text: 'type answer prompt', groupSizeMin: 2, groupSizeMax: 2 });
+  const typeState = baseState(2);
+  typeState.currentPlayerId = 'player-1';
+  setTopDiscard(typeState, makeCard('starter-type', 'number', { color: 'orange', value: 2, symbol: '2' }));
+  setHands(typeState, {
+    'player-1': [makeCard('type-card', 'truth', { symbol: 'truth', color: 'orange' })],
+    'player-2': [makeCard('type-other', 'number', { color: 'cyan', value: 5, symbol: '5' })]
+  });
+
+  const typePlay = applyCommand(typeState, playCommand(typeState, 'type-play', 'type-card'), socialContext([typePrompt]));
+  assert.equal(typePlay.ok, true);
+  const typeMode = applyCommand(typePlay.state, answerModeCommand(typePlay.state, 'type-mode', 'TYPE'));
+  assert.equal(typeMode.ok, true);
+  const typeMissing = applyCommand(typeMode.state, submitAnswerCommand(typeMode.state, 'type-missing'));
+  assert.equal(typeMissing.ok, false);
+  assert.equal(typeMissing.error?.code, 'INVALID_SOCIAL_RESPONSE');
+  const typeMissingReplay = applyCommand(typeMissing.state, submitAnswerCommand(typeMissing.state, 'type-missing'));
+  assert.equal(typeMissingReplay.ok, false);
+  assert.equal(typeMissingReplay.idempotentReplay, true);
+  const typeMissingCollision = applyCommand(typeMissing.state, submitAnswerCommand(typeMissing.state, 'type-missing', 'player-2', typeMissing.state.revision));
+  assert.equal(typeMissingCollision.ok, false);
+  assert.equal(typeMissingCollision.error?.code, 'COMMAND_ID_COLLISION');
+
+  const typeReview = applyCommand(typeMode.state, reviewAnswerCommand(typeMode.state, 'type-review', { value: 'typed answer' }));
+  assert.equal(typeReview.ok, true);
+  assert.equal(typeReview.state.social?.answerState.status, 'REVIEW');
+  assert.equal(typeReview.state.social?.answerState.value, 'typed answer');
+  const typeSubmit = applyCommand(typeReview.state, submitAnswerCommand(typeReview.state, 'type-submit'));
+  assert.equal(typeSubmit.ok, true);
+  assert.equal(typeSubmit.state.social, null);
+  assert.equal(typeSubmit.state.status, 'FINISHED');
+  assert.equal(typeSubmit.state.winnerId, 'player-1');
+  assert.equal(JSON.stringify(typeSubmit.events.filter(event => event.visibility === 'PUBLIC')).includes('typed answer'), false);
+  const typeReplay = applyCommand(typeSubmit.state, submitAnswerCommand(typeSubmit.state, 'type-submit', 'player-1', typeReview.state.revision));
+  assert.equal(typeReplay.ok, true);
+  assert.equal(typeReplay.idempotentReplay, true);
+});
+
+test('Choose answers validate authoritative options, cache failed reviews, and keep choice private', () => {
+  const noOptionState = baseState(2);
+  noOptionState.currentPlayerId = 'player-1';
+  setTopDiscard(noOptionState, makeCard('starter-choose-none', 'number', { color: 'orange', value: 2, symbol: '2' }));
+  setHands(noOptionState, {
+    'player-1': [makeCard('choose-none-card', 'truth', { symbol: 'truth', color: 'orange' })],
+    'player-2': [makeCard('choose-none-other', 'number', { color: 'cyan', value: 5, symbol: '5' })]
+  });
+  const noOptionPlay = applyCommand(noOptionState, playCommand(noOptionState, 'choose-none-play', 'choose-none-card'), socialContext([socialPrompt('choose-none', 'truth', 'current', { text: 'choose none prompt', groupSizeMin: 2, groupSizeMax: 2 })]));
+  assert.equal(noOptionPlay.ok, true);
+  const noOptionMode = applyCommand(noOptionPlay.state, answerModeCommand(noOptionPlay.state, 'choose-none-mode', 'CHOOSE'));
+  assert.equal(noOptionMode.ok, false);
+  assert.equal(noOptionMode.error?.code, 'INVALID_SOCIAL_RESPONSE');
+
   const state = baseState(2);
   state.currentPlayerId = 'player-1';
   setTopDiscard(state, makeCard('starter', 'number', { color: 'orange', value: 2, symbol: '2' }));
@@ -1656,6 +1760,16 @@ test('Answer submission resolves the pending prompt only after resolution comman
   assert.equal(modeResult.ok, true);
   assert.equal(modeResult.state.social?.answerState.status, 'MODE_SELECTED');
 
+  const invalidReview = applyCommand(modeResult.state, reviewAnswerCommand(modeResult.state, 'truth-review-invalid', { choice: 'gamma' }));
+  assert.equal(invalidReview.ok, false);
+  assert.equal(invalidReview.error?.code, 'INVALID_SOCIAL_RESPONSE');
+  const invalidReviewReplay = applyCommand(invalidReview.state, reviewAnswerCommand(invalidReview.state, 'truth-review-invalid', { choice: 'gamma' }, 'player-1', invalidReview.state.revision));
+  assert.equal(invalidReviewReplay.ok, false);
+  assert.equal(invalidReviewReplay.idempotentReplay, true);
+  const invalidReviewCollision = applyCommand(invalidReview.state, reviewAnswerCommand(invalidReview.state, 'truth-review-invalid', { choice: 'alpha' }, 'player-1', invalidReview.state.revision));
+  assert.equal(invalidReviewCollision.ok, false);
+  assert.equal(invalidReviewCollision.error?.code, 'COMMAND_ID_COLLISION');
+
   const reviewResult = applyCommand(modeResult.state, reviewAnswerCommand(modeResult.state, 'truth-review', { choice: 'alpha' }));
   assert.equal(reviewResult.ok, true);
   assert.equal(reviewResult.state.social?.answerState.status, 'REVIEW');
@@ -1667,13 +1781,58 @@ test('Answer submission resolves the pending prompt only after resolution comman
   assert.equal(submitResult.state.status, 'FINISHED');
   assert.equal(submitResult.state.winnerId, 'player-1');
   assert.deepEqual(submitResult.events.map(event => event.type), ['ANSWER_CHOICE_SUBMITTED', 'SOCIAL_EFFECT_RESOLVED', 'GAME_WON']);
+  assert.equal(JSON.stringify(submitResult.events.filter(event => event.visibility === 'PUBLIC')).includes('alpha'), false);
 
+  const replaySubmit = applyCommand(submitResult.state, submitChoiceCommand(submitResult.state, 'truth-submit', 'alpha', 'player-1', reviewResult.state.revision));
+  assert.equal(replaySubmit.ok, true);
+  assert.equal(replaySubmit.idempotentReplay, true);
   const staleAnswer = applyCommand(submitResult.state, submitChoiceCommand(submitResult.state, 'truth-submit-stale', 'alpha', 'player-1', 0));
   assert.equal(staleAnswer.ok, false);
   assert.equal(staleAnswer.error?.code, 'STALE_REVISION');
 });
 
-test('Chaos targeting all waits for every required player to complete before resolving and winning', () => {
+test('Answered Live marks completion privately, rejects wrong modes, and stays replay-safe', () => {
+  const livePrompt = socialPrompt('live-answer', 'truth', 'current', { text: 'live answer prompt', groupSizeMin: 2, groupSizeMax: 2 });
+
+  const liveState = baseState(2);
+  liveState.currentPlayerId = 'player-1';
+  setTopDiscard(liveState, makeCard('starter-live', 'number', { color: 'orange', value: 2, symbol: '2' }));
+  setHands(liveState, {
+    'player-1': [makeCard('live-card', 'truth', { symbol: 'truth', color: 'orange' })],
+    'player-2': [makeCard('live-other', 'number', { color: 'cyan', value: 5, symbol: '5' })]
+  });
+
+  const livePlay = applyCommand(liveState, playCommand(liveState, 'live-play', 'live-card'), socialContext([livePrompt]));
+  assert.equal(livePlay.ok, true);
+  const wrongMode = applyCommand(livePlay.state, answerModeCommand(livePlay.state, 'live-wrong-mode', 'TYPE'));
+  assert.equal(wrongMode.ok, true);
+  const wrongModeMark = applyCommand(wrongMode.state, markAnsweredLiveCommand(wrongMode.state, 'live-wrong-mark'));
+  assert.equal(wrongModeMark.ok, false);
+  assert.equal(wrongModeMark.error?.code, 'INVALID_SOCIAL_RESPONSE');
+  const wrongModeReplay = applyCommand(wrongModeMark.state, markAnsweredLiveCommand(wrongModeMark.state, 'live-wrong-mark'));
+  assert.equal(wrongModeReplay.ok, false);
+  assert.equal(wrongModeReplay.idempotentReplay, true);
+  const wrongModeCollision = applyCommand(wrongModeMark.state, markAnsweredLiveCommand(wrongModeMark.state, 'live-wrong-mark', 'player-2'));
+  assert.equal(wrongModeCollision.ok, false);
+  assert.equal(wrongModeCollision.error?.code, 'COMMAND_ID_COLLISION');
+
+  const liveMode = applyCommand(livePlay.state, answerModeCommand(livePlay.state, 'live-mode', 'ANSWERED_LIVE'));
+  assert.equal(liveMode.ok, true);
+  const liveReview = applyCommand(liveMode.state, reviewAnswerCommand(liveMode.state, 'live-review', { completionOnly: true }));
+  assert.equal(liveReview.ok, true);
+  assert.equal(liveReview.state.social?.answerState.completionOnly, true);
+  const liveMark = applyCommand(liveReview.state, markAnsweredLiveCommand(liveReview.state, 'live-mark'));
+  assert.equal(liveMark.ok, true);
+  assert.equal(liveMark.state.social, null);
+  assert.equal(liveMark.state.status, 'FINISHED');
+  assert.equal(liveMark.state.winnerId, 'player-1');
+  assert.equal(JSON.stringify(liveMark.events.filter(event => event.visibility === 'PUBLIC')).includes('live'), false);
+  const liveReplay = applyCommand(liveMark.state, markAnsweredLiveCommand(liveMark.state, 'live-mark', 'player-1', liveReview.state.revision));
+  assert.equal(liveReplay.ok, true);
+  assert.equal(liveReplay.idempotentReplay, true);
+});
+
+test('Chaos targeting all supports mixed answer modes and resolves only after every required player completes', () => {
   const state = baseState(3);
   state.currentPlayerId = 'player-1';
   setTopDiscard(state, makeCard('starter', 'number', { color: 'purple', value: 5, symbol: '5' }));
@@ -1683,40 +1842,42 @@ test('Chaos targeting all waits for every required player to complete before res
     'player-3': [makeCard('other-3', 'number', { color: 'lime', value: 9, symbol: '9' })]
   });
 
-  const prompt = socialPrompt('chaos-live', 'chaos', 'all', { text: 'chaos live prompt', groupSizeMin: 3, groupSizeMax: 5 });
+  const prompt = socialPrompt('chaos-live', 'chaos', 'all', { text: 'chaos live prompt', groupSizeMin: 3, groupSizeMax: 5, options: ['alpha', 'beta'] });
   const playResult = applyCommand(state, playCommand(state, 'chaos-play', 'chaos-card'), socialContext([prompt]));
   assert.equal(playResult.ok, true);
   assert.deepEqual(playResult.state.social?.pendingCompletionPlayerIds, ['player-1', 'player-2', 'player-3']);
   assert.equal(playResult.state.winnerId, null);
 
-  const p1Mode = applyCommand(playResult.state, answerModeCommand(playResult.state, 'chaos-mode-1', 'ANSWERED_LIVE', 'player-1'));
+  const p1Mode = applyCommand(playResult.state, answerModeCommand(playResult.state, 'chaos-mode-1', 'TYPE', 'player-1'));
   assert.equal(p1Mode.ok, true);
-  const p1Mark = applyCommand(p1Mode.state, markAnsweredLiveCommand(p1Mode.state, 'chaos-mark-1', 'player-1'));
-  assert.equal(p1Mark.ok, true);
-  assert.ok(p1Mark.state.social);
-  assert.deepEqual(p1Mark.state.social?.completedCompletionPlayerIds, ['player-1']);
-  assert.equal(p1Mark.state.currentPlayerId, 'player-1');
+  const p1Review = applyCommand(p1Mode.state, reviewAnswerCommand(p1Mode.state, 'chaos-review-1', { value: 'typed chaos answer' }, 'player-1'));
+  assert.equal(p1Review.ok, true);
+  const p1Submit = applyCommand(p1Review.state, submitAnswerCommand(p1Review.state, 'chaos-submit-1', 'player-1'));
+  assert.equal(p1Submit.ok, true);
+  assert.ok(p1Submit.state.social);
+  assert.deepEqual(p1Submit.state.social?.completedCompletionPlayerIds, ['player-1']);
+  assert.equal(p1Submit.state.winnerId, null);
 
-  const wrongPlayer = applyCommand(p1Mark.state, markAnsweredLiveCommand(p1Mark.state, 'chaos-mark-invalid', 'player-4'));
-  assert.equal(wrongPlayer.ok, false);
-  assert.equal(wrongPlayer.error?.code, 'INVALID_SOCIAL_TARGET');
-
-  const p2Mode = applyCommand(p1Mark.state, answerModeCommand(p1Mark.state, 'chaos-mode-2', 'ANSWERED_LIVE', 'player-2'));
+  const p2Mode = applyCommand(p1Submit.state, answerModeCommand(p1Submit.state, 'chaos-mode-2', 'ANSWERED_LIVE', 'player-2'));
   assert.equal(p2Mode.ok, true);
-  const p2Mark = applyCommand(p2Mode.state, markAnsweredLiveCommand(p2Mode.state, 'chaos-mark-2', 'player-2'));
+  const p2Review = applyCommand(p2Mode.state, reviewAnswerCommand(p2Mode.state, 'chaos-review-2', { completionOnly: true }, 'player-2'));
+  assert.equal(p2Review.ok, true);
+  const p2Mark = applyCommand(p2Review.state, markAnsweredLiveCommand(p2Review.state, 'chaos-mark-2', 'player-2'));
   assert.equal(p2Mark.ok, true);
   assert.ok(p2Mark.state.social);
   assert.deepEqual(p2Mark.state.social?.completedCompletionPlayerIds, ['player-1', 'player-2']);
   assert.equal(p2Mark.state.winnerId, null);
 
-  const p3Mode = applyCommand(p2Mark.state, answerModeCommand(p2Mark.state, 'chaos-mode-3', 'ANSWERED_LIVE', 'player-3'));
+  const p3Mode = applyCommand(p2Mark.state, answerModeCommand(p2Mark.state, 'chaos-mode-3', 'CHOOSE', 'player-3'));
   assert.equal(p3Mode.ok, true);
-  const p3Mark = applyCommand(p3Mode.state, markAnsweredLiveCommand(p3Mode.state, 'chaos-mark-3', 'player-3'));
-  assert.equal(p3Mark.ok, true);
-  assert.equal(p3Mark.state.social, null);
-  assert.equal(p3Mark.state.status, 'FINISHED');
-  assert.equal(p3Mark.state.winnerId, 'player-1');
-  assert.deepEqual(p3Mark.events.map(event => event.type), ['ANSWERED_LIVE_MARKED', 'SOCIAL_EFFECT_RESOLVED', 'GAME_WON']);
+  const p3Review = applyCommand(p3Mode.state, reviewAnswerCommand(p3Mode.state, 'chaos-review-3', { choice: 'alpha' }, 'player-3'));
+  assert.equal(p3Review.ok, true);
+  const p3Submit = applyCommand(p3Review.state, submitChoiceCommand(p3Review.state, 'chaos-submit-3', 'alpha', 'player-3'));
+  assert.equal(p3Submit.ok, true);
+  assert.equal(p3Submit.state.social, null);
+  assert.equal(p3Submit.state.status, 'FINISHED');
+  assert.equal(p3Submit.state.winnerId, 'player-1');
+  assert.deepEqual(p3Submit.events.map(event => event.type), ['ANSWER_CHOICE_SUBMITTED', 'SOCIAL_EFFECT_RESOLVED', 'GAME_WON']);
 });
 
 test('Social command idempotency and commandId collision protection still hold for new commands', () => {
@@ -1803,6 +1964,46 @@ test('Social command idempotency and commandId collision protection still hold f
   assert.equal(modeReplay.ok, false);
   assert.equal(modeReplay.idempotentReplay, true);
 
+  const typeReviewState = makeTruthState();
+  setHands(typeReviewState, {
+    'player-1': [makeCard('truth-type-card', 'truth', { symbol: 'truth', color: 'orange' })],
+    'player-2': [makeCard('other-2-type', 'number', { color: 'cyan', value: 5, symbol: '5' })],
+    'player-3': [makeCard('other-3-type', 'number', { color: 'lime', value: 9, symbol: '9' })]
+  });
+  const typeReviewPrompt = [socialPrompt('truth-type-cache', 'truth', 'current', { text: 'truth type prompt' })];
+  const typeReviewPlay = applyCommand(typeReviewState, playCommand(typeReviewState, 'truth-type-play', 'truth-type-card'), socialContext(typeReviewPrompt));
+  const typeReviewMode = applyCommand(typeReviewPlay.state, answerModeCommand(typeReviewPlay.state, 'truth-type-mode', 'TYPE'));
+  assert.equal(typeReviewMode.ok, true);
+  const typeReviewFailure = applyCommand(typeReviewMode.state, reviewAnswerCommand(typeReviewMode.state, 'truth-type-cache', {}));
+  assert.equal(typeReviewFailure.ok, false);
+  assert.equal(typeReviewFailure.error?.code, 'INVALID_SOCIAL_RESPONSE');
+  const typeReviewReplay = applyCommand(typeReviewFailure.state, reviewAnswerCommand(typeReviewFailure.state, 'truth-type-cache', {}, 'player-1', typeReviewFailure.state.revision));
+  assert.equal(typeReviewReplay.ok, false);
+  assert.equal(typeReviewReplay.idempotentReplay, true);
+  const typeReviewCollision = applyCommand(typeReviewFailure.state, reviewAnswerCommand(typeReviewFailure.state, 'truth-type-cache', { value: 'typed answer' }, 'player-1', typeReviewFailure.state.revision));
+  assert.equal(typeReviewCollision.ok, false);
+  assert.equal(typeReviewCollision.error?.code, 'COMMAND_ID_COLLISION');
+
+  const liveReviewState = makeTruthState();
+  setHands(liveReviewState, {
+    'player-1': [makeCard('truth-live-card', 'truth', { symbol: 'truth', color: 'orange' })],
+    'player-2': [makeCard('other-2-live', 'number', { color: 'cyan', value: 5, symbol: '5' })],
+    'player-3': [makeCard('other-3-live', 'number', { color: 'lime', value: 9, symbol: '9' })]
+  });
+  const liveReviewPrompt = [socialPrompt('truth-live-cache', 'truth', 'current', { text: 'truth live prompt' })];
+  const liveReviewPlay = applyCommand(liveReviewState, playCommand(liveReviewState, 'truth-live-play', 'truth-live-card'), socialContext(liveReviewPrompt));
+  const liveReviewMode = applyCommand(liveReviewPlay.state, answerModeCommand(liveReviewPlay.state, 'truth-live-mode', 'TYPE'));
+  assert.equal(liveReviewMode.ok, true);
+  const liveReviewFailure = applyCommand(liveReviewMode.state, markAnsweredLiveCommand(liveReviewMode.state, 'truth-live-cache'));
+  assert.equal(liveReviewFailure.ok, false);
+  assert.equal(liveReviewFailure.error?.code, 'INVALID_SOCIAL_RESPONSE');
+  const liveReviewReplay = applyCommand(liveReviewFailure.state, markAnsweredLiveCommand(liveReviewFailure.state, 'truth-live-cache', 'player-1', liveReviewFailure.state.revision));
+  assert.equal(liveReviewReplay.ok, false);
+  assert.equal(liveReviewReplay.idempotentReplay, true);
+  const liveReviewCollision = applyCommand(liveReviewFailure.state, markAnsweredLiveCommand(liveReviewFailure.state, 'truth-live-cache', 'player-2', liveReviewFailure.state.revision));
+  assert.equal(liveReviewCollision.ok, false);
+  assert.equal(liveReviewCollision.error?.code, 'COMMAND_ID_COLLISION');
+
   const choiceState = baseState(3);
   choiceState.currentPlayerId = 'player-1';
   setTopDiscard(choiceState, makeCard('starter-choice', 'number', { color: 'orange', value: 2, symbol: '2' }));
@@ -1851,6 +2052,9 @@ test('Answer mode and review fingerprints include payload changes for idempotenc
   const replayReview = applyCommand(firstReview.state, reviewAnswerCommand(firstReview.state, 'truth-review-fingerprint', { choice: 'alpha' }, 'player-1', firstReview.state.revision));
   assert.equal(replayReview.ok, true);
   assert.equal(replayReview.idempotentReplay, true);
+  const replayReviewWithCompletionOnly = applyCommand(firstReview.state, reviewAnswerCommand(firstReview.state, 'truth-review-fingerprint', { choice: 'alpha', completionOnly: true }, 'player-1', firstReview.state.revision));
+  assert.equal(replayReviewWithCompletionOnly.ok, false);
+  assert.equal(replayReviewWithCompletionOnly.error?.code, 'COMMAND_ID_COLLISION');
   const collidingReview = applyCommand(firstReview.state, reviewAnswerCommand(firstReview.state, 'truth-review-fingerprint', { choice: 'beta' }, 'player-1', firstReview.state.revision));
   assert.equal(collidingReview.ok, false);
   assert.equal(collidingReview.error?.code, 'COMMAND_ID_COLLISION');

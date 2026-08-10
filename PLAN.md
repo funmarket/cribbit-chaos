@@ -53,10 +53,10 @@
 - [x] Pass
 - [x] Rewind
 - [x] Flag
-- [ ] Speak
-- [ ] Type
-- [ ] Choose
-- [ ] Answered Live
+- [x] Speak
+- [x] Type
+- [x] Choose
+- [x] Answered Live
 - [ ] timers
 - [ ] timeout resolution
 
@@ -135,4 +135,4 @@
 
 ## Current Next Task
 
-Phase 3B — Answer modes: Speak, Type, Choose, Answered Live is next. Phase 3A Safety Controls is complete.
+Phase 3C — timers and timeout resolution is next. Phase 3B Answer modes is complete. Phase 3A Safety Controls is complete.
