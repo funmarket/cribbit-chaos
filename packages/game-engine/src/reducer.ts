@@ -88,6 +88,9 @@ function fingerprintCommand(command: GameCommand): string {
       return [command.sessionId, command.type, command.playerId, command.side, command.value ?? '', command.choice ?? '', String(command.completionOnly ?? false)].join('|');
     case 'PLAY_NOPE':
       return [command.sessionId, command.type, command.playerId, command.cardId].join('|');
+    case 'TIMEOUT_TURN':
+    case 'TIMEOUT_SOCIAL':
+      return [command.sessionId, command.type, command.playerId, command.timerStartedAtRevision].join('|');
     case 'SUBMIT_ANSWER':
       return [command.sessionId, command.type, command.playerId].join('|');
     default:
@@ -1534,7 +1537,7 @@ function handleFlagPrompt<TState extends GameState>(
 
 function handleTimeoutTurn<TState extends GameState>(
   state: TState,
-  command: GameCommand & { type: 'TIMEOUT_TURN' },
+  command: GameCommand & { type: 'TIMEOUT_TURN'; timerStartedAtRevision: number },
   context: GameCommandContext
 ): GameTransition<TState> {
   if (!Number.isFinite(context.now)) {
@@ -1545,7 +1548,7 @@ function handleTimeoutTurn<TState extends GameState>(
   if (!timer) {
     return failCommand(state, command, createEngineError('NO_PENDING_TIMER', 'No active timer is currently pending.'));
   }
-  if (timer.purpose !== 'TURN' || timer.startedAtRevision !== state.revision) {
+  if (timer.purpose !== 'TURN' || timer.ownerPlayerId !== state.currentPlayerId || command.timerStartedAtRevision !== timer.startedAtRevision) {
     return failCommand(state, command, createEngineError('STALE_TIMEOUT', 'The turn timer no longer matches the authoritative turn state.'));
   }
   if (!isTimerDue(timer, context.now)) {
@@ -1587,7 +1590,7 @@ function handleTimeoutTurn<TState extends GameState>(
 
 function handleTimeoutSocial<TState extends GameState>(
   state: TState,
-  command: GameCommand & { type: 'TIMEOUT_SOCIAL' },
+  command: GameCommand & { type: 'TIMEOUT_SOCIAL'; timerStartedAtRevision: number },
   context: GameCommandContext
 ): GameTransition<TState> {
   if (!Number.isFinite(context.now)) {
@@ -1601,17 +1604,16 @@ function handleTimeoutSocial<TState extends GameState>(
   if (timer.purpose !== 'SOCIAL') {
     return failCommand(state, command, createEngineError('STALE_TIMEOUT', 'The social timer no longer matches the authoritative social state.'));
   }
+  const { social, error } = requireSocial(state);
+  if (error) return failCommand(state, command, error);
+  if (timer.ownerPlayerId !== social.actorId || command.timerStartedAtRevision !== timer.startedAtRevision) {
+    return failCommand(state, command, createEngineError('STALE_TIMEOUT', 'The social timer no longer matches the authoritative social state.'));
+  }
   if (!isTimerDue(timer, context.now)) {
     return failCommand(state, command, createEngineError('TIMEOUT_NOT_REACHED', 'The authoritative time has not yet reached the social deadline.', {
       now: context.now,
       deadlineAt: timer.deadlineAt
     }));
-  }
-
-  const { social, error } = requireSocial(state);
-  if (error) return failCommand(state, command, error);
-  if (timer.ownerPlayerId !== social.actorId) {
-    return failCommand(state, command, createEngineError('STALE_TIMEOUT', 'The social timer no longer matches the authoritative social state.'));
   }
 
   const nextState = cloneState(state);

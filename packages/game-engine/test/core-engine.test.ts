@@ -320,14 +320,16 @@ function timeoutTurnCommand(
   state: GameState,
   commandId: string,
   playerId = state.currentPlayerId,
-  expectedRevision = state.revision
+  expectedRevision = state.revision,
+  timerStartedAtRevision = state.timer?.startedAtRevision ?? state.revision
 ): GameCommand {
   return {
     commandId,
     playerId,
     expectedRevision,
     sessionId: state.id,
-    type: 'TIMEOUT_TURN'
+    type: 'TIMEOUT_TURN',
+    timerStartedAtRevision
   };
 }
 
@@ -335,14 +337,16 @@ function timeoutSocialCommand(
   state: GameState,
   commandId: string,
   playerId = state.currentPlayerId,
-  expectedRevision = state.revision
+  expectedRevision = state.revision,
+  timerStartedAtRevision = state.timer?.startedAtRevision ?? state.revision
 ): GameCommand {
   return {
     commandId,
     playerId,
     expectedRevision,
     sessionId: state.id,
-    type: 'TIMEOUT_SOCIAL'
+    type: 'TIMEOUT_SOCIAL',
+    timerStartedAtRevision
   };
 }
 
@@ -2123,9 +2127,13 @@ test('turn timeout starts from the authored deadline and only resolves once the 
   assert.equal(earlyReplay.ok, false);
   assert.equal(earlyReplay.idempotentReplay, true);
 
-  const collision = applyCommand(early.state, timeoutTurnCommand(early.state, 'turn-timeout-early', 'player-2', early.state.revision), { now: earlyNow });
+  const collision = applyCommand(early.state, timeoutTurnCommand(early.state, 'turn-timeout-early', 'player-1', early.state.revision, early.state.timer!.startedAtRevision + 1), { now: earlyNow });
   assert.equal(collision.ok, false);
   assert.equal(collision.error?.code, 'COMMAND_ID_COLLISION');
+
+  const mismatchedIdentity = applyCommand(state, timeoutTurnCommand(state, 'turn-timeout-mismatch', 'player-1', state.revision, state.timer!.startedAtRevision + 1), { now: state.timer!.deadlineAt });
+  assert.equal(mismatchedIdentity.ok, false);
+  assert.equal(mismatchedIdentity.error?.code, 'STALE_TIMEOUT');
 
   const successCommand = timeoutTurnCommand(state, 'turn-timeout-success');
   const success = applyCommand(state, successCommand, { now: state.timer!.deadlineAt });
@@ -2155,9 +2163,15 @@ test('truth answer timeout stays replay-safe and still delays the final-card win
   assert.equal(playResult.ok, true);
   assert.equal(playResult.state.timer?.purpose, 'SOCIAL');
 
-  const earlyNow = playResult.state.timer!.deadlineAt - 1;
-  const earlyCommand = timeoutSocialCommand(playResult.state, 'truth-timeout-early');
-  const early = applyCommand(playResult.state, earlyCommand, { now: earlyNow });
+  const modeResult = applyCommand(playResult.state, answerModeCommand(playResult.state, 'truth-timeout-mode', 'TYPE'));
+  assert.equal(modeResult.ok, true);
+  const reviewResult = applyCommand(modeResult.state, reviewAnswerCommand(modeResult.state, 'truth-timeout-review', { value: 'typed answer' }));
+  assert.equal(reviewResult.ok, true);
+  assert.equal(reviewResult.state.timer?.startedAtRevision, playResult.state.timer?.startedAtRevision);
+
+  const earlyNow = reviewResult.state.timer!.deadlineAt - 1;
+  const earlyCommand = timeoutSocialCommand(reviewResult.state, 'truth-timeout-early');
+  const early = applyCommand(reviewResult.state, earlyCommand, { now: earlyNow });
   assert.equal(early.ok, false);
   assert.equal(early.error?.code, 'TIMEOUT_NOT_REACHED');
 
@@ -2165,12 +2179,16 @@ test('truth answer timeout stays replay-safe and still delays the final-card win
   assert.equal(earlyReplay.ok, false);
   assert.equal(earlyReplay.idempotentReplay, true);
 
-  const collision = applyCommand(early.state, timeoutSocialCommand(early.state, 'truth-timeout-early', 'player-2', early.state.revision), { now: earlyNow });
+  const collision = applyCommand(early.state, timeoutSocialCommand(early.state, 'truth-timeout-early', 'player-1', early.state.revision, early.state.timer!.startedAtRevision + 1), { now: earlyNow });
   assert.equal(collision.ok, false);
   assert.equal(collision.error?.code, 'COMMAND_ID_COLLISION');
 
-  const successCommand = timeoutSocialCommand(playResult.state, 'truth-timeout-success');
-  const success = applyCommand(playResult.state, successCommand, { now: playResult.state.timer!.deadlineAt });
+  const mismatchedIdentity = applyCommand(reviewResult.state, timeoutSocialCommand(reviewResult.state, 'truth-timeout-mismatch', 'player-1', reviewResult.state.revision, reviewResult.state.timer!.startedAtRevision + 1), { now: reviewResult.state.timer!.deadlineAt });
+  assert.equal(mismatchedIdentity.ok, false);
+  assert.equal(mismatchedIdentity.error?.code, 'STALE_TIMEOUT');
+
+  const successCommand = timeoutSocialCommand(reviewResult.state, 'truth-timeout-success');
+  const success = applyCommand(reviewResult.state, successCommand, { now: reviewResult.state.timer!.deadlineAt });
   assert.equal(success.ok, true);
   assert.equal(success.state.status, 'FINISHED');
   assert.equal(success.state.winnerId, 'player-1');
@@ -2178,7 +2196,7 @@ test('truth answer timeout stays replay-safe and still delays the final-card win
   assert.equal(success.events.some(event => event.type === 'SOCIAL_TIMED_OUT'), true);
   assert.equal(success.events.some(event => event.type === 'GAME_WON'), true);
 
-  const successReplay = applyCommand(success.state, successCommand, { now: playResult.state.timer!.deadlineAt });
+  const successReplay = applyCommand(success.state, successCommand, { now: reviewResult.state.timer!.deadlineAt });
   assert.equal(successReplay.ok, true);
   assert.equal(successReplay.idempotentReplay, true);
 });
@@ -2202,9 +2220,11 @@ test('answer completion before deadline invalidates the old social timeout', () 
   assert.equal(markResult.state.currentPlayerId, 'player-2');
   assert.equal(markResult.state.timer?.purpose, 'TURN');
 
-  const staleTimeout = applyCommand(markResult.state, timeoutSocialCommand(markResult.state, 'truth-answered-live-timeout', 'player-1', markResult.state.revision), { now: playResult.state.timer!.deadlineAt });
+  const staleTimeout = applyCommand(markResult.state, timeoutSocialCommand(markResult.state, 'truth-answered-live-timeout', 'player-1', markResult.state.revision, playResult.state.timer!.startedAtRevision), { now: playResult.state.timer!.deadlineAt });
   assert.equal(staleTimeout.ok, false);
   assert.equal(staleTimeout.error?.code, 'STALE_TIMEOUT');
+  assert.equal(markResult.state.timer?.purpose, 'TURN');
+  assert.equal(markResult.state.currentPlayerId, 'player-2');
 });
 
 test('pass resolution invalidates the old social timeout and starts the next turn timer', () => {
@@ -2224,9 +2244,11 @@ test('pass resolution invalidates the old social timeout and starts the next tur
   assert.equal(passResult.state.currentPlayerId, 'player-2');
   assert.equal(passResult.state.timer?.purpose, 'TURN');
 
-  const staleTimeout = applyCommand(passResult.state, timeoutSocialCommand(passResult.state, 'truth-pass-timeout', 'player-1', passResult.state.revision), { now: playResult.state.timer!.deadlineAt });
+  const staleTimeout = applyCommand(passResult.state, timeoutSocialCommand(passResult.state, 'truth-pass-timeout', 'player-1', passResult.state.revision, playResult.state.timer!.startedAtRevision), { now: playResult.state.timer!.deadlineAt });
   assert.equal(staleTimeout.ok, false);
   assert.equal(staleTimeout.error?.code, 'STALE_TIMEOUT');
+  assert.equal(passResult.state.timer?.purpose, 'TURN');
+  assert.equal(passResult.state.currentPlayerId, 'player-2');
 });
 
 test('rewind starts a fresh timer and the old deadline cannot resolve the replacement prompt', () => {
@@ -2248,12 +2270,12 @@ test('rewind starts a fresh timer and the old deadline cannot resolve the replac
   const rewindResult = applyCommand(playResult.state, rewindCommand(playResult.state, 'truth-rewind-command'), socialContext(promptPool, {}, undefined, 2000));
   assert.equal(rewindResult.ok, true);
   assert.equal(rewindResult.state.timer?.purpose, 'SOCIAL');
-  assert.equal(rewindResult.state.timer?.startedAtRevision, rewindResult.state.revision);
+  assert.equal(rewindResult.state.timer?.startedAtRevision, playResult.state.revision);
   assert.equal(rewindResult.state.timer!.deadlineAt > playResult.state.timer!.deadlineAt, true);
 
-  const oldDeadlineTimeout = applyCommand(rewindResult.state, timeoutSocialCommand(rewindResult.state, 'truth-rewind-old-timeout', 'player-1', rewindResult.state.revision), { now: playResult.state.timer!.deadlineAt });
+  const oldDeadlineTimeout = applyCommand(rewindResult.state, timeoutSocialCommand(rewindResult.state, 'truth-rewind-old-timeout', 'player-1', rewindResult.state.revision, playResult.state.timer!.startedAtRevision), { now: playResult.state.timer!.deadlineAt });
   assert.equal(oldDeadlineTimeout.ok, false);
-  assert.equal(oldDeadlineTimeout.error?.code, 'TIMEOUT_NOT_REACHED');
+  assert.equal(oldDeadlineTimeout.error?.code, 'STALE_TIMEOUT');
 
   const freshTimeoutCommand = timeoutSocialCommand(rewindResult.state, 'truth-rewind-fresh-timeout');
   const freshTimeout = applyCommand(rewindResult.state, freshTimeoutCommand, { now: rewindResult.state.timer!.deadlineAt });

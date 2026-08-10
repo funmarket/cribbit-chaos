@@ -5,7 +5,7 @@ export function startTimer<TState extends GameState>(
   purpose: TimerPurpose,
   ownerPlayerId: string,
   now: number | undefined,
-  startedAtRevision: number = state.revision + 1,
+  startedAtRevision: number = state.revision,
 ): TimerState | null {
   if (typeof now !== 'number' || !Number.isFinite(now)) {
     return null;

@@ -110,8 +110,8 @@ export type GameCommand =
   | (CommandMeta & { type: 'DUEL_VOTE'; winnerId: string })
   | (CommandMeta & { type: 'CHAOS_TARGET'; targetId: string })
   | (CommandMeta & { type: 'NOPE_REACTION'; useNope: boolean })
-  | (CommandMeta & { type: 'TIMEOUT_TURN' })
-  | (CommandMeta & { type: 'TIMEOUT_SOCIAL' })
+  | (CommandMeta & { type: 'TIMEOUT_TURN'; timerStartedAtRevision: number })
+  | (CommandMeta & { type: 'TIMEOUT_SOCIAL'; timerStartedAtRevision: number })
   | (CommandMeta & { type: 'COMPLETE_FLOW' })
   | (CommandMeta & { type: 'FORCE_RECAP' });
 
