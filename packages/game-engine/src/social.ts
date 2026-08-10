@@ -23,8 +23,10 @@ import { getEligiblePrompts, isPromptEligible } from '@cribbit/prompts';
 import { createEngineError } from './errors.ts';
 import { makeEvent } from './events.ts';
 import { advanceTurn, getPlayerIndex } from './turn.ts';
+import { clearTimer, startTimer } from './timer.ts';
 
 export interface GameCommandContext {
+  now?: number;
   promptPool?: readonly SocialPrompt[];
   selectedPrompt?: SocialPrompt;
   authorshipByPromptId?: Readonly<Record<string, string>>;
@@ -260,11 +262,13 @@ export function createTurnResolution(
   events: GameEvent[],
   socialKind: SocialCardKind,
   steps = 1,
-  outcome: 'resolved' | 'blocked' = 'resolved'
+  outcome: 'resolved' | 'blocked' = 'resolved',
+  now?: number
 ): void {
   const hadEmptyHand = actor.hand.length === 0;
   const previousPlayerId = actor.id;
   state.social = null;
+  clearTimer(state);
   if (hadEmptyHand) {
     state.status = 'FINISHED';
     state.phase = 'FINISHED';
@@ -274,6 +278,7 @@ export function createTurnResolution(
     return;
   }
   const { nextPlayerId } = advanceTurn(state, steps);
+  startTimer(state, 'TURN', nextPlayerId, now);
   events.push(makeEvent(state, 'SOCIAL_EFFECT_RESOLVED', { actorId: actor.id, cardKind: socialKind, outcome }, 0, 'PUBLIC'));
   events.push(makeEvent(state, 'TURN_ADVANCED', { previousPlayerId, nextPlayerId, steps, direction: state.direction }));
 }

@@ -17,6 +17,7 @@ import {
   selectPromptForSocialEffect,
   type GameCommandContext
 } from './social.ts';
+import { clearTimer, isTimerDue, startTimer } from './timer.ts';
 
 function cloneState<TState extends GameState>(state: TState): TState {
   return structuredClone(state);
@@ -114,16 +115,19 @@ function failCommand<TState extends GameState>(
   return finalise(nextState, false, events, error);
 }
 
-function resolveNormalTurn<TState extends GameState>(state: TState, player: Player, events: GameEvent[], steps = 1): GameTransition<TState> {
+function resolveNormalTurn<TState extends GameState>(state: TState, player: Player, events: GameEvent[], steps = 1, now?: number): GameTransition<TState> {
   if (player.hand.length === 0) {
     state.status = 'FINISHED';
     state.phase = 'FINISHED';
     state.winnerId = player.id;
+    clearTimer(state);
     events.push(makeEvent(state, 'GAME_WON', { winnerId: player.id }));
     return finalise(state, true, events);
   }
   const previousPlayerId = player.id;
   const { nextPlayerId } = advanceTurn(state, steps);
+  clearTimer(state);
+  startTimer(state, 'TURN', nextPlayerId, now);
   events.push(makeEvent(state, 'TURN_ADVANCED', { previousPlayerId, nextPlayerId, steps, direction: state.direction }));
   return finalise(state, true, events);
 }
@@ -160,6 +164,7 @@ function startSocialCardPlay<TState extends GameState>(
     social.pendingTargetIds = targeting === 'all' ? state.players.map(item => item.id) : [player.id];
     social.answerState = createAnswerRecord();
     state.social = social;
+    startTimer(state, 'SOCIAL', player.id, context.now);
     state.phase = 'ANSWER_RESOLVE';
     events.push(makeEvent(state, 'PROMPT_SELECTED', { actorId: player.id, cardId: card.id, promptId: selected.prompt.id, prompt: selected.prompt }, 0, 'PLAYER_PRIVATE', [player.id]));
     events.push(makeEvent(state, 'ROULETTE_PRESENTATION_STARTED', projectRoulettePresentation(social.roulettePresentation!), 1, 'PLAYER_PRIVATE', [player.id]));
@@ -177,6 +182,7 @@ function startSocialCardPlay<TState extends GameState>(
     social.pendingTargetIds = state.players.filter(item => item.id !== player.id).map(item => item.id);
     social.pendingTargetId = null;
     state.social = social;
+    startTimer(state, 'SOCIAL', player.id, context.now);
     state.phase = 'ANSWER_RESOLVE';
     events.push(makeEvent(state, 'PROMPT_SELECTED', { actorId: player.id, cardId: card.id, promptId: selected.prompt.id, prompt: selected.prompt }, 0, 'PLAYER_PRIVATE', [player.id]));
     events.push(makeEvent(state, 'ROULETTE_PRESENTATION_STARTED', projectRoulettePresentation(social.roulettePresentation!), 1, 'PLAYER_PRIVATE', [player.id]));
@@ -188,6 +194,7 @@ function startSocialCardPlay<TState extends GameState>(
     const social = createSocialState(state, card.id, kind, player.id, null, null, undefined, context);
     social.pendingTargetIds = state.players.filter(item => item.id !== player.id).map(item => item.id);
     state.social = social;
+    startTimer(state, 'SOCIAL', player.id, context.now);
     state.phase = 'ANSWER_RESOLVE';
     events.push(makeEvent(state, 'TARGET_REQUIRED', { actorId: player.id, cardId: card.id, cardKind: kind, targetCount: social.pendingTargetIds.length }, 0, 'PUBLIC'));
     return null;
@@ -204,7 +211,7 @@ function resolvePlayedCard<TState extends GameState>(state: TState, player: Play
     state.activeColor = card.color ?? state.activeColor;
     state.activeSymbol = String(card.value ?? card.symbol ?? '');
     state.phase = 'WIN_CHECK';
-    const result = resolveNormalTurn(state, player, events, 1);
+    const result = resolveNormalTurn(state, player, events, 1, context.now);
     return result;
   }
 
@@ -214,7 +221,7 @@ function resolvePlayedCard<TState extends GameState>(state: TState, player: Play
     state.activeColor = card.color ?? state.activeColor;
     state.activeSymbol = card.symbol ?? card.kind;
     state.phase = 'WIN_CHECK';
-    const result = resolveNormalTurn(state, player, events, 2);
+    const result = resolveNormalTurn(state, player, events, 2, context.now);
     return result;
   }
 
@@ -225,7 +232,7 @@ function resolvePlayedCard<TState extends GameState>(state: TState, player: Play
     state.activeSymbol = card.symbol ?? card.kind;
     state.phase = 'WIN_CHECK';
     const steps = state.players.length === 2 ? 2 : 1;
-    const result = resolveNormalTurn(state, player, events, steps);
+    const result = resolveNormalTurn(state, player, events, steps, context.now);
     return result;
   }
 
@@ -245,7 +252,7 @@ function resolvePlayedCard<TState extends GameState>(state: TState, player: Play
     }, 0, 'PLAYER_PRIVATE', [target.id]));
     state.phase = 'WIN_CHECK';
     const steps = state.config.drawPenaltySkipsTurn ? 2 : 1;
-    const result = resolveNormalTurn(state, player, events, steps);
+    const result = resolveNormalTurn(state, player, events, steps, context.now);
     return result;
   }
 
@@ -314,7 +321,7 @@ function handlePlayCard<TState extends GameState>(
   return finalise(committedState, true, events);
 }
 
-function handleDrawCard<TState extends GameState>(state: TState, command: GameCommand & { type: 'DRAW_CARD' }): GameTransition<TState> {
+function handleDrawCard<TState extends GameState>(state: TState, command: GameCommand & { type: 'DRAW_CARD' }, context: GameCommandContext): GameTransition<TState> {
   const validation = validateDraw(state, command.playerId);
   if (!validation.ok || !validation.player) {
     const nextState = cacheOutcome(state, command, { ok: false, error: validation.error, events: [] }, state.revision);
@@ -337,7 +344,9 @@ function handleDrawCard<TState extends GameState>(state: TState, command: GameCo
   nextState.phase = 'WIN_CHECK';
   events.push(makeEvent(nextState, 'CARD_DRAWN', { playerId: player.id, card }, 0, 'PLAYER_PRIVATE', [player.id]));
   const previousPlayerId = player.id;
+  clearTimer(nextState);
   const { nextPlayerId } = advanceTurn(nextState, 1);
+  startTimer(nextState, 'TURN', nextPlayerId, context.now);
   events.push(makeEvent(nextState, 'TURN_ADVANCED', { previousPlayerId, nextPlayerId, steps: 1, direction: nextState.direction }));
   nextState.revision = state.revision + 1;
   events.forEach(event => {
@@ -350,7 +359,8 @@ function handleDrawCard<TState extends GameState>(state: TState, command: GameCo
 
 function handleSelectWildColor<TState extends GameState>(
   state: TState,
-  command: GameCommand & { type: 'SELECT_WILD_COLOR' }
+  command: GameCommand & { type: 'SELECT_WILD_COLOR' },
+  context: GameCommandContext
 ): GameTransition<TState> {
   const validation = validateWildColor(state, command.playerId, command.color);
   if (!validation.ok || !validation.player) {
@@ -374,10 +384,13 @@ function handleSelectWildColor<TState extends GameState>(
     nextState.status = 'FINISHED';
     nextState.phase = 'FINISHED';
     nextState.winnerId = player.id;
+    clearTimer(nextState);
     events.push(makeEvent(nextState, 'GAME_WON', { winnerId: player.id }));
   } else {
     const previousPlayerId = player.id;
+    clearTimer(nextState);
     const { nextPlayerId } = advanceTurn(nextState, 1);
+    startTimer(nextState, 'TURN', nextPlayerId, context.now);
     events.push(makeEvent(nextState, 'TURN_ADVANCED', { previousPlayerId, nextPlayerId, steps: 1, direction: nextState.direction }));
   }
 
@@ -410,9 +423,10 @@ function completeSocialResolution<TState extends GameState>(
   socialKind: SocialCardKind,
   events: GameEvent[],
   steps = 1,
-  outcome: 'resolved' | 'blocked' = 'resolved'
+  outcome: 'resolved' | 'blocked' = 'resolved',
+  now?: number
 ): void {
-  createTurnResolution(state, actor, events, socialKind, steps, outcome);
+  createTurnResolution(state, actor, events, socialKind, steps, outcome, now);
 }
 
 function isAllPlayerCompletionSocial(social: NonNullable<GameState['social']>): boolean {
@@ -469,7 +483,8 @@ function resolveAllPlayerCompletion<TState extends GameState>(
   command: GameCommand,
   eventType: 'ANSWER_SUBMITTED' | 'ANSWER_CHOICE_SUBMITTED' | 'ANSWERED_LIVE_MARKED',
   payload: Record<string, unknown>,
-  updateRecord: (record: SocialAnswerRecord) => SocialAnswerRecord
+  updateRecord: (record: SocialAnswerRecord) => SocialAnswerRecord,
+  context: GameCommandContext
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
   if (error) return failCommand(state, command, error);
@@ -498,7 +513,7 @@ function resolveAllPlayerCompletion<TState extends GameState>(
 
   if (markCompletionResolvedIfAll(nextSocial)) {
     const actor = nextState.players.find(item => item.id === nextSocial.actorId)!;
-    completeSocialResolution(nextState, actor, nextSocial.cardKind, events);
+    completeSocialResolution(nextState, actor, nextSocial.cardKind, events, 1, 'resolved', context.now);
   }
 
   nextState.revision = state.revision + 1;
@@ -704,7 +719,8 @@ function finaliseAnswerSocial<TState extends GameState>(
   command: GameCommand,
   eventType: string,
   payload: Record<string, unknown>,
-  recipients: readonly string[]
+  recipients: readonly string[],
+  context: GameCommandContext
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
   if (error) return failCommand(state, command, error);
@@ -727,7 +743,7 @@ function finaliseAnswerSocial<TState extends GameState>(
   const events: GameEvent[] = [
     makeEvent(nextState, eventType, payload, 0, 'PLAYER_PRIVATE', recipients)
   ];
-  completeSocialResolution(nextState, actor, nextSocial.cardKind, events);
+  completeSocialResolution(nextState, actor, nextSocial.cardKind, events, 1, 'resolved', context.now);
   nextState.revision = state.revision + 1;
   events.forEach(event => {
     event.revision = nextState.revision;
@@ -739,7 +755,8 @@ function finaliseAnswerSocial<TState extends GameState>(
 
 function handleSubmitAnswer<TState extends GameState>(
   state: TState,
-  command: GameCommand & { type: 'SUBMIT_ANSWER' }
+  command: GameCommand & { type: 'SUBMIT_ANSWER' },
+  context: GameCommandContext
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
   if (error) return failCommand(state, command, error);
@@ -789,7 +806,8 @@ function handleSubmitAnswer<TState extends GameState>(
         status: 'SUBMITTED',
         submittedByPlayerId: command.playerId,
         submittedAtRevision: state.revision + 1
-      })
+      }),
+      context
     );
   }
   if (social.cardKind === 'duel') {
@@ -828,13 +846,15 @@ function handleSubmitAnswer<TState extends GameState>(
       choice: social.answerState.choice ?? null,
       completionOnly: social.answerState.completionOnly
     },
-    [command.playerId]
+    [command.playerId],
+    context
   );
 }
 
 function handleSubmitChoice<TState extends GameState>(
   state: TState,
-  command: GameCommand & { type: 'SUBMIT_CHOICE' }
+  command: GameCommand & { type: 'SUBMIT_CHOICE' },
+  context: GameCommandContext
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
   if (error) return failCommand(state, command, error);
@@ -868,7 +888,8 @@ function handleSubmitChoice<TState extends GameState>(
         status: 'SUBMITTED',
         submittedByPlayerId: command.playerId,
         submittedAtRevision: state.revision + 1
-      })
+      }),
+      context
     );
   }
   if (social.cardKind === 'duel') {
@@ -890,13 +911,15 @@ function handleSubmitChoice<TState extends GameState>(
       mode: social.answerState.mode,
       choice: command.choice
     },
-    [command.playerId]
+    [command.playerId],
+    context
   );
 }
 
 function handleMarkAnsweredLive<TState extends GameState>(
   state: TState,
-  command: GameCommand & { type: 'MARK_ANSWERED_LIVE' }
+  command: GameCommand & { type: 'MARK_ANSWERED_LIVE' },
+  context: GameCommandContext
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
   if (error) return failCommand(state, command, error);
@@ -926,7 +949,8 @@ function handleMarkAnsweredLive<TState extends GameState>(
         status: 'SUBMITTED',
         submittedByPlayerId: command.playerId,
         submittedAtRevision: state.revision + 1
-      })
+      }),
+      context
     );
   }
   if (social.cardKind === 'duel') {
@@ -944,13 +968,15 @@ function handleMarkAnsweredLive<TState extends GameState>(
       cardKind: social.cardKind,
       completionOnly: true
     },
-    [command.playerId]
+    [command.playerId],
+    context
   );
 }
 
 function handleSelectParanoiaTarget<TState extends GameState>(
   state: TState,
-  command: GameCommand & { type: 'SELECT_PARANOIA_TARGET' }
+  command: GameCommand & { type: 'SELECT_PARANOIA_TARGET' },
+  context: GameCommandContext
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state, 'paranoia');
   if (error) return failCommand(state, command, error);
@@ -979,7 +1005,7 @@ function handleSelectParanoiaTarget<TState extends GameState>(
     }, 0, 'PLAYER_PRIVATE', [command.playerId]),
     makeEvent(nextState, 'ROULETTE_PRESENTATION_STARTED', projectRoulettePresentation(nextSocial.roulettePresentation), 1, 'PLAYER_PRIVATE', [command.playerId])
   ];
-  completeSocialResolution(nextState, actor, 'paranoia', events);
+  completeSocialResolution(nextState, actor, 'paranoia', events, 1, 'resolved', context.now);
   nextState.revision = state.revision + 1;
   events.forEach(event => {
     event.revision = nextState.revision;
@@ -1060,7 +1086,8 @@ function handleSelectDuelTarget<TState extends GameState>(
 
 function handleSubmitDuelResponse<TState extends GameState>(
   state: TState,
-  command: GameCommand & { type: 'SUBMIT_DUEL_RESPONSE' }
+  command: GameCommand & { type: 'SUBMIT_DUEL_RESPONSE' },
+  context: GameCommandContext
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state, 'duel');
   if (error) return failCommand(state, command, error);
@@ -1135,7 +1162,7 @@ function handleSubmitDuelResponse<TState extends GameState>(
     }, 0, 'PLAYER_PRIVATE', [social.actorId, updatedDuel.opponentId!])
   ];
   if (bothSubmitted) {
-    completeSocialResolution(nextState, actor, 'duel', events);
+    completeSocialResolution(nextState, actor, 'duel', events, 1, 'resolved', context.now);
   }
   nextState.revision = state.revision + 1;
   events.forEach(event => {
@@ -1148,7 +1175,8 @@ function handleSubmitDuelResponse<TState extends GameState>(
 
 function handlePlayNope<TState extends GameState>(
   state: TState,
-  command: GameCommand & { type: 'PLAY_NOPE' }
+  command: GameCommand & { type: 'PLAY_NOPE' },
+  context: GameCommandContext
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
   if (error) return failCommand(state, command, error);
@@ -1195,7 +1223,7 @@ function handlePlayNope<TState extends GameState>(
       effectKind: reaction.effectKind
     }, 0, 'PLAYER_PRIVATE', [social.actorId, command.playerId])
   ];
-  completeSocialResolution(nextState, actor, social.cardKind, events, 1, 'blocked');
+  completeSocialResolution(nextState, actor, social.cardKind, events, 1, 'blocked', context.now);
   nextState.revision = state.revision + 1;
   events.forEach(event => {
     event.revision = nextState.revision;
@@ -1207,7 +1235,8 @@ function handlePlayNope<TState extends GameState>(
 
 function handlePassPrompt<TState extends GameState>(
   state: TState,
-  command: GameCommand & { type: 'PASS_PROMPT' }
+  command: GameCommand & { type: 'PASS_PROMPT' },
+  context: GameCommandContext
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
   if (error) return failCommand(state, command, error);
@@ -1227,7 +1256,7 @@ function handlePassPrompt<TState extends GameState>(
         completionOnly: true
       }, 0, 'PLAYER_PRIVATE', [command.playerId])
     ];
-    completeSocialResolution(nextState, actor, nextSocial.cardKind, events);
+    completeSocialResolution(nextState, actor, nextSocial.cardKind, events, 1, 'resolved', context.now);
     nextState.revision = state.revision + 1;
     events.forEach(event => {
       event.revision = nextState.revision;
@@ -1264,7 +1293,7 @@ function handlePassPrompt<TState extends GameState>(
         completionOnly: true
       }, 0, 'PLAYER_PRIVATE', [command.playerId])
     ];
-    completeSocialResolution(nextState, actor, nextSocial.cardKind, events);
+    completeSocialResolution(nextState, actor, nextSocial.cardKind, events, 1, 'resolved', context.now);
     nextState.revision = state.revision + 1;
     events.forEach(event => {
       event.revision = nextState.revision;
@@ -1297,7 +1326,7 @@ function handlePassPrompt<TState extends GameState>(
         completionOnly: true
       }, 0, 'PLAYER_PRIVATE', [command.playerId])
     ];
-    completeSocialResolution(nextState, actor, nextSocial.cardKind, events);
+    completeSocialResolution(nextState, actor, nextSocial.cardKind, events, 1, 'resolved', context.now);
     nextState.revision = state.revision + 1;
     events.forEach(event => {
       event.revision = nextState.revision;
@@ -1323,7 +1352,7 @@ function handlePassPrompt<TState extends GameState>(
         completionOnly: true
       }, 0, 'PLAYER_PRIVATE', [command.playerId])
     ];
-    completeSocialResolution(nextState, actor, nextSocial.cardKind, events);
+    completeSocialResolution(nextState, actor, nextSocial.cardKind, events, 1, 'resolved', context.now);
     nextState.revision = state.revision + 1;
     events.forEach(event => {
       event.revision = nextState.revision;
@@ -1364,7 +1393,7 @@ function handlePassPrompt<TState extends GameState>(
 
     if (markCompletionResolvedIfAll(nextSocial)) {
       const actor = nextState.players.find(item => item.id === nextSocial.actorId)!;
-      completeSocialResolution(nextState, actor, nextSocial.cardKind, events);
+      completeSocialResolution(nextState, actor, nextSocial.cardKind, events, 1, 'resolved', context.now);
     }
 
     nextState.revision = state.revision + 1;
@@ -1443,6 +1472,7 @@ function handleRewindPrompt<TState extends GameState>(
     'SEALED'
   );
   nextState.social = rewindedSocial;
+  startTimer(nextState, 'SOCIAL', command.playerId, context.now);
 
   const events: GameEvent[] = [
     makeEvent(nextState, 'PROMPT_REWOUND', {
@@ -1502,6 +1532,149 @@ function handleFlagPrompt<TState extends GameState>(
   return finalise(committedState, true, events);
 }
 
+function handleTimeoutTurn<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'TIMEOUT_TURN' },
+  context: GameCommandContext
+): GameTransition<TState> {
+  if (!Number.isFinite(context.now)) {
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'Timeout commands require an authoritative now value.'));
+  }
+
+  const timer = state.timer;
+  if (!timer) {
+    return failCommand(state, command, createEngineError('NO_PENDING_TIMER', 'No active timer is currently pending.'));
+  }
+  if (timer.purpose !== 'TURN' || timer.startedAtRevision !== state.revision) {
+    return failCommand(state, command, createEngineError('STALE_TIMEOUT', 'The turn timer no longer matches the authoritative turn state.'));
+  }
+  if (!isTimerDue(timer, context.now)) {
+    return failCommand(state, command, createEngineError('TIMEOUT_NOT_REACHED', 'The authoritative time has not yet reached the turn deadline.', {
+      now: context.now,
+      deadlineAt: timer.deadlineAt
+    }));
+  }
+
+  const nextState = cloneState(state);
+  const activePlayer = nextState.players.find(item => item.id === nextState.currentPlayerId);
+  if (!activePlayer) {
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'The active player could not be resolved for the turn timeout.'));
+  }
+
+  clearTimer(nextState);
+  const events: GameEvent[] = [
+    makeEvent(nextState, 'TURN_TIMED_OUT', {
+      playerId: activePlayer.id,
+      startedAt: timer.startedAt,
+      deadlineAt: timer.deadlineAt,
+      purpose: timer.purpose
+    }, 0, 'PUBLIC')
+  ];
+
+  const previousPlayerId = activePlayer.id;
+  const { nextPlayerId } = advanceTurn(nextState, 1);
+  startTimer(nextState, 'TURN', nextPlayerId, context.now);
+  events.push(makeEvent(nextState, 'TURN_ADVANCED', { previousPlayerId, nextPlayerId, steps: 1, direction: nextState.direction }));
+
+  nextState.revision = state.revision + 1;
+  events.forEach(event => {
+    event.revision = nextState.revision;
+  });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
+function handleTimeoutSocial<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'TIMEOUT_SOCIAL' },
+  context: GameCommandContext
+): GameTransition<TState> {
+  if (!Number.isFinite(context.now)) {
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'Timeout commands require an authoritative now value.'));
+  }
+
+  const timer = state.timer;
+  if (!timer) {
+    return failCommand(state, command, createEngineError('NO_PENDING_TIMER', 'No active timer is currently pending.'));
+  }
+  if (timer.purpose !== 'SOCIAL') {
+    return failCommand(state, command, createEngineError('STALE_TIMEOUT', 'The social timer no longer matches the authoritative social state.'));
+  }
+  if (!isTimerDue(timer, context.now)) {
+    return failCommand(state, command, createEngineError('TIMEOUT_NOT_REACHED', 'The authoritative time has not yet reached the social deadline.', {
+      now: context.now,
+      deadlineAt: timer.deadlineAt
+    }));
+  }
+
+  const { social, error } = requireSocial(state);
+  if (error) return failCommand(state, command, error);
+  if (timer.ownerPlayerId !== social.actorId) {
+    return failCommand(state, command, createEngineError('STALE_TIMEOUT', 'The social timer no longer matches the authoritative social state.'));
+  }
+
+  const nextState = cloneState(state);
+  const nextSocial = nextState.social!;
+  clearTimer(nextState);
+
+  if (isAllPlayerCompletionSocial(nextSocial)) {
+    for (const playerId of nextSocial.pendingCompletionPlayerIds) {
+      if (nextSocial.completedCompletionPlayerIds.includes(playerId)) continue;
+      const currentRecord = getCompletionRecord(nextSocial, playerId);
+      setCompletionRecord(nextSocial, playerId, {
+        ...currentRecord,
+        status: 'SUBMITTED',
+        completionOnly: true,
+        submittedByPlayerId: null,
+        submittedAtRevision: null
+      });
+      nextSocial.completedCompletionPlayerIds = [...new Set([...nextSocial.completedCompletionPlayerIds, playerId])];
+    }
+  } else {
+    if (nextSocial.cardKind === 'duel') {
+      nextSocial.pendingReaction = null;
+      nextSocial.pendingDuel = nextSocial.pendingDuel
+        ? {
+            ...nextSocial.pendingDuel,
+            resolutionReady: true,
+            winnerId: null
+          }
+        : null;
+    }
+    nextSocial.answerState = {
+      ...nextSocial.answerState,
+      status: 'SUBMITTED',
+      completionOnly: true,
+      submittedByPlayerId: null,
+      submittedAtRevision: null
+    };
+  }
+
+  const actor = nextState.players.find(item => item.id === nextSocial.actorId);
+  if (!actor) {
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'The active social actor could not be resolved for the timeout.'));
+  }
+
+  const events: GameEvent[] = [
+    makeEvent(nextState, 'SOCIAL_TIMED_OUT', {
+      actorId: nextSocial.actorId,
+      cardId: nextSocial.cardId,
+      cardKind: nextSocial.cardKind,
+      deadlineAt: timer.deadlineAt
+    }, 0, 'PUBLIC')
+  ];
+  completeSocialResolution(nextState, actor, nextSocial.cardKind, events, 1, 'resolved', context.now);
+
+  nextState.revision = state.revision + 1;
+  events.forEach(event => {
+    event.revision = nextState.revision;
+  });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
 export function applyCommand<TState extends GameState>(state: TState, command: GameCommand, context: GameCommandContext = {}): GameTransition<TState> {
   if (command.sessionId !== state.id) {
     return finalise(state, false, [], createEngineError('SESSION_MISMATCH', 'The command was addressed to a different game session.', { expectedSessionId: state.id, actualSessionId: command.sessionId }));
@@ -1541,20 +1714,22 @@ export function applyCommand<TState extends GameState>(state: TState, command: G
   }
 
   if (command.type === 'PLAY_CARD') return handlePlayCard(state, command, context);
-  if (command.type === 'DRAW_CARD') return handleDrawCard(state, command);
-  if (command.type === 'SELECT_WILD_COLOR') return handleSelectWildColor(state, command);
+  if (command.type === 'DRAW_CARD') return handleDrawCard(state, command, context);
+  if (command.type === 'SELECT_WILD_COLOR') return handleSelectWildColor(state, command, context);
   if (command.type === 'SELECT_ANSWER_MODE') return handleSelectAnswerMode(state, command);
   if (command.type === 'REVIEW_ANSWER') return handleReviewAnswer(state, command);
-  if (command.type === 'SUBMIT_ANSWER') return handleSubmitAnswer(state, command);
-  if (command.type === 'SUBMIT_CHOICE') return handleSubmitChoice(state, command);
-  if (command.type === 'MARK_ANSWERED_LIVE') return handleMarkAnsweredLive(state, command);
-  if (command.type === 'PASS_PROMPT') return handlePassPrompt(state, command);
+  if (command.type === 'SUBMIT_ANSWER') return handleSubmitAnswer(state, command, context);
+  if (command.type === 'SUBMIT_CHOICE') return handleSubmitChoice(state, command, context);
+  if (command.type === 'MARK_ANSWERED_LIVE') return handleMarkAnsweredLive(state, command, context);
+  if (command.type === 'PASS_PROMPT') return handlePassPrompt(state, command, context);
   if (command.type === 'REWIND_PROMPT') return handleRewindPrompt(state, command, context);
   if (command.type === 'FLAG_PROMPT') return handleFlagPrompt(state, command);
-  if (command.type === 'SELECT_PARANOIA_TARGET' || command.type === 'PARANOIA_CHOICE') return handleSelectParanoiaTarget(state, command as GameCommand & { type: 'SELECT_PARANOIA_TARGET' });
+  if (command.type === 'SELECT_PARANOIA_TARGET' || command.type === 'PARANOIA_CHOICE') return handleSelectParanoiaTarget(state, command as GameCommand & { type: 'SELECT_PARANOIA_TARGET' }, context);
   if (command.type === 'SELECT_DUEL_TARGET' || command.type === 'DUEL_TARGET') return handleSelectDuelTarget(state, command as GameCommand & { type: 'SELECT_DUEL_TARGET' }, context);
-  if (command.type === 'SUBMIT_DUEL_RESPONSE') return handleSubmitDuelResponse(state, command);
-  if (command.type === 'PLAY_NOPE') return handlePlayNope(state, command);
+  if (command.type === 'SUBMIT_DUEL_RESPONSE') return handleSubmitDuelResponse(state, command, context);
+  if (command.type === 'PLAY_NOPE') return handlePlayNope(state, command, context);
+  if (command.type === 'TIMEOUT_TURN') return handleTimeoutTurn(state, command, context);
+  if (command.type === 'TIMEOUT_SOCIAL') return handleTimeoutSocial(state, command, context);
 
   return finalise(state, false, [], createEngineError('COMMAND_NOT_IMPLEMENTED', `The core reducer does not implement ${command.type}.`));
 }
