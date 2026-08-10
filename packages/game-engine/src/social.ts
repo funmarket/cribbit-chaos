@@ -4,7 +4,13 @@ import type {
   GameState,
   Player,
   PromptEligibilityRequest,
+  RevealState,
+  RoulettePresentation,
+  RoulettePresentationType,
+  RoulettePresentationView,
   SocialAnswerRecord,
+  SocialAuthorshipState,
+  SocialAuthorshipView,
   SocialCardKind,
   SocialDuelRecord,
   SocialDuelResponseRecord,
@@ -13,7 +19,7 @@ import type {
   SocialState,
   SocialTargeting
 } from '@cribbit/contracts';
-import { isPromptEligible, selectEligiblePrompt } from '@cribbit/prompts';
+import { getEligiblePrompts, isPromptEligible } from '@cribbit/prompts';
 import { createEngineError } from './errors.ts';
 import { makeEvent } from './events.ts';
 import { advanceTurn, getPlayerIndex } from './turn.ts';
@@ -21,7 +27,14 @@ import { advanceTurn, getPlayerIndex } from './turn.ts';
 export interface GameCommandContext {
   promptPool?: readonly SocialPrompt[];
   selectedPrompt?: SocialPrompt;
+  authorshipByPromptId?: Readonly<Record<string, string>>;
   promptProfile?: Partial<Pick<PromptEligibilityRequest, 'stage' | 'intensity' | 'language' | 'callSuitability' | 'excludePromptIds' | 'excludeRepeatGroups' | 'excludeAntiRepeatKeys'>>;
+}
+
+export interface SocialPromptSelection {
+  prompt: SocialPrompt;
+  selection: PromptEligibilityRequest;
+  candidateResultIds: readonly string[];
 }
 
 function wildcardString(value?: string): string {
@@ -55,7 +68,7 @@ export function selectPromptForSocialEffect(
   kind: SocialCardKind,
   targeting: SocialTargeting,
   context: GameCommandContext
-): { prompt: SocialPrompt; selection: PromptEligibilityRequest } | ReturnType<typeof createEngineError> {
+): SocialPromptSelection | ReturnType<typeof createEngineError> {
   const selection = createSelectionRequest(state, kind, targeting, context);
 
   if (context.selectedPrompt) {
@@ -68,7 +81,7 @@ export function selectPromptForSocialEffect(
         contentWorld: state.config.contentWorld
       });
     }
-    return { prompt, selection };
+    return { prompt, selection, candidateResultIds: [prompt.id] };
   }
 
   if (!context.promptPool?.length) {
@@ -79,7 +92,8 @@ export function selectPromptForSocialEffect(
     });
   }
 
-  const prompt = selectEligiblePrompt(context.promptPool, selection);
+  const eligiblePrompts = getEligiblePrompts(context.promptPool, selection);
+  const prompt = eligiblePrompts[0];
   if (!prompt) {
     return createEngineError('NO_ELIGIBLE_PROMPT', 'No supplied prompt is eligible for the current social effect.', {
       kind,
@@ -88,7 +102,54 @@ export function selectPromptForSocialEffect(
       poolSize: context.promptPool.length
     });
   }
-  return { prompt, selection };
+  return { prompt, selection, candidateResultIds: eligiblePrompts.map(item => item.id) };
+}
+
+export function createRoulettePresentation(
+  state: GameState,
+  type: RoulettePresentationType,
+  selectedResultId: string,
+  candidateResultIds: readonly string[],
+  revealState: RevealState = 'REVEALED'
+): RoulettePresentation {
+  const candidates = [...candidateResultIds];
+  return {
+    id: `${state.id}:roulette:${state.revision}:${type}:${selectedResultId}`,
+    type,
+    selectedResultId,
+    candidateResultIds: candidates,
+    revealState,
+    presentationSeed: `${state.id}|${state.revision}|${type}|${selectedResultId}|${candidates.join(',')}`
+  };
+}
+
+export function projectRoulettePresentation(presentation: RoulettePresentation): RoulettePresentationView {
+  if (presentation.revealState === 'REVEALED') return { ...presentation };
+  const { selectedResultId: _selectedResultId, ...sealed } = presentation;
+  return sealed;
+}
+
+export function projectAuthorship(authorship: SocialAuthorshipState): SocialAuthorshipView {
+  if (authorship.revealState === 'REVEALED' && authorship.revealedAuthorPlayerId) {
+    return {
+      mode: authorship.mode,
+      revealState: authorship.revealState,
+      authorPlayerId: authorship.revealedAuthorPlayerId
+    };
+  }
+  return { mode: authorship.mode, revealState: authorship.revealState };
+}
+
+export function createAuthorshipState(prompt: SocialPrompt | null, context: GameCommandContext): SocialAuthorshipState | null {
+  if (!prompt) return null;
+  const authorPlayerId = context.authorshipByPromptId?.[prompt.id] ?? null;
+  const revealState: RevealState = prompt.authorshipMode === 'SIGNED' ? 'REVEALED' : 'SEALED';
+  return {
+    mode: prompt.authorshipMode,
+    authorPlayerId,
+    revealState,
+    revealedAuthorPlayerId: revealState === 'REVEALED' ? authorPlayerId : null
+  };
 }
 
 export function createAnswerRecord(): SocialAnswerRecord {
@@ -133,7 +194,9 @@ export function createSocialState(
   cardKind: SocialCardKind,
   actorId: string,
   prompt: SocialPrompt | null,
-  selection: PromptEligibilityRequest | null
+  selection: PromptEligibilityRequest | null,
+  presentation?: Pick<RoulettePresentation, 'type' | 'candidateResultIds'>,
+  context: GameCommandContext = {}
 ): SocialState {
   const pendingCompletionPlayerIds = selection?.targeting === 'all'
     ? state.players.map(player => player.id)
@@ -152,6 +215,10 @@ export function createSocialState(
           selectedAtRevision: state.revision
         }
       : null,
+    roulettePresentation: prompt && presentation
+      ? createRoulettePresentation(state, presentation.type, prompt.id, presentation.candidateResultIds)
+      : null,
+    authorship: createAuthorshipState(prompt, context),
     pendingTargetId: null,
     pendingTargetIds: [],
     pendingCompletionPlayerIds,

@@ -45,8 +45,8 @@
 - [x] Nope reaction
 - [x] prompt eligibility
 - [x] sealed prompt selection
-- [ ] roulette presentation contract
-- [ ] authorship modes
+- [x] roulette presentation contract
+- [x] authorship modes
 
 ## Phase 3 — Safety & answers
 
@@ -135,4 +135,4 @@
 
 ## Current Next Task
 
-Phase 2 social card engine is in progress on `feature/social-card-engine`.
+Phase 3 Safety & Answers is next. This task does not begin Phase 3 implementation.

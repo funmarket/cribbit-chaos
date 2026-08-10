@@ -6,10 +6,13 @@ import { advanceTurn } from './turn.ts';
 import { isLegalPlay, validateDraw, validatePlay, validateWildColor } from './validation.ts';
 import {
   createAnswerRecord,
+  createAuthorshipState,
+  createRoulettePresentation,
   createDuelRecord,
   createReactionRecord,
   createSocialState,
   createTurnResolution,
+  projectRoulettePresentation,
   selectPromptForSocialEffect,
   type GameCommandContext
 } from './social.ts';
@@ -142,32 +145,40 @@ function startSocialCardPlay<TState extends GameState>(
     const targeting = kind === 'chaos' ? 'all' : 'current';
     const selected = selectPromptForSocialEffect(state, kind, targeting, context);
     if ('code' in selected) return selected;
-    const social = createSocialState(state, card.id, kind, player.id, selected.prompt, selected.selection);
+    const social = createSocialState(state, card.id, kind, player.id, selected.prompt, selected.selection, {
+      type: kind === 'chaos' ? 'CHAOS' : 'PROMPT',
+      candidateResultIds: selected.candidateResultIds
+    }, context);
     social.pendingTargetId = player.id;
     social.pendingTargetIds = targeting === 'all' ? state.players.map(item => item.id) : [player.id];
     social.answerState = createAnswerRecord();
     state.social = social;
     state.phase = 'ANSWER_RESOLVE';
     events.push(makeEvent(state, 'PROMPT_SELECTED', { actorId: player.id, cardId: card.id, promptId: selected.prompt.id, prompt: selected.prompt }, 0, 'PLAYER_PRIVATE', [player.id]));
-    events.push(makeEvent(state, 'ANSWER_REQUIRED', { actorId: player.id, cardId: card.id, cardKind: kind, promptId: selected.prompt.id }, 0, 'PUBLIC'));
+    events.push(makeEvent(state, 'ROULETTE_PRESENTATION_STARTED', projectRoulettePresentation(social.roulettePresentation!), 1, 'PLAYER_PRIVATE', [player.id]));
+    events.push(makeEvent(state, 'ANSWER_REQUIRED', { actorId: player.id, cardId: card.id, cardKind: kind }, 0, 'PUBLIC'));
     return null;
   }
 
   if (kind === 'paranoia') {
     const selected = selectPromptForSocialEffect(state, kind, 'specific', context);
     if ('code' in selected) return selected;
-    const social = createSocialState(state, card.id, kind, player.id, selected.prompt, selected.selection);
+    const social = createSocialState(state, card.id, kind, player.id, selected.prompt, selected.selection, {
+      type: 'PROMPT',
+      candidateResultIds: selected.candidateResultIds
+    }, context);
     social.pendingTargetIds = state.players.filter(item => item.id !== player.id).map(item => item.id);
     social.pendingTargetId = null;
     state.social = social;
     state.phase = 'ANSWER_RESOLVE';
     events.push(makeEvent(state, 'PROMPT_SELECTED', { actorId: player.id, cardId: card.id, promptId: selected.prompt.id, prompt: selected.prompt }, 0, 'PLAYER_PRIVATE', [player.id]));
+    events.push(makeEvent(state, 'ROULETTE_PRESENTATION_STARTED', projectRoulettePresentation(social.roulettePresentation!), 1, 'PLAYER_PRIVATE', [player.id]));
     events.push(makeEvent(state, 'TARGET_REQUIRED', { actorId: player.id, cardId: card.id, cardKind: kind, targetCount: social.pendingTargetIds.length }, 0, 'PUBLIC'));
     return null;
   }
 
   if (kind === 'duel') {
-    const social = createSocialState(state, card.id, kind, player.id, null, null);
+    const social = createSocialState(state, card.id, kind, player.id, null, null, undefined, context);
     social.pendingTargetIds = state.players.filter(item => item.id !== player.id).map(item => item.id);
     state.social = social;
     state.phase = 'ANSWER_RESOLVE';
@@ -863,6 +874,7 @@ function handleSelectParanoiaTarget<TState extends GameState>(
   const nextState = cloneState(state);
   const nextSocial = nextState.social!;
   nextSocial.pendingTargetId = command.targetId;
+  nextSocial.roulettePresentation = createRoulettePresentation(nextState, 'PLAYER', command.targetId, nextSocial.pendingTargetIds);
   nextSocial.resolutionComplete = true;
   nextSocial.mayAdvanceTurn = true;
   const actor = nextState.players.find(item => item.id === command.playerId)!;
@@ -871,7 +883,8 @@ function handleSelectParanoiaTarget<TState extends GameState>(
       actorId: command.playerId,
       cardId: nextSocial.cardId,
       targetPlayerId: command.targetId
-    }, 0, 'PLAYER_PRIVATE', [command.playerId])
+    }, 0, 'PLAYER_PRIVATE', [command.playerId]),
+    makeEvent(nextState, 'ROULETTE_PRESENTATION_STARTED', projectRoulettePresentation(nextSocial.roulettePresentation), 1, 'PLAYER_PRIVATE', [command.playerId])
   ];
   completeSocialResolution(nextState, actor, 'paranoia', events);
   nextState.revision = state.revision + 1;
@@ -910,6 +923,8 @@ function handleSelectDuelTarget<TState extends GameState>(
   const nextSocial = nextState.social!;
   nextSocial.pendingTargetId = command.targetId;
   nextSocial.prompt = preview.prompt;
+  nextSocial.roulettePresentation = createRoulettePresentation(nextState, 'PLAYER', command.targetId, social.pendingTargetIds);
+  nextSocial.authorship = createAuthorshipState(preview.prompt, context);
   nextSocial.promptSelection = {
     promptId: preview.prompt.id,
     prompt: preview.prompt,
@@ -929,7 +944,8 @@ function handleSelectDuelTarget<TState extends GameState>(
   const recipients = [command.playerId, command.targetId];
   const events: GameEvent[] = [
     makeEvent(nextState, 'DUEL_TARGET_SELECTED', { actorId: command.playerId, cardId: nextSocial.cardId, targetPlayerId: command.targetId, promptId: preview.prompt.id }, 0, 'PLAYER_PRIVATE', recipients),
-    makeEvent(nextState, 'PROMPT_SELECTED', { actorId: command.playerId, cardId: nextSocial.cardId, promptId: preview.prompt.id, prompt: preview.prompt }, 1, 'PLAYER_PRIVATE', recipients)
+    makeEvent(nextState, 'ROULETTE_PRESENTATION_STARTED', projectRoulettePresentation(nextSocial.roulettePresentation), 1, 'PLAYER_PRIVATE', recipients),
+    makeEvent(nextState, 'PROMPT_SELECTED', { actorId: command.playerId, cardId: nextSocial.cardId, promptId: preview.prompt.id, prompt: preview.prompt }, 2, 'PLAYER_PRIVATE', recipients)
   ];
   if (nextSocial.pendingReaction) {
     events.push(makeEvent(nextState, 'NOPE_WINDOW_OPENED', {

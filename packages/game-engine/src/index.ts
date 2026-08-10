@@ -15,8 +15,14 @@ export type {
   PlayerStatus,
   PromptEligibilityRequest,
   PromptWorld,
+  RevealState,
+  RoulettePresentation,
+  RoulettePresentationType,
+  RoulettePresentationView,
   SelectedPromptSnapshot,
   SocialAnswerRecord,
+  SocialAuthorshipState,
+  SocialAuthorshipView,
   SocialAnswerStatus,
   SocialCardKind,
   SocialDuelRecord,
@@ -33,5 +39,13 @@ export { applyCommand } from './reducer.ts';
 export { createGame } from './setup.ts';
 export { advanceTurn, getCurrentPlayer, getNextPlayerIndex, getPlayerIndex } from './turn.ts';
 export { isLegalPlay, validateDraw, validatePlay, validateWildColor } from './validation.ts';
-export { type GameCommandContext, selectPromptForSocialEffect } from './social.ts';
+export {
+  createAuthorshipState,
+  createRoulettePresentation,
+  projectAuthorship,
+  projectRoulettePresentation,
+  selectPromptForSocialEffect,
+  type GameCommandContext,
+  type SocialPromptSelection
+} from './social.ts';
 
