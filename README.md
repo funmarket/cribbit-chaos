@@ -123,7 +123,7 @@ npm run test
 npm run audit:ui
 ```
 
-The test runner currently passes, but substantive game tests are not implemented yet. That is the next milestone after the authoritative reducer lands.
+The current test runner includes substantive gameplay coverage and shared visual checkpoint coverage. Run the full suite before changing shared packages.
 
 ## Environment variables
 
@@ -165,7 +165,9 @@ See [docs/TELEGRAM.md](./docs/TELEGRAM.md) for the security boundary and client 
 
 The production monorepo, deployment scaffolding, database foundation, and button audit are in place.
 
-The authoritative core game-engine slice is now implemented and covered by transition tests.
+The authoritative core game-engine slice is implemented and covered by transition tests.
+
+The shared UI also includes a visual integration checkpoint with fixture-driven previews for web and Telegram.
 
 `apps/api` still needs its gameplay command wiring and multiplayer transport integration in later phases.
 
@@ -179,5 +181,6 @@ The authoritative core game-engine slice is now implemented and covered by trans
 - [docs/ENVIRONMENT.md](./docs/ENVIRONMENT.md)
 - [docs/TELEGRAM.md](./docs/TELEGRAM.md)
 - [docs/TESTING.md](./docs/TESTING.md)
+- [docs/visual-integration-checkpoint.md](./docs/visual-integration-checkpoint.md)
 - [docs/cleanup-manifest.md](./docs/cleanup-manifest.md)
 - [docs/cleanup-manifest.json](./docs/cleanup-manifest.json)

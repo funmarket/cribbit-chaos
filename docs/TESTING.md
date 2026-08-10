@@ -14,4 +14,4 @@ npm run build:api
 
 `npm run audit:ui` verifies the shared button/action registry.
 
-The current test runner succeeds, but substantive game tests are not implemented yet. That is the next milestone after the authoritative reducer lands.
+The current test runner includes substantive gameplay coverage and shared visual checkpoint coverage. Run the full suite before changing shared packages.

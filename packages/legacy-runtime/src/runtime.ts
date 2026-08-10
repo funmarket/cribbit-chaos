@@ -523,7 +523,7 @@
     }
 
     function auditInteractiveControls() {
-      const knownActions = new Set(['toggle-left-rail','toggle-right-rail','toggle-focus-mode','toggle-fullscreen','close-rail-drawers','simulate-disconnect','reset-demo','reconnect-now','join-room','open-mobile-nav','open-global-search','open-notifications','open-profile','save-profile','toggle-activity','apply-room-config','add-to-room','remove-from-room','advance-submission','prompt-detail','draw-card','play-card','card-detail','choose-wild','spin-roulette','publish-prompt','answer-mode','finish-speak','review-typed-answer','review-choice-answer','review-live-answer','submit-answer','edit-answer','complete-flow','safety-pass','safety-rewind','safety-flag','use-nope','nope-reaction','paranoia-choice','duel-target','duel-vote','chaos-target','resolve-chaos','save-prompt','focus-create-prompt','lab-add-card','lab-one-card','lab-human-turn','lab-trigger-draw','lab-queue-chaos','retry-last-command','force-recap','clear-log','flow-close-request','play-again','share-recap']);
+      const knownActions = new Set(['toggle-left-rail','toggle-right-rail','toggle-focus-mode','toggle-fullscreen','close-rail-drawers','simulate-disconnect','reset-demo','reconnect-now','join-room','open-mobile-nav','open-global-search','open-notifications','open-profile','save-profile','toggle-activity','apply-room-config','add-to-room','remove-from-room','advance-submission','prompt-detail','draw-card','play-card','card-detail','choose-wild','spin-roulette','publish-prompt','answer-mode','finish-speak','review-typed-answer','review-choice-answer','review-live-answer','submit-answer','edit-answer','complete-flow','safety-pass','safety-rewind','safety-flag','use-nope','nope-reaction','paranoia-choice','duel-target','duel-vote','chaos-target','resolve-chaos','save-prompt','focus-create-prompt','lab-add-card','lab-one-card','lab-human-turn','lab-trigger-draw','lab-queue-chaos','retry-last-command','force-recap','clear-log','flow-close-request','play-again','share-recap','cycle-fixture']);
       const missing = [...document.querySelectorAll('[data-action]')].map(node => node.dataset.action).filter(action => action && !knownActions.has(action));
       if (missing.length) console.error('Unregistered data-action controls:', [...new Set(missing)]);
       return missing;
@@ -616,7 +616,9 @@
         const label = state.connection === 'CONNECTED' ? 'Connected' : state.connection === 'LOST' ? 'Connection lost' : 'Timed out';
         pill.querySelector('span').textContent = label;
       }
-      $('#revisionLabel').textContent = `Server rev ${state.revision}`;
+      const fixtureMeta = visualWindow.__CRIBBIT_VISUAL_FIXTURE_META__ || null;
+      $('#revisionLabel').textContent = fixtureMeta ? `Server rev ${state.revision} · ${fixtureMeta.label}` : `Server rev ${state.revision}`;
+      syncFixtureBadge();
     }
 
     function serverCommand(type, payload = {}, options = {}) {
@@ -1922,12 +1924,13 @@
     function renderGame() {
       const session = state.session;
       if (!session) return;
+      const fixtureMeta = visualWindow.__CRIBBIT_VISUAL_FIXTURE_META__ || null;
       const current = currentPlayer();
       const human = humanPlayer();
-      $('#modeBadge').textContent = MODES[session.mode].label;
+      $('#modeBadge').textContent = fixtureMeta ? `${MODES[session.mode].label} · ${fixtureMeta.label}` : MODES[session.mode].label;
       $('#modeBadge').dataset.tone = session.mode === 'mayhem' ? 'magenta' : session.mode === 'duel' ? 'cyan' : 'lime';
       $('#gameRoomName').textContent = session.roomName;
-      $('#gameRoomMeta').textContent = `${session.players.length} players • ${MODES[session.mode].label} • Round ${session.round}`;
+      $('#gameRoomMeta').textContent = fixtureMeta ? `${session.players.length} players • ${MODES[session.mode].label} • Round ${session.round} • ${fixtureMeta.label}` : `${session.players.length} players • ${MODES[session.mode].label} • Round ${session.round}`;
       $('#stageChip').textContent = STAGES[session.world][session.stage]?.label || 'Warm Up';
       $('#currentTurnName').textContent = current?.name || '-';
       $('#activeColorLabel').textContent = COLOR_META[session.activeColor]?.label || session.activeColor || '-';
@@ -2516,6 +2519,7 @@
       if (action === 'close-rail-drawers') return closeRailDrawers();
       if (action === 'simulate-disconnect') return simulateDisconnect();
       if (action === 'reset-demo') return resetDemo();
+      if (action === 'cycle-fixture') return cycleVisualFixture();
       if (action === 'reconnect-now') return reconnectNow();
       if (action === 'join-room') {
         const code = ($('#joinCode')?.value || '').trim().toUpperCase();
@@ -2691,6 +2695,254 @@
       $('#notificationList').innerHTML = state.ecosystem.notifications.map(note=>`<article class="utility-result" style="--result:var(--${note.tone})">${icon(note.tone==='orange'?'i-home':note.tone==='magenta'?'i-globe':'i-shield')}<span><b>${escapeHTML(note.title)}</b><span>${escapeHTML(note.copy)}</span></span><small>New</small></article>`).join('');
     }
 
+    const VISUAL_FIXTURE_ORDER = ['standard', 'social', 'paranoia', 'duel', 'chaos', 'mobile'];
+    const VISUAL_FIXTURE_DURATION_MS = 10 * 60 * 1000;
+    const visualWindow = window;
+
+    function setInputValue(id, value) {
+      const node = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
+      if (!node) return;
+      node.value = String(value);
+    }
+
+    function setInputChecked(id, checked) {
+      const node = document.getElementById(id) as HTMLInputElement | null;
+      if (!node) return;
+      node.checked = Boolean(checked);
+    }
+
+    function syncFixtureBadge() {
+      const pill = $('#fixturePill');
+      const label = $('#fixtureLabel');
+      const fixture = visualWindow.__CRIBBIT_VISUAL_FIXTURE__ || null;
+      const meta = visualWindow.__CRIBBIT_VISUAL_FIXTURE_META__ || null;
+      if (!pill || !label) return;
+      pill.hidden = !fixture;
+      if (!fixture) return;
+      label.textContent = meta?.label || `${fixture} fixture`;
+      pill.title = meta?.summary || 'Fixture / demo preview';
+    }
+
+    function fixtureCard(kind, id, options = {}) {
+      return createCard(kind, { id, ...options });
+    }
+
+    function fixturePrompt(kind, text, { options = [], authorship = 'reveal', source = 'original' } = {}) {
+      return {
+        id: `fixture-${kind}-${text.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+        type: kind,
+        text,
+        world: 'clean',
+        stage: 1,
+        source,
+        author: 'Cribbit',
+        authorship,
+        targeting: kind === 'paranoia' || kind === 'duel' ? 'specific' : kind === 'chaos' ? 'all' : 'current',
+        options
+      };
+    }
+
+    function resetFixtureInputs() {
+      Object.assign(state.setup, {
+        mode: 'party',
+        playerCount: 5,
+        world: 'clean',
+        ceiling: 3,
+        sources: { original: true, community: true, house: true, live: true },
+        qaHand: true,
+        roomName: 'Night Squad',
+        profileName: 'You'
+      });
+      Object.assign(state.knobs, {
+        startingHand: 7,
+        drawPenalty: 2,
+        turnTimer: 40,
+        stageEvery: 4,
+        voluntaryDraw: false,
+        socialAlwaysLegal: true,
+        finalSocialWin: 'after',
+        nopeContract: 'draw-chaos'
+      });
+      renderSetup();
+      setInputValue('profileName', state.setup.profileName);
+      setInputValue('roomName', state.setup.roomName);
+      setInputValue('worldSelect', state.setup.world);
+      setInputValue('ceilingSelect', state.setup.ceiling);
+      setInputValue('playerCount', state.setup.playerCount);
+      setInputValue('knobStartingHand', state.knobs.startingHand);
+      setInputValue('knobDrawPenalty', state.knobs.drawPenalty);
+      setInputValue('knobTurnTimer', state.knobs.turnTimer);
+      setInputValue('knobStageEvery', state.knobs.stageEvery);
+      setInputChecked('knobVoluntaryDraw', state.knobs.voluntaryDraw);
+      setInputChecked('knobSocialAlways', state.knobs.socialAlwaysLegal);
+      setInputValue('knobFinalSocial', state.knobs.finalSocialWin);
+      setInputValue('knobNopeContract', state.knobs.nopeContract);
+    }
+
+    function seedFixtureBoard() {
+      const session = state.session;
+      if (!session) return;
+      session.players[0].hand = [
+        fixtureCard('number', 'fixture-human-number', { color: 'lime', value: 2, symbol: '2' }),
+        fixtureCard('skip', 'fixture-human-skip', { color: 'orange' }),
+        fixtureCard('reverse', 'fixture-human-reverse', { color: 'cyan' }),
+        fixtureCard('draw', 'fixture-human-draw', { color: 'purple' }),
+        fixtureCard('wild', 'fixture-human-wild', { color: 'lime' }),
+        fixtureCard('truth', 'fixture-human-truth'),
+        fixtureCard('paranoia', 'fixture-human-paranoia')
+      ];
+      session.players[1].hand = [fixtureCard('number', 'fixture-bot-1-number', { color: 'orange', value: 4, symbol: '4' }), fixtureCard('nope', 'fixture-bot-1-nope'), fixtureCard('number', 'fixture-bot-1-two', { color: 'cyan', value: 6, symbol: '6' }), fixtureCard('dare', 'fixture-bot-1-dare'), fixtureCard('number', 'fixture-bot-1-three', { color: 'purple', value: 9, symbol: '9' })];
+      session.players[2].hand = [fixtureCard('number', 'fixture-bot-2-number', { color: 'purple', value: 1, symbol: '1' }), fixtureCard('duel', 'fixture-bot-2-duel'), fixtureCard('number', 'fixture-bot-2-two', { color: 'lime', value: 8, symbol: '8' }), fixtureCard('number', 'fixture-bot-2-three', { color: 'orange', value: 3, symbol: '3' }), fixtureCard('nope', 'fixture-bot-2-nope')];
+      session.players[3].hand = [fixtureCard('number', 'fixture-bot-3-number', { color: 'cyan', value: 5, symbol: '5' }), fixtureCard('chaos', 'fixture-bot-3-chaos'), fixtureCard('number', 'fixture-bot-3-two', { color: 'lime', value: 7, symbol: '7' }), fixtureCard('number', 'fixture-bot-3-three', { color: 'orange', value: 0, symbol: '0' }), fixtureCard('draw', 'fixture-bot-3-draw', { color: 'purple' })];
+      session.players[4].hand = [fixtureCard('number', 'fixture-bot-4-number', { color: 'orange', value: 7, symbol: '7' }), fixtureCard('number', 'fixture-bot-4-two', { color: 'cyan', value: 2, symbol: '2' }), fixtureCard('truth', 'fixture-bot-4-truth'), fixtureCard('number', 'fixture-bot-4-three', { color: 'lime', value: 5, symbol: '5' }), fixtureCard('reverse', 'fixture-bot-4-reverse', { color: 'purple' })];
+      session.discard = [fixtureCard('number', 'fixture-discard-top', { color: 'lime', value: 7, symbol: '7' }), fixtureCard('skip', 'fixture-discard-under', { color: 'orange' })];
+      session.lastDiscardId = session.discard[0].id;
+      session.deck = [
+        fixtureCard('number', 'fixture-deck-1', { color: 'cyan', value: 8, symbol: '8' }),
+        fixtureCard('number', 'fixture-deck-2', { color: 'orange', value: 9, symbol: '9' }),
+        fixtureCard('wild', 'fixture-deck-3'),
+        fixtureCard('number', 'fixture-deck-4', { color: 'purple', value: 1, symbol: '1' }),
+        fixtureCard('truth', 'fixture-deck-5'),
+        fixtureCard('dare', 'fixture-deck-6'),
+        fixtureCard('paranoia', 'fixture-deck-7'),
+        fixtureCard('duel', 'fixture-deck-8'),
+        fixtureCard('chaos', 'fixture-deck-9'),
+        fixtureCard('nope', 'fixture-deck-10'),
+        fixtureCard('draw', 'fixture-deck-11', { color: 'lime' }),
+        fixtureCard('reverse', 'fixture-deck-12', { color: 'cyan' }),
+        fixtureCard('skip', 'fixture-deck-13', { color: 'orange' }),
+        fixtureCard('number', 'fixture-deck-14', { color: 'lime', value: 6, symbol: '6' }),
+        fixtureCard('number', 'fixture-deck-15', { color: 'purple', value: 2, symbol: '2' })
+      ];
+      session.currentIndex = 0;
+      session.direction = 1;
+      session.phase = 'PLAY_DRAW';
+      session.round = 2;
+      session.completedTurns = 6;
+      session.stage = 1;
+      session.activeColor = 'lime';
+      session.activeSymbol = '7';
+      session.winnerId = null;
+      session.pendingWinCandidate = null;
+      session.pendingEffect = null;
+      session.deadline = Date.now() + VISUAL_FIXTURE_DURATION_MS;
+      session.turnStartedAt = Date.now();
+      session.stats = { totalPlays: 8, totalDraws: 3, socialResolved: 2, rouletteSpins: 1, flags: 1, passes: 1, rewinds: 1, nopes: 1, duels: 1, chaos: 1 };
+      state.flow = null;
+      state.reactionDeadline = null;
+      clearTimeout(state.botTimer);
+      state.botTimer = null;
+      state.connection = 'CONNECTED';
+      state.reconnectDeadline = null;
+    }
+
+    function applyFixtureFlow(fixture) {
+      const session = state.session;
+      if (!session) return;
+      const actor = session.players[0];
+      const opponent = session.players[1];
+      if (fixture === 'standard' || fixture === 'mobile') return;
+      if (fixture === 'social') {
+        const card = actor.hand.find(item => item.kind === 'truth') || actor.hand[0];
+        state.session.phase = 'ANSWER_RESOLVE';
+        state.flow = {
+          type: 'social',
+          family: 'truth',
+          originFamily: 'truth',
+          actorId: actor.id,
+          targetId: actor.id,
+          cardId: card.id,
+          prompt: fixturePrompt('truth', 'What is one opinion this room would not guess about you?', { options: ['A hidden talent', 'A guilty pleasure', 'A harmless obsession'], authorship: 'reveal' }),
+          step: 'public-prompt',
+          answerState: 'WAITING_FOR_PLAYER',
+          deadline: Date.now() + VISUAL_FIXTURE_DURATION_MS,
+          flags: []
+        };
+        return;
+      }
+      if (fixture === 'paranoia') {
+        const card = actor.hand.find(item => item.kind === 'paranoia') || actor.hand[0];
+        state.session.phase = 'ANSWER_RESOLVE';
+        state.flow = {
+          type: 'paranoia',
+          family: 'paranoia',
+          originFamily: 'paranoia',
+          actorId: actor.id,
+          targetId: actor.id,
+          cardId: card.id,
+          prompt: fixturePrompt('paranoia', 'Who here would make the best cartoon detective?', { authorship: 'taboo' }),
+          step: 'paranoia-choice',
+          deadline: Date.now() + VISUAL_FIXTURE_DURATION_MS,
+          flags: []
+        };
+        return;
+      }
+      if (fixture === 'duel') {
+        const card = actor.hand.find(item => item.kind === 'duel') || actor.hand[0];
+        state.session.phase = 'ANSWER_RESOLVE';
+        state.flow = {
+          type: 'duel',
+          family: 'duel',
+          originFamily: 'duel',
+          actorId: actor.id,
+          targetId: actor.id,
+          opponentId: opponent.id,
+          cardId: card.id,
+          prompt: fixturePrompt('duel', 'You each have 15 seconds to name as many African countries as possible.', { authorship: 'signed' }),
+          step: 'duel-active',
+          duelPhase: 'active-answer',
+          answerState: 'WAITING_FOR_PLAYER',
+          deadline: Date.now() + VISUAL_FIXTURE_DURATION_MS,
+          flags: []
+        };
+        return;
+      }
+      if (fixture === 'chaos') {
+        const card = actor.hand.find(item => item.kind === 'chaos') || actor.hand[0];
+        state.session.phase = 'ANSWER_RESOLVE';
+        state.flow = {
+          type: 'chaos',
+          family: 'chaos',
+          originFamily: 'chaos',
+          actorId: actor.id,
+          targetId: actor.id,
+          cardId: card.id,
+          prompt: fixturePrompt('truth', 'Everyone answers the next eligible question in reverse turn order.', { authorship: 'signed' }),
+          effect: { id: 'group-answer', title: 'Group Answer', copy: 'Everyone answers the next eligible question. Bots resolve automatically; the active player uses an explicit answer path.', targeted: false },
+          step: 'public-prompt',
+          answerState: 'WAITING_FOR_PLAYER',
+          deadline: Date.now() + VISUAL_FIXTURE_DURATION_MS,
+          flags: []
+        };
+      }
+    }
+
+    function applyVisualFixture(fixture) {
+      const validFixture = VISUAL_FIXTURE_ORDER.includes(fixture) ? fixture : null;
+      visualWindow.__CRIBBIT_VISUAL_FIXTURE__ = validFixture;
+      visualWindow.__CRIBBIT_VISUAL_FIXTURE_META__ = validFixture ? { name: validFixture, label: validFixture === 'standard' ? 'Standard turn' : validFixture === 'social' ? 'Social prompt' : validFixture === 'paranoia' ? 'Paranoia choice' : validFixture === 'duel' ? 'Duel / Nope' : validFixture === 'chaos' ? 'Chaos resolution' : 'Mobile / Telegram', summary: validFixture === 'standard' ? 'Baseline board with an active human turn, hand, draw pile, discard pile, and timer presentation.' : validFixture === 'social' ? 'Truth/Dare modal preview with explicit answer controls and the public social contract visible.' : validFixture === 'paranoia' ? 'Private target-selection presentation with sealed prompt handling.' : validFixture === 'duel' ? 'Duel target / response presentation with the reaction boundary visible.' : validFixture === 'chaos' ? 'All-player Chaos completion presentation with the deterministic effect already selected.' : 'Narrow viewport presentation used to verify Telegram safe areas and touch-safe layout.' } : null;
+      syncFixtureBadge();
+      if (!validFixture) return;
+      resetFixtureInputs();
+      commandStartGame();
+      seedFixtureBoard();
+      applyFixtureFlow(validFixture);
+      state.revision = 0;
+      state.events = [];
+      addEvent('VISUAL_FIXTURE_READY', `${visualWindow.__CRIBBIT_VISUAL_FIXTURE_META__?.label || validFixture} loaded from the shared fixture renderer.`, 'cyan');
+      syncHeader();
+      renderAll();
+      requestAnimationFrame(() => { syncRailMode(); scheduleBoardFit(); });
+      visualWindow.__CRIBBIT_SET_VISUAL_FIXTURE__ = applyVisualFixture;
+    }
+
+    function cycleVisualFixture() {
+      const current = visualWindow.__CRIBBIT_VISUAL_FIXTURE__ || 'standard';
+      const currentIndex = VISUAL_FIXTURE_ORDER.indexOf(current);
+      const next = VISUAL_FIXTURE_ORDER[(currentIndex + 1) % VISUAL_FIXTURE_ORDER.length];
+      applyVisualFixture(next);
+    }
+
     function initialize() {
       initializeLayoutController();
       initializeNavigationMenus();
@@ -2702,8 +2954,10 @@
       renderAll();
       syncHeader();
       state.timerInterval = setInterval(tick,250);
-      addEvent('DEMO_READY', 'Single-file playable demo initialized. Undefined values remain visible balancing knobs.', 'lime');
+      if (visualWindow.__CRIBBIT_VISUAL_FIXTURE__) applyVisualFixture(visualWindow.__CRIBBIT_VISUAL_FIXTURE__);
+      addEvent('DEMO_READY', visualWindow.__CRIBBIT_VISUAL_FIXTURE__ ? `Visual fixture preview initialized: ${visualWindow.__CRIBBIT_VISUAL_FIXTURE_META__?.label || visualWindow.__CRIBBIT_VISUAL_FIXTURE__}.` : 'Single-file playable demo initialized. Undefined values remain visible balancing knobs.', 'lime');
       renderAll();
+      $('#fixturePill')?.addEventListener('click', cycleVisualFixture);
       auditInteractiveControls();
     }
 

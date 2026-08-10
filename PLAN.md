@@ -62,23 +62,23 @@
 
 ## Phase 3.5 — Visual integration checkpoint
 
-- [ ] approved V4 visual migration into shared UI
-- [ ] fixture-state renderer
-- [ ] web visual preview
-- [ ] Telegram Mini App visual preview
+- [x] approved V4 visual migration into shared UI
+- [x] fixture-state renderer
+- [x] web visual preview
+- [x] Telegram Mini App visual preview
 - [ ] development Telegram bot / Mini App staging configuration
 - [ ] Vercel web staging
 - [ ] Vercel Telegram staging
-- [ ] mobile visual QA
-- [ ] desktop visual QA
-- [ ] Telegram safe-area QA
-- [ ] board / hand / draw / discard visual verification
-- [ ] social modal/control visual verification
+- [x] mobile visual QA
+- [x] desktop visual QA
+- [x] Telegram safe-area QA
+- [x] board / hand / draw / discard visual verification
+- [x] social modal/control visual verification
 - [ ] animation verification
-- [ ] shared Web ↔ Telegram visual parity
-- [ ] no client gameplay authority
-- [ ] no fake multiplayer state
-- [ ] no production auth
+- [x] shared Web ↔ Telegram visual parity
+- [x] no client gameplay authority
+- [x] no fake multiplayer state
+- [x] no production auth
 
 Do not redesign Cribbit CHAOS. Treat the approved V4 HTML as a visual specification. Migrate it faithfully, then improve only defects—not the design language.
 
@@ -157,4 +157,4 @@ Do not redesign Cribbit CHAOS. Treat the approved V4 HTML as a visual specificat
 
 ## Current Next Task
 
-Phase 3.5 — Visual integration checkpoint is next. Phase 3C timers and timeout resolution is complete. Phase 3B Answer modes is complete. Phase 3A Safety Controls is complete.
+Phase 3.5 — Visual integration checkpoint is in progress. The shared UI migration, fixture renderer, local previews, and visual QA are complete. The remaining work is staging configuration and deployment proof for the approved preview flow. Phase 3C timers and timeout resolution is complete. Phase 3B Answer modes is complete. Phase 3A Safety Controls is complete.

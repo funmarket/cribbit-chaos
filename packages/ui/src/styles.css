@@ -214,6 +214,7 @@
 
     .status-cluster { display: flex; align-items: center; gap: 7px; }
     .status-pill {
+      appearance: none;
       display: inline-flex;
       align-items: center;
       gap: 7px;
@@ -228,6 +229,12 @@
       letter-spacing: .06em;
       text-transform: uppercase;
       white-space: nowrap;
+    }
+    .fixture-pill { cursor: pointer; }
+    .fixture-pill:focus-visible {
+      border-color: rgba(var(--cyan-rgb), .35);
+      box-shadow: 0 0 0 2px rgba(var(--cyan-rgb), .1);
+      outline: none;
     }
     .status-pill i { width: 7px; aspect-ratio:1; border-radius:50%; background: var(--lime); box-shadow:0 0 10px rgba(var(--lime-rgb),.6); }
     .status-pill[data-state="lost"] i { background:var(--red);box-shadow:0 0 10px rgba(var(--red-rgb),.6); }
