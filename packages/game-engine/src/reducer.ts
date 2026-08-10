@@ -589,6 +589,7 @@ function handleReviewAnswer<TState extends GameState>(
   if (!social.prompt) {
     return failCommand(state, command, createEngineError('NO_PENDING_PROMPT', 'No social prompt is currently selected.'));
   }
+  const promptOptions = social.prompt.options;
 
   if (isAllPlayerCompletionSocial(social)) {
     if (!isRequiredCompletionPlayer(social, command.playerId)) {
@@ -600,6 +601,24 @@ function handleReviewAnswer<TState extends GameState>(
     const currentRecord = getCompletionRecord(social, command.playerId);
     if (!currentRecord.mode) {
       return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Select an answer mode before review.'));
+    }
+    const nextValue = command.value ?? currentRecord.value;
+    const nextChoice = command.choice ?? currentRecord.choice;
+    const nextCompletionOnly = command.completionOnly ?? currentRecord.completionOnly;
+    if (nextChoice && promptOptions?.length && !promptOptions.includes(nextChoice)) {
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an option supplied by the prompt.'));
+    }
+    if (currentRecord.mode === 'CHOOSE' && !nextChoice) {
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an explicit answer before review.'));
+    }
+    if (currentRecord.mode === 'TYPE' && !nextValue?.trim()) {
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Provide answer content before review.'));
+    }
+    if (currentRecord.mode === 'SPEAK' && !nextValue?.trim() && !nextCompletionOnly) {
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Provide answer content before review.'));
+    }
+    if (currentRecord.mode === 'ANSWERED_LIVE' && !nextCompletionOnly) {
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Answered Live must be marked as completion-only.'));
     }
 
     const nextState = cloneState(state);
@@ -634,6 +653,24 @@ function handleReviewAnswer<TState extends GameState>(
   }
   if (!social.answerState.mode) {
     return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Select an answer mode before review.'));
+  }
+  const nextValue = command.value ?? social.answerState.value;
+  const nextChoice = command.choice ?? social.answerState.choice;
+  const nextCompletionOnly = command.completionOnly ?? social.answerState.completionOnly;
+  if (nextChoice && promptOptions?.length && !promptOptions.includes(nextChoice)) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an option supplied by the prompt.'));
+  }
+  if (social.answerState.mode === 'CHOOSE' && !nextChoice) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an explicit answer before review.'));
+  }
+  if (social.answerState.mode === 'TYPE' && !nextValue?.trim()) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Provide answer content before review.'));
+  }
+  if (social.answerState.mode === 'SPEAK' && !nextValue?.trim() && !nextCompletionOnly) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Provide answer content before review.'));
+  }
+  if (social.answerState.mode === 'ANSWERED_LIVE' && !nextCompletionOnly) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Answered Live must be marked as completion-only.'));
   }
 
   const nextState = cloneState(state);
@@ -708,11 +745,17 @@ function handleSubmitAnswer<TState extends GameState>(
   if (error) return failCommand(state, command, error);
   if (isAllPlayerCompletionSocial(social)) {
     const currentRecord = getCompletionRecord(social, command.playerId);
+    const promptOptions = social.prompt?.options;
+    const hasValue = Boolean(currentRecord.value?.trim());
+    const hasCompletionOnly = currentRecord.completionOnly === true;
     if (!isRequiredCompletionPlayer(social, command.playerId)) {
       return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Only a required Chaos participant may submit an answer.'));
     }
     if (social.completedCompletionPlayerIds.includes(command.playerId)) {
       return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already completed the Chaos prompt.'));
+    }
+    if (currentRecord.choice && promptOptions?.length && !promptOptions.includes(currentRecord.choice)) {
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an option supplied by the prompt.'));
     }
     if (!currentRecord.mode) {
       return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Select an answer mode before submitting.'));
@@ -720,8 +763,14 @@ function handleSubmitAnswer<TState extends GameState>(
     if (currentRecord.mode === 'CHOOSE' && !currentRecord.choice) {
       return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an explicit answer before submitting.'));
     }
-    if ((currentRecord.mode === 'SPEAK' || currentRecord.mode === 'TYPE') && !currentRecord.value && !currentRecord.completionOnly) {
+    if (currentRecord.mode === 'TYPE' && !hasValue) {
       return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Provide answer content before submitting.'));
+    }
+    if (currentRecord.mode === 'SPEAK' && !hasValue && !hasCompletionOnly) {
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Provide answer content before submitting.'));
+    }
+    if (currentRecord.mode === 'ANSWERED_LIVE' && !hasCompletionOnly) {
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Answered Live must be marked as completion-only.'));
     }
     return resolveAllPlayerCompletion(
       state,
@@ -746,14 +795,26 @@ function handleSubmitAnswer<TState extends GameState>(
   if (social.cardKind === 'duel') {
     return failCommand(state, command, createEngineError('INVALID_COMMAND', 'Use SUBMIT_DUEL_RESPONSE for Duel resolution.'));
   }
+  const promptOptions = social.prompt?.options;
+  const hasValue = Boolean(social.answerState.value?.trim());
+  const hasCompletionOnly = social.answerState.completionOnly === true;
+  if (social.answerState.choice && promptOptions?.length && !promptOptions.includes(social.answerState.choice)) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an option supplied by the prompt.'));
+  }
   if (!social.answerState.mode) {
     return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Select an answer mode before submitting.'));
   }
   if (social.answerState.mode === 'CHOOSE' && !social.answerState.choice) {
     return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an explicit answer before submitting.'));
   }
-  if ((social.answerState.mode === 'SPEAK' || social.answerState.mode === 'TYPE') && !social.answerState.value && !social.answerState.completionOnly) {
+  if (social.answerState.mode === 'TYPE' && !hasValue) {
     return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Provide answer content before submitting.'));
+  }
+  if (social.answerState.mode === 'SPEAK' && !hasValue && !hasCompletionOnly) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Provide answer content before submitting.'));
+  }
+  if (social.answerState.mode === 'ANSWERED_LIVE' && !hasCompletionOnly) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Answered Live must be marked as completion-only.'));
   }
   return finaliseAnswerSocial(
     state,
