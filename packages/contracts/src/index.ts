@@ -1,3 +1,18 @@
+export type {
+  PromptEligibilityRequest,
+  PromptWorld,
+  SelectedPromptSnapshot,
+  SocialAnswerRecord,
+  SocialAnswerStatus,
+  SocialCardKind,
+  SocialDuelRecord,
+  SocialDuelResponseRecord,
+  SocialPrompt,
+  SocialReactionRecord,
+  SocialState,
+  SocialTargeting
+} from './social.ts';
+
 export type ClientPlatform = 'web' | 'telegram';
 export type CardKind = 'number' | 'skip' | 'reverse' | 'draw' | 'wild' | 'truth' | 'dare' | 'paranoia' | 'chaos' | 'duel' | 'nope';
 export type CardColor = 'lime' | 'orange' | 'cyan' | 'purple';
@@ -40,6 +55,7 @@ export interface GameConfig {
   startingDirection: 1 | -1;
   startingPlayerIndex: number;
   initialDiscardStrategy: 'FIRST_NUMBER_CARD' | 'TOP_SHUFFLED_CARD';
+  contentWorld: 'UNDER_18_CLEAN' | '18+_ADULT';
 }
 
 export interface GameConfigInput extends Partial<Omit<GameConfig, 'seed'>> {
@@ -66,6 +82,12 @@ export type GameCommand =
   | (CommandMeta & { type: 'SELECT_ANSWER_MODE'; mode: AnswerMode })
   | (CommandMeta & { type: 'REVIEW_ANSWER'; value?: string; choice?: string; completionOnly?: boolean })
   | (CommandMeta & { type: 'SUBMIT_ANSWER' })
+  | (CommandMeta & { type: 'SUBMIT_CHOICE'; choice: string })
+  | (CommandMeta & { type: 'MARK_ANSWERED_LIVE' })
+  | (CommandMeta & { type: 'SELECT_PARANOIA_TARGET'; targetId: string })
+  | (CommandMeta & { type: 'SELECT_DUEL_TARGET'; targetId: string })
+  | (CommandMeta & { type: 'SUBMIT_DUEL_RESPONSE'; side: 'initiator' | 'opponent'; value?: string; choice?: string; completionOnly?: boolean })
+  | (CommandMeta & { type: 'PLAY_NOPE'; cardId: string })
   | (CommandMeta & { type: 'PARANOIA_CHOICE'; targetId: string })
   | (CommandMeta & { type: 'DUEL_TARGET'; targetId: string })
   | (CommandMeta & { type: 'DUEL_VOTE'; winnerId: string })
@@ -89,6 +111,20 @@ export type CoreGameEventType =
   | 'DRAW_EFFECT_APPLIED'
   | 'WILD_COLOR_REQUIRED'
   | 'WILD_COLOR_SELECTED'
+  | 'SOCIAL_CARD_TRIGGERED'
+  | 'PROMPT_SELECTED'
+  | 'ANSWER_REQUIRED'
+  | 'TARGET_REQUIRED'
+  | 'PARANOIA_TARGET_SELECTED'
+  | 'DUEL_TARGET_SELECTED'
+  | 'DUEL_RESPONSE_SUBMITTED'
+  | 'NOPE_WINDOW_OPENED'
+  | 'NOPE_PLAYED'
+  | 'ANSWER_MODE_SELECTED'
+  | 'ANSWER_SUBMITTED'
+  | 'ANSWER_CHOICE_SUBMITTED'
+  | 'ANSWERED_LIVE_MARKED'
+  | 'SOCIAL_EFFECT_RESOLVED'
   | 'GAME_WON'
   | 'DECK_RECYCLED';
 
@@ -98,6 +134,7 @@ export interface GameEvent<TPayload = unknown> {
   revision: number;
   type: CoreGameEventType | string;
   visibility?: 'PUBLIC' | 'PLAYER_PRIVATE';
+  recipientPlayerIds?: readonly string[];
   payload?: TPayload;
   createdAt: string;
 }
@@ -112,6 +149,20 @@ export interface EngineError {
     | 'DRAW_PILE_EMPTY'
     | 'INVALID_WILD_COLOR'
     | 'NO_PENDING_WILD'
+    | 'PENDING_SOCIAL_EFFECT'
+    | 'NO_PENDING_SOCIAL'
+    | 'NO_PENDING_TARGET'
+    | 'NO_PENDING_REACTION'
+    | 'NO_PENDING_DUEL'
+    | 'NO_PENDING_PROMPT'
+    | 'INVALID_SOCIAL_TARGET'
+    | 'INVALID_SOCIAL_PROMPT'
+    | 'INVALID_SOCIAL_RESPONSE'
+    | 'INVALID_NOPE_REACTION'
+    | 'NO_NOPE_CARD'
+    | 'NO_ELIGIBLE_PROMPT'
+    | 'PROMPT_NOT_ELIGIBLE'
+    | 'INELIGIBLE_NOPE'
     | 'GAME_ALREADY_FINISHED'
     | 'COMMAND_NOT_IMPLEMENTED'
     | 'INVALID_COMMAND'
@@ -150,6 +201,7 @@ export interface GameState {
   activeColor: CardColor | null;
   activeSymbol: string | null;
   pendingEffect: PendingEffect | null;
+  social: import('./social.ts').SocialState | null;
   winnerId: string | null;
   processedCommands: Record<string, ProcessedCommandRecord>;
 }

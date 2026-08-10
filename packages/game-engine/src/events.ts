@@ -5,7 +5,8 @@ export function makeEvent<TPayload>(
   type: GameEvent['type'],
   payload: TPayload,
   index = 0,
-  visibility: GameEvent['visibility'] = 'PUBLIC'
+  visibility: GameEvent['visibility'] = 'PUBLIC',
+  recipientPlayerIds: readonly string[] = []
 ): GameEvent<TPayload> {
   return {
     id: `${state.id}:r${state.revision}:${type}:${index}`,
@@ -13,6 +14,7 @@ export function makeEvent<TPayload>(
     revision: state.revision,
     type,
     visibility,
+    recipientPlayerIds: recipientPlayerIds.length ? recipientPlayerIds : undefined,
     payload,
     createdAt: new Date((state.revision + 1) * 1000 + index).toISOString()
   };

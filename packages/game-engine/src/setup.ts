@@ -12,7 +12,8 @@ const DEFAULT_CONFIG: Omit<GameConfig, 'seed'> = {
   allowVoluntaryDraw: false,
   startingDirection: 1,
   startingPlayerIndex: 0,
-  initialDiscardStrategy: 'FIRST_NUMBER_CARD'
+  initialDiscardStrategy: 'FIRST_NUMBER_CARD',
+  contentWorld: 'UNDER_18_CLEAN'
 };
 
 function resolveConfig(input: GameConfigInput): GameConfig {
@@ -24,7 +25,8 @@ function resolveConfig(input: GameConfigInput): GameConfig {
     allowVoluntaryDraw: input.allowVoluntaryDraw ?? DEFAULT_CONFIG.allowVoluntaryDraw,
     startingDirection: input.startingDirection ?? DEFAULT_CONFIG.startingDirection,
     startingPlayerIndex: input.startingPlayerIndex ?? DEFAULT_CONFIG.startingPlayerIndex,
-    initialDiscardStrategy: input.initialDiscardStrategy ?? DEFAULT_CONFIG.initialDiscardStrategy
+    initialDiscardStrategy: input.initialDiscardStrategy ?? DEFAULT_CONFIG.initialDiscardStrategy,
+    contentWorld: input.contentWorld ?? DEFAULT_CONFIG.contentWorld
   };
 }
 
@@ -106,6 +108,7 @@ export function createGame(
     activeColor: starter.color || null,
     activeSymbol: starter.kind === 'number' ? String(starter.value ?? 0) : starter.symbol ?? starter.kind,
     pendingEffect: null,
+    social: null,
     winnerId: null,
     processedCommands: {}
   };
@@ -126,7 +129,7 @@ export function createGame(
         seat: player.seat,
         cardIds: dealtHands[player.id],
         handCount: player.hand.length
-      }, index, 'PLAYER_PRIVATE')
+      }, index, 'PLAYER_PRIVATE', [player.id])
     )
   ];
 

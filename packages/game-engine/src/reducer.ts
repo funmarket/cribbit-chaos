@@ -1,9 +1,18 @@
-import type { Card, GameCommand, GameEvent, GameState, GameTransition, Player } from '@cribbit/contracts';
+import type { Card, GameCommand, GameEvent, GameState, GameTransition, Player, SocialCardKind, SocialDuelResponseRecord } from '@cribbit/contracts';
 import { createEngineError } from './errors.ts';
 import { drawCards } from './deck.ts';
 import { makeEvent } from './events.ts';
 import { advanceTurn } from './turn.ts';
 import { isLegalPlay, validateDraw, validatePlay, validateWildColor } from './validation.ts';
+import {
+  createAnswerRecord,
+  createDuelRecord,
+  createReactionRecord,
+  createSocialState,
+  createTurnResolution,
+  selectPromptForSocialEffect,
+  type GameCommandContext
+} from './social.ts';
 
 function cloneState<TState extends GameState>(state: TState): TState {
   return structuredClone(state);
@@ -50,6 +59,26 @@ function fingerprintCommand(command: GameCommand): string {
       return [command.sessionId, command.type, command.playerId].join('|');
     case 'SELECT_WILD_COLOR':
       return [command.sessionId, command.type, command.playerId, command.color].join('|');
+    case 'SELECT_ANSWER_MODE':
+      return [command.sessionId, command.type, command.playerId, command.mode].join('|');
+    case 'REVIEW_ANSWER':
+      return [command.sessionId, command.type, command.playerId, command.value ?? '', command.choice ?? '', String(command.completionOnly ?? false)].join('|');
+    case 'SUBMIT_CHOICE':
+      return [command.sessionId, command.type, command.playerId, command.choice].join('|');
+    case 'MARK_ANSWERED_LIVE':
+      return [command.sessionId, command.type, command.playerId].join('|');
+    case 'SELECT_PARANOIA_TARGET':
+    case 'SELECT_DUEL_TARGET':
+    case 'PARANOIA_CHOICE':
+    case 'DUEL_TARGET':
+    case 'CHAOS_TARGET':
+      return [command.sessionId, command.type, command.playerId, command.targetId].join('|');
+    case 'SUBMIT_DUEL_RESPONSE':
+      return [command.sessionId, command.type, command.playerId, command.side, command.value ?? '', command.choice ?? '', String(command.completionOnly ?? false)].join('|');
+    case 'PLAY_NOPE':
+      return [command.sessionId, command.type, command.playerId, command.cardId].join('|');
+    case 'SUBMIT_ANSWER':
+      return [command.sessionId, command.type, command.playerId].join('|');
     default:
       return [command.sessionId, command.type, command.playerId].join('|');
   }
@@ -78,7 +107,67 @@ function resolveNormalTurn<TState extends GameState>(state: TState, player: Play
   return finalise(state, true, events);
 }
 
-function resolvePlayedCard<TState extends GameState>(state: TState, player: Player, card: Card): GameTransition<TState> {
+function isSocialCardKind(kind: Card['kind']): kind is SocialCardKind {
+  return kind === 'truth' || kind === 'dare' || kind === 'paranoia' || kind === 'chaos' || kind === 'duel';
+}
+
+function socialTargetingForKind(kind: SocialCardKind): 'current' | 'specific' | 'all' {
+  if (kind === 'paranoia' || kind === 'duel') return 'specific';
+  if (kind === 'chaos') return 'all';
+  return 'current';
+}
+
+function startSocialCardPlay<TState extends GameState>(
+  state: TState,
+  player: Player,
+  card: Card,
+  context: GameCommandContext,
+  events: GameEvent[]
+): ReturnType<typeof createEngineError> | null {
+  const kind = card.kind as SocialCardKind;
+  events.push(makeEvent(state, 'SOCIAL_CARD_TRIGGERED', { playerId: player.id, cardId: card.id, cardKind: kind }, 0, 'PUBLIC'));
+
+  if (kind === 'truth' || kind === 'dare' || kind === 'chaos') {
+    const targeting = kind === 'chaos' ? 'all' : 'current';
+    const selected = selectPromptForSocialEffect(state, kind, targeting, context);
+    if ('code' in selected) return selected;
+    const social = createSocialState(state, card.id, kind, player.id, selected.prompt, selected.selection);
+    social.pendingTargetId = player.id;
+    social.pendingTargetIds = targeting === 'all' ? state.players.map(item => item.id) : [player.id];
+    social.answerState = createAnswerRecord();
+    state.social = social;
+    state.phase = 'ANSWER_RESOLVE';
+    events.push(makeEvent(state, 'PROMPT_SELECTED', { actorId: player.id, cardId: card.id, promptId: selected.prompt.id, prompt: selected.prompt }, 0, 'PLAYER_PRIVATE', [player.id]));
+    events.push(makeEvent(state, 'ANSWER_REQUIRED', { actorId: player.id, cardId: card.id, cardKind: kind, promptId: selected.prompt.id }, 0, 'PUBLIC'));
+    return null;
+  }
+
+  if (kind === 'paranoia') {
+    const selected = selectPromptForSocialEffect(state, kind, 'specific', context);
+    if ('code' in selected) return selected;
+    const social = createSocialState(state, card.id, kind, player.id, selected.prompt, selected.selection);
+    social.pendingTargetIds = state.players.filter(item => item.id !== player.id).map(item => item.id);
+    social.pendingTargetId = null;
+    state.social = social;
+    state.phase = 'ANSWER_RESOLVE';
+    events.push(makeEvent(state, 'PROMPT_SELECTED', { actorId: player.id, cardId: card.id, promptId: selected.prompt.id, prompt: selected.prompt }, 0, 'PLAYER_PRIVATE', [player.id]));
+    events.push(makeEvent(state, 'TARGET_REQUIRED', { actorId: player.id, cardId: card.id, cardKind: kind, targetCount: social.pendingTargetIds.length }, 0, 'PUBLIC'));
+    return null;
+  }
+
+  if (kind === 'duel') {
+    const social = createSocialState(state, card.id, kind, player.id, null, null);
+    social.pendingTargetIds = state.players.filter(item => item.id !== player.id).map(item => item.id);
+    state.social = social;
+    state.phase = 'ANSWER_RESOLVE';
+    events.push(makeEvent(state, 'TARGET_REQUIRED', { actorId: player.id, cardId: card.id, cardKind: kind, targetCount: social.pendingTargetIds.length }, 0, 'PUBLIC'));
+    return null;
+  }
+
+  return createEngineError('COMMAND_NOT_IMPLEMENTED', `Card kind ${card.kind} is not yet enabled in the social reducer.`);
+}
+
+function resolvePlayedCard<TState extends GameState>(state: TState, player: Player, card: Card, context: GameCommandContext): GameTransition<TState> {
   const events: GameEvent[] = [];
   events.push(makeEvent(state, 'CARD_PLAYED', { playerId: player.id, card }));
 
@@ -124,7 +213,7 @@ function resolvePlayedCard<TState extends GameState>(state: TState, player: Play
       amount: drawn.length,
       cardId: card.id,
       drawnCardIds: drawn.map(item => item.id)
-    }, 0, 'PLAYER_PRIVATE'));
+    }, 0, 'PLAYER_PRIVATE', [target.id]));
     state.phase = 'WIN_CHECK';
     const steps = state.config.drawPenaltySkipsTurn ? 2 : 1;
     const result = resolveNormalTurn(state, player, events, steps);
@@ -139,14 +228,36 @@ function resolvePlayedCard<TState extends GameState>(state: TState, player: Play
     return finalise(state, true, events);
   }
 
+  if (card.kind === 'nope') {
+    return finalise(state, false, events, createEngineError('COMMAND_NOT_IMPLEMENTED', 'Nope must be played through the dedicated reaction command.'));
+  }
+
+  if (isSocialCardKind(card.kind)) {
+    const socialError = startSocialCardPlay(state, player, card, context, events);
+    if (socialError) return finalise(state, false, events, socialError);
+    return finalise(state, true, events);
+  }
+
   return finalise(state, false, events, createEngineError('COMMAND_NOT_IMPLEMENTED', `Card kind ${card.kind} is not yet enabled in the core reducer.`));
 }
 
-function handlePlayCard<TState extends GameState>(state: TState, command: GameCommand & { type: 'PLAY_CARD' }): GameTransition<TState> {
+function handlePlayCard<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'PLAY_CARD' },
+  context: GameCommandContext
+): GameTransition<TState> {
   const validation = validatePlay(state, command.playerId, command.cardId);
   if (!validation.ok || !validation.player || !validation.card) {
     const nextState = cacheOutcome(state, command, { ok: false, error: validation.error, events: [] }, state.revision);
     return finalise(nextState, false, [], validation.error);
+  }
+
+  if (validation.card.kind === 'truth' || validation.card.kind === 'dare' || validation.card.kind === 'paranoia' || validation.card.kind === 'chaos') {
+    const preview = selectPromptForSocialEffect(state, validation.card.kind, socialTargetingForKind(validation.card.kind), context);
+    if ('code' in preview) {
+      const nextState = cacheOutcome(state, command, { ok: false, error: preview, events: [] }, state.revision);
+      return finalise(nextState, false, [], preview);
+    }
   }
 
   const nextState = cloneState(state);
@@ -160,7 +271,7 @@ function handlePlayCard<TState extends GameState>(state: TState, command: GameCo
   nextState.activeSymbol = card.kind === 'number' ? String(card.value ?? card.symbol ?? '') : card.kind === 'wild' ? 'wild' : card.symbol ?? card.kind;
   nextState.phase = card.kind === 'wild' ? 'PENDING_WILD_COLOR' : 'WIN_CHECK';
 
-  const result = resolvePlayedCard(nextState, player, card);
+  const result = resolvePlayedCard(nextState, player, card, context);
   if (!result.ok) {
     const recorded = cacheOutcome(result.state, command, { ok: false, error: result.error, events: result.events }, state.revision);
     return finalise(recorded, false, result.events, result.error);
@@ -195,7 +306,7 @@ function handleDrawCard<TState extends GameState>(state: TState, command: GameCo
   const [card] = drawCards(nextState, 1, events);
   player.hand.push(card);
   nextState.phase = 'WIN_CHECK';
-  events.push(makeEvent(nextState, 'CARD_DRAWN', { playerId: player.id, card }, 0, 'PLAYER_PRIVATE'));
+  events.push(makeEvent(nextState, 'CARD_DRAWN', { playerId: player.id, card }, 0, 'PLAYER_PRIVATE', [player.id]));
   const previousPlayerId = player.id;
   const { nextPlayerId } = advanceTurn(nextState, 1);
   events.push(makeEvent(nextState, 'TURN_ADVANCED', { previousPlayerId, nextPlayerId, steps: 1, direction: nextState.direction }));
@@ -250,7 +361,480 @@ function handleSelectWildColor<TState extends GameState>(
   return finalise(committedState, true, events);
 }
 
-export function applyCommand<TState extends GameState>(state: TState, command: GameCommand): GameTransition<TState> {
+function requireSocial<TState extends GameState>(state: TState, expectedKind?: SocialCardKind): { social: NonNullable<TState['social']>; error?: ReturnType<typeof createEngineError> } {
+  const social = state.social;
+  if (!social) {
+    return { social: null as never, error: createEngineError('NO_PENDING_SOCIAL', 'No social effect is currently pending.') };
+  }
+  if (expectedKind && social.cardKind !== expectedKind) {
+    return {
+      social,
+      error: createEngineError('INVALID_COMMAND', `The current social effect is ${social.cardKind}, not ${expectedKind}.`, { expectedKind, actualKind: social.cardKind })
+    };
+  }
+  return { social };
+}
+
+function completeSocialResolution<TState extends GameState>(
+  state: TState,
+  actor: Player,
+  socialKind: SocialCardKind,
+  events: GameEvent[],
+  steps = 1,
+  outcome: 'resolved' | 'blocked' = 'resolved'
+): void {
+  createTurnResolution(state, actor, events, socialKind, steps, outcome);
+}
+
+function handleSelectAnswerMode<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'SELECT_ANSWER_MODE' }
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state);
+  if (error) return finalise(state, false, [], error);
+  if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
+    return finalise(state, false, [], createEngineError('NOT_YOUR_TURN', 'Only the triggering player may choose an answer mode.'));
+  }
+  if (!social.prompt) {
+    return finalise(state, false, [], createEngineError('NO_PENDING_PROMPT', 'No social prompt is currently selected.'));
+  }
+  if (command.mode === 'CHOOSE' && !social.prompt.options?.length) {
+    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'This prompt does not provide selectable answer options.'));
+  }
+
+  const nextState = cloneState(state);
+  const nextSocial = nextState.social!;
+  nextSocial.answerState = {
+    ...nextSocial.answerState,
+    status: 'MODE_SELECTED',
+    mode: command.mode
+  };
+  if (command.mode === 'ANSWERED_LIVE') {
+    nextSocial.answerState.completionOnly = true;
+  }
+  const events: GameEvent[] = [
+    makeEvent(nextState, 'ANSWER_MODE_SELECTED', { playerId: command.playerId, mode: command.mode, cardKind: nextSocial.cardKind }, 0, 'PLAYER_PRIVATE', [command.playerId])
+  ];
+  nextState.revision = state.revision + 1;
+  events.forEach(event => {
+    event.revision = nextState.revision;
+  });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
+function handleReviewAnswer<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'REVIEW_ANSWER' }
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state);
+  if (error) return finalise(state, false, [], error);
+  if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
+    return finalise(state, false, [], createEngineError('NOT_YOUR_TURN', 'Only the triggering player may review the answer.'));
+  }
+  if (!social.prompt) {
+    return finalise(state, false, [], createEngineError('NO_PENDING_PROMPT', 'No social prompt is currently selected.'));
+  }
+  if (!social.answerState.mode) {
+    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Select an answer mode before review.'));
+  }
+
+  const nextState = cloneState(state);
+  const nextSocial = nextState.social!;
+  nextSocial.answerState = {
+    ...nextSocial.answerState,
+    status: 'REVIEW',
+    value: command.value ?? nextSocial.answerState.value,
+    choice: command.choice ?? nextSocial.answerState.choice,
+    completionOnly: command.completionOnly ?? nextSocial.answerState.completionOnly
+  };
+  const events: GameEvent[] = [
+    makeEvent(nextState, 'ANSWER_REQUIRED', {
+      playerId: command.playerId,
+      cardKind: nextSocial.cardKind,
+      mode: nextSocial.answerState.mode,
+      status: nextSocial.answerState.status
+    }, 0, 'PLAYER_PRIVATE', [command.playerId])
+  ];
+  nextState.revision = state.revision + 1;
+  events.forEach(event => {
+    event.revision = nextState.revision;
+  });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
+function finaliseAnswerSocial<TState extends GameState>(
+  state: TState,
+  command: GameCommand,
+  eventType: string,
+  payload: Record<string, unknown>,
+  recipients: readonly string[]
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state);
+  if (error) return finalise(state, false, [], error);
+  if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
+    return finalise(state, false, [], createEngineError('NOT_YOUR_TURN', 'Only the triggering player may resolve the active social effect.'));
+  }
+  if (!social.prompt) {
+    return finalise(state, false, [], createEngineError('NO_PENDING_PROMPT', 'No social prompt is currently selected.'));
+  }
+
+  const nextState = cloneState(state);
+  const nextSocial = nextState.social!;
+  nextSocial.answerState = {
+    ...nextSocial.answerState,
+    status: 'SUBMITTED',
+    submittedByPlayerId: command.playerId,
+    submittedAtRevision: state.revision + 1
+  };
+  const actor = nextState.players.find(item => item.id === command.playerId)!;
+  const events: GameEvent[] = [
+    makeEvent(nextState, eventType, payload, 0, 'PLAYER_PRIVATE', recipients)
+  ];
+  completeSocialResolution(nextState, actor, nextSocial.cardKind, events);
+  nextState.revision = state.revision + 1;
+  events.forEach(event => {
+    event.revision = nextState.revision;
+  });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
+function handleSubmitAnswer<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'SUBMIT_ANSWER' }
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state);
+  if (error) return finalise(state, false, [], error);
+  if (social.cardKind === 'duel') {
+    return finalise(state, false, [], createEngineError('INVALID_COMMAND', 'Use SUBMIT_DUEL_RESPONSE for Duel resolution.'));
+  }
+  if (!social.answerState.mode) {
+    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Select an answer mode before submitting.'));
+  }
+  if (social.answerState.mode === 'CHOOSE' && !social.answerState.choice) {
+    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an explicit answer before submitting.'));
+  }
+  if ((social.answerState.mode === 'SPEAK' || social.answerState.mode === 'TYPE') && !social.answerState.value && !social.answerState.completionOnly) {
+    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Provide answer content before submitting.'));
+  }
+  return finaliseAnswerSocial(
+    state,
+    command,
+    'ANSWER_SUBMITTED',
+    {
+      playerId: command.playerId,
+      cardKind: social.cardKind,
+      mode: social.answerState.mode,
+      value: social.answerState.value ?? null,
+      choice: social.answerState.choice ?? null,
+      completionOnly: social.answerState.completionOnly
+    },
+    [command.playerId]
+  );
+}
+
+function handleSubmitChoice<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'SUBMIT_CHOICE' }
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state);
+  if (error) return finalise(state, false, [], error);
+  if (social.cardKind === 'duel') {
+    return finalise(state, false, [], createEngineError('INVALID_COMMAND', 'Use SUBMIT_DUEL_RESPONSE for Duel resolution.'));
+  }
+  if (!social.answerState.mode || social.answerState.mode !== 'CHOOSE') {
+    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose mode must be selected before submitting a choice.'));
+  }
+  if (!social.prompt?.options?.includes(command.choice)) {
+    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Choose an option supplied by the prompt.'));
+  }
+  return finaliseAnswerSocial(
+    state,
+    command,
+    'ANSWER_CHOICE_SUBMITTED',
+    {
+      playerId: command.playerId,
+      cardKind: social.cardKind,
+      mode: social.answerState.mode,
+      choice: command.choice
+    },
+    [command.playerId]
+  );
+}
+
+function handleMarkAnsweredLive<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'MARK_ANSWERED_LIVE' }
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state);
+  if (error) return finalise(state, false, [], error);
+  if (social.cardKind === 'duel') {
+    return finalise(state, false, [], createEngineError('INVALID_COMMAND', 'Use SUBMIT_DUEL_RESPONSE for Duel resolution.'));
+  }
+  if (!social.answerState.mode || social.answerState.mode !== 'ANSWERED_LIVE') {
+    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_RESPONSE', 'Answered Live must be selected before marking completion.'));
+  }
+  return finaliseAnswerSocial(
+    state,
+    command,
+    'ANSWERED_LIVE_MARKED',
+    {
+      playerId: command.playerId,
+      cardKind: social.cardKind,
+      completionOnly: true
+    },
+    [command.playerId]
+  );
+}
+
+function handleSelectParanoiaTarget<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'SELECT_PARANOIA_TARGET' }
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state, 'paranoia');
+  if (error) return finalise(state, false, [], error);
+  if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
+    return finalise(state, false, [], createEngineError('NOT_YOUR_TURN', 'Only the triggering player may choose the Paranoia target.'));
+  }
+  if (!social.pendingTargetIds.length) {
+    return finalise(state, false, [], createEngineError('NO_PENDING_TARGET', 'No Paranoia target is currently pending.'));
+  }
+  if (!social.pendingTargetIds.includes(command.targetId) || command.targetId === command.playerId) {
+    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_TARGET', 'Choose another eligible player for Paranoia.'));
+  }
+
+  const nextState = cloneState(state);
+  const nextSocial = nextState.social!;
+  nextSocial.pendingTargetId = command.targetId;
+  nextSocial.resolutionComplete = true;
+  nextSocial.mayAdvanceTurn = true;
+  const actor = nextState.players.find(item => item.id === command.playerId)!;
+  const events: GameEvent[] = [
+    makeEvent(nextState, 'PARANOIA_TARGET_SELECTED', {
+      actorId: command.playerId,
+      cardId: nextSocial.cardId,
+      targetPlayerId: command.targetId
+    }, 0, 'PLAYER_PRIVATE', [command.playerId])
+  ];
+  completeSocialResolution(nextState, actor, 'paranoia', events);
+  nextState.revision = state.revision + 1;
+  events.forEach(event => {
+    event.revision = nextState.revision;
+  });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
+function handleSelectDuelTarget<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'SELECT_DUEL_TARGET' },
+  context: GameCommandContext
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state, 'duel');
+  if (error) return finalise(state, false, [], error);
+  if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
+    return finalise(state, false, [], createEngineError('NOT_YOUR_TURN', 'Only the triggering player may choose the Duel opponent.'));
+  }
+  if (!social.pendingTargetIds.length) {
+    return finalise(state, false, [], createEngineError('NO_PENDING_TARGET', 'No Duel target is currently pending.'));
+  }
+  if (!social.pendingTargetIds.includes(command.targetId) || command.targetId === command.playerId) {
+    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_TARGET', 'Choose another eligible player for the Duel.'));
+  }
+
+  const preview = selectPromptForSocialEffect(state, 'duel', 'specific', context);
+  if ('code' in preview) {
+    const nextState = cacheOutcome(state, command, { ok: false, error: preview, events: [] }, state.revision);
+    return finalise(nextState, false, [], preview);
+  }
+
+  const nextState = cloneState(state);
+  const nextSocial = nextState.social!;
+  nextSocial.pendingTargetId = command.targetId;
+  nextSocial.prompt = preview.prompt;
+  nextSocial.promptSelection = {
+    promptId: preview.prompt.id,
+    prompt: preview.prompt,
+    selection: preview.selection,
+    selectedByPlayerId: command.playerId,
+    selectedAtRevision: state.revision + 1
+  };
+  nextSocial.pendingDuel = {
+    ...createDuelRecord(command.playerId),
+    opponentId: command.targetId,
+    prompt: preview.prompt
+  };
+  const target = nextState.players.find(item => item.id === command.targetId)!;
+  if (target.hand.some(card => card.kind === 'nope')) {
+    nextSocial.pendingReaction = createReactionRecord('duel', nextSocial.cardId, command.playerId, command.targetId);
+  }
+  const recipients = [command.playerId, command.targetId];
+  const events: GameEvent[] = [
+    makeEvent(nextState, 'DUEL_TARGET_SELECTED', { actorId: command.playerId, cardId: nextSocial.cardId, targetPlayerId: command.targetId, promptId: preview.prompt.id }, 0, 'PLAYER_PRIVATE', recipients),
+    makeEvent(nextState, 'PROMPT_SELECTED', { actorId: command.playerId, cardId: nextSocial.cardId, promptId: preview.prompt.id, prompt: preview.prompt }, 1, 'PLAYER_PRIVATE', recipients)
+  ];
+  if (nextSocial.pendingReaction) {
+    events.push(makeEvent(nextState, 'NOPE_WINDOW_OPENED', {
+      actorId: command.playerId,
+      targetPlayerId: command.targetId,
+      effectKind: 'duel',
+      cardId: nextSocial.cardId
+    }, 2, 'PLAYER_PRIVATE', recipients));
+  }
+  nextState.phase = 'ANSWER_RESOLVE';
+  nextState.revision = state.revision + 1;
+  events.forEach(event => {
+    event.revision = nextState.revision;
+  });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
+function handleSubmitDuelResponse<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'SUBMIT_DUEL_RESPONSE' }
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state, 'duel');
+  if (error) return finalise(state, false, [], error);
+  if (!social.pendingDuel?.opponentId) {
+    return finalise(state, false, [], createEngineError('NO_PENDING_DUEL', 'No Duel opponent has been selected.'));
+  }
+  const expectedPlayerId = command.side === 'initiator' ? social.pendingDuel.initiatorId : social.pendingDuel.opponentId;
+  if (command.playerId !== expectedPlayerId) {
+    return finalise(state, false, [], createEngineError('INVALID_SOCIAL_TARGET', 'Only the active Duel participant may submit this response.'));
+  }
+
+  const nextState = cloneState(state);
+  const nextSocial = nextState.social!;
+  if (nextSocial.pendingReaction?.eligible && !nextSocial.pendingReaction.blocked) {
+    nextSocial.pendingReaction = null;
+  }
+  const pendingDuel = nextSocial.pendingDuel!;
+  const response = {
+    playerId: command.playerId,
+    submitted: true,
+    mode: command.completionOnly ? 'ANSWERED_LIVE' : null,
+    value: command.value,
+    choice: command.choice,
+    completionOnly: command.completionOnly ?? false,
+    submittedAtRevision: state.revision + 1
+  } satisfies SocialDuelResponseRecord;
+  if (command.side === 'initiator') {
+    nextSocial.pendingDuel = {
+      initiatorId: pendingDuel.initiatorId,
+      opponentId: pendingDuel.opponentId,
+      prompt: pendingDuel.prompt,
+      initiatorResponse: response,
+      opponentResponse: pendingDuel.opponentResponse,
+      resolutionReady: pendingDuel.resolutionReady,
+      winnerId: pendingDuel.winnerId
+    };
+  } else {
+    nextSocial.pendingDuel = {
+      initiatorId: pendingDuel.initiatorId,
+      opponentId: pendingDuel.opponentId,
+      prompt: pendingDuel.prompt,
+      initiatorResponse: pendingDuel.initiatorResponse,
+      opponentResponse: response,
+      resolutionReady: pendingDuel.resolutionReady,
+      winnerId: pendingDuel.winnerId
+    };
+  }
+  const updatedDuel = nextSocial.pendingDuel!;
+  const bothSubmitted = Boolean(updatedDuel.initiatorResponse?.submitted && updatedDuel.opponentResponse?.submitted);
+  nextSocial.pendingDuel = {
+    ...updatedDuel,
+    resolutionReady: bothSubmitted
+  };
+  const actor = nextState.players.find(item => item.id === social.actorId)!;
+  const events: GameEvent[] = [
+    makeEvent(nextState, 'DUEL_RESPONSE_SUBMITTED', {
+      actorId: command.playerId,
+      side: command.side,
+      value: command.value ?? null,
+      choice: command.choice ?? null,
+      completionOnly: command.completionOnly ?? false
+    }, 0, 'PLAYER_PRIVATE', [social.actorId, updatedDuel.opponentId!])
+  ];
+  if (bothSubmitted) {
+    completeSocialResolution(nextState, actor, 'duel', events);
+  }
+  nextState.revision = state.revision + 1;
+  events.forEach(event => {
+    event.revision = nextState.revision;
+  });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
+function handlePlayNope<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'PLAY_NOPE' }
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state);
+  if (error) return finalise(state, false, [], error);
+  if (social.cardKind !== 'duel') {
+    return finalise(state, false, [], createEngineError('INELIGIBLE_NOPE', 'The current effect cannot be blocked with Nope.'));
+  }
+  const reaction = social.pendingReaction;
+  if (!reaction) {
+    return finalise(state, false, [], createEngineError('NO_PENDING_REACTION', 'No Nope reaction window is currently open.'));
+  }
+  if (!reaction.eligible || reaction.blocked) {
+    return finalise(state, false, [], createEngineError('INELIGIBLE_NOPE', 'The current effect cannot be blocked with Nope.'));
+  }
+  if (command.playerId !== reaction.targetPlayerId) {
+    return finalise(state, false, [], createEngineError('NOT_YOUR_TURN', 'Only the affected player may play Nope against this effect.'));
+  }
+
+  const nextState = cloneState(state);
+  const nextSocial = nextState.social!;
+  const target = nextState.players.find(item => item.id === command.playerId)!;
+  const nopeIndex = target.hand.findIndex(card => card.id === command.cardId);
+  if (nopeIndex < 0) {
+    return finalise(state, false, [], createEngineError('CARD_NOT_IN_HAND', 'That Nope card is not in the reacting player hand.'));
+  }
+  const nopeCard = target.hand[nopeIndex];
+  if (nopeCard.kind !== 'nope') {
+    return finalise(state, false, [], createEngineError('NO_NOPE_CARD', 'The selected card is not a Nope card.'));
+  }
+  target.hand.splice(nopeIndex, 1);
+  nextState.discardPile.push(nopeCard);
+  nextSocial.pendingReaction = {
+    ...reaction,
+    blocked: true,
+    blockedByPlayerId: command.playerId,
+    blockedByCardId: nopeCard.id
+  };
+  nextSocial.blockedByNope = true;
+  const actor = nextState.players.find(item => item.id === social.actorId)!;
+  const events: GameEvent[] = [
+    makeEvent(nextState, 'NOPE_PLAYED', {
+      actorId: command.playerId,
+      blockedEffectPlayerId: social.actorId,
+      cardId: nopeCard.id,
+      effectKind: reaction.effectKind
+    }, 0, 'PLAYER_PRIVATE', [social.actorId, command.playerId])
+  ];
+  completeSocialResolution(nextState, actor, social.cardKind, events, 1, 'blocked');
+  nextState.revision = state.revision + 1;
+  events.forEach(event => {
+    event.revision = nextState.revision;
+  });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
+export function applyCommand<TState extends GameState>(state: TState, command: GameCommand, context: GameCommandContext = {}): GameTransition<TState> {
   if (command.sessionId !== state.id) {
     return finalise(state, false, [], createEngineError('SESSION_MISMATCH', 'The command was addressed to a different game session.', { expectedSessionId: state.id, actualSessionId: command.sessionId }));
   }
@@ -288,9 +872,18 @@ export function applyCommand<TState extends GameState>(state: TState, command: G
     return finalise(cacheOutcome(state, command, { ok: false, error, events: [] }, state.revision), false, [], error);
   }
 
-  if (command.type === 'PLAY_CARD') return handlePlayCard(state, command);
+  if (command.type === 'PLAY_CARD') return handlePlayCard(state, command, context);
   if (command.type === 'DRAW_CARD') return handleDrawCard(state, command);
   if (command.type === 'SELECT_WILD_COLOR') return handleSelectWildColor(state, command);
+  if (command.type === 'SELECT_ANSWER_MODE') return handleSelectAnswerMode(state, command);
+  if (command.type === 'REVIEW_ANSWER') return handleReviewAnswer(state, command);
+  if (command.type === 'SUBMIT_ANSWER') return handleSubmitAnswer(state, command);
+  if (command.type === 'SUBMIT_CHOICE') return handleSubmitChoice(state, command);
+  if (command.type === 'MARK_ANSWERED_LIVE') return handleMarkAnsweredLive(state, command);
+  if (command.type === 'SELECT_PARANOIA_TARGET' || command.type === 'PARANOIA_CHOICE') return handleSelectParanoiaTarget(state, command as GameCommand & { type: 'SELECT_PARANOIA_TARGET' });
+  if (command.type === 'SELECT_DUEL_TARGET' || command.type === 'DUEL_TARGET') return handleSelectDuelTarget(state, command as GameCommand & { type: 'SELECT_DUEL_TARGET' }, context);
+  if (command.type === 'SUBMIT_DUEL_RESPONSE') return handleSubmitDuelResponse(state, command);
+  if (command.type === 'PLAY_NOPE') return handlePlayNope(state, command);
 
   return finalise(state, false, [], createEngineError('COMMAND_NOT_IMPLEMENTED', `The core reducer does not implement ${command.type}.`));
 }
