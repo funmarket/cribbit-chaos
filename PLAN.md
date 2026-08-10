@@ -74,7 +74,7 @@
 - [x] Telegram safe-area QA
 - [x] board / hand / draw / discard visual verification
 - [x] social modal/control visual verification
-- [ ] animation verification
+- [x] animation verification
 - [x] shared Web ↔ Telegram visual parity
 - [x] no client gameplay authority
 - [x] no fake multiplayer state
@@ -157,4 +157,4 @@ Do not redesign Cribbit CHAOS. Treat the approved V4 HTML as a visual specificat
 
 ## Current Next Task
 
-Phase 3.5 — Visual integration checkpoint is in progress. The shared UI migration, fixture renderer, local previews, and visual QA are complete. The remaining work is staging configuration and deployment proof for the approved preview flow. Phase 3C timers and timeout resolution is complete. Phase 3B Answer modes is complete. Phase 3A Safety Controls is complete.
+Phase 3.5 — Visual integration checkpoint is in progress. The shared UI migration, fixture renderer, local previews, visual QA, and animation verification are complete. The remaining work is dedicated Vercel staging configuration and deployment proof. Phase 3C timers and timeout resolution is complete. Phase 3B Answer modes is complete. Phase 3A Safety Controls is complete.
