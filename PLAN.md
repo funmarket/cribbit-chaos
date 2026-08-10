@@ -67,8 +67,8 @@
 - [x] web visual preview
 - [x] Telegram Mini App visual preview
 - [ ] development Telegram bot / Mini App staging configuration
-- [ ] Vercel web staging
-- [ ] Vercel Telegram staging
+- [x] Vercel web staging
+- [x] Vercel Telegram staging
 - [x] mobile visual QA
 - [x] desktop visual QA
 - [x] Telegram safe-area QA
@@ -157,4 +157,4 @@ Do not redesign Cribbit CHAOS. Treat the approved V4 HTML as a visual specificat
 
 ## Current Next Task
 
-Phase 3.5 — Visual integration checkpoint is in progress. The shared UI migration, fixture renderer, local previews, visual QA, and animation verification are complete. The remaining work is dedicated Vercel staging configuration and deployment proof. Phase 3C timers and timeout resolution is complete. Phase 3B Answer modes is complete. Phase 3A Safety Controls is complete.
+Phase 3.5 — Visual integration checkpoint is in progress. The shared UI migration, fixture renderer, local previews, visual QA, animation verification, and Vercel staging proof are complete. The remaining work is the Telegram BotFather / Main Mini App link for @CribbitChaos_bot. Phase 3C timers and timeout resolution is complete. Phase 3B Answer modes is complete. Phase 3A Safety Controls is complete.

@@ -34,6 +34,35 @@ This checkpoint makes the approved Cribbit CHAOS V4 look visible again inside th
 - Telegram Mini App preview
 - Telegram safe-area preview with mocked insets
 
+## Staging evidence
+
+### Vercel Web
+
+- Project: `cribbit-chaos-web`
+- Project ID: `prj_K6SAnoJOLLkGcrHslIfQ7l6buqXH`
+- Deployment ID: `dpl_Ai6ZZRDPVM6d6FhYdxDv7J43FKxo`
+- Staging URL: `https://cribbit-chaos-1wucz1c70-wise2030.vercel.app`
+- Source branch: `feature/visual-integration-checkpoint`
+- Source commit: `048314a2996582c8cd44acfbe0e7a885007c5e91`
+- Verification result: deployed successfully; live HTML fetch returned the app shell. Headless browser access in this environment still hits the Vercel login wall, so the browser proof is limited here.
+
+### Vercel Telegram
+
+- Project: `cribbit-chaos-telegram`
+- Project ID: `prj_zuoFsp76d0jEUFNHbFxCAbxB57D9`
+- Deployment ID: `dpl_DfV2M6fc8aQLkk2vXD8g2yamg2V6`
+- Staging URL: `https://cribbit-chaos-telegram-qw4guoi0r-wise2030.vercel.app`
+- Source branch: `feature/visual-integration-checkpoint`
+- Source commit: `048314a2996582c8cd44acfbe0e7a885007c5e91`
+- Verification result: deployed successfully; live browser verification of the deployed Telegram bundle passed in the browser session used for this checkpoint, and the current deployment uses the same commit-built artifact.
+
+### Telegram launch status
+
+- Bot username: `@CribbitChaos_bot`
+- Main Mini App configured? `no`
+- Launch verified? `no`
+- Exact manual step remaining: connect `@CribbitChaos_bot` in BotFather / Mini App settings to the Telegram staging URL above.
+
 ## Verified visual coverage
 
 - approved V4 visual migration into shared UI
@@ -63,13 +92,12 @@ This checkpoint makes the approved Cribbit CHAOS V4 look visible again inside th
 - Standard fixture showed legal-card hover and board play transition
 - Social fixture showed the prompt modal and answer tiles
 - Roulette was verified by playing Truth, observing `PROMPT PRESELECTED`, starting the wheel spin, and confirming the prompt reveal followed the sealed selection
+- Live Telegram preview screenshot verified the deployed mobile layout and fixture badge on the staging URL
+- Live web deployment HTML was fetched successfully for the staging URL, but browser access remained blocked by the Vercel auth wall in this environment
 
 ## Still open
 
-- development Telegram bot / Mini App staging configuration
-- Vercel web staging
-- Vercel Telegram staging
-- production deployment proof for the dedicated Vercel staging projects
+- Telegram BotFather / Main Mini App linking
 
 ## Fixture / legacy-runtime boundary
 
