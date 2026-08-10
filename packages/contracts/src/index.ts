@@ -28,6 +28,7 @@ export type GamePhase = 'TURN_START' | 'PLAY_DRAW' | 'TRIGGER' | 'ANSWER_RESOLVE
 export type GameStatus = 'ACTIVE' | 'FINISHED';
 export type PlayerStatus = 'ACTIVE' | 'ELIMINATED';
 export type PromptDestination = 'my' | 'house' | 'room' | 'community';
+export type TimerPurpose = 'TURN' | 'SOCIAL';
 
 export interface Card {
   id: string;
@@ -52,6 +53,14 @@ export interface PendingEffect {
   cardId: string;
 }
 
+export interface TimerState {
+  purpose: TimerPurpose;
+  ownerPlayerId: string;
+  startedAt: number;
+  deadlineAt: number;
+  startedAtRevision: number;
+}
+
 export interface GameConfig {
   seed: string | number;
   startingHandCount: number;
@@ -62,6 +71,8 @@ export interface GameConfig {
   startingPlayerIndex: number;
   initialDiscardStrategy: 'FIRST_NUMBER_CARD' | 'TOP_SHUFFLED_CARD';
   contentWorld: 'UNDER_18_CLEAN' | '18+_ADULT';
+  turnTimeoutMs: number;
+  socialTimeoutMs: number;
 }
 
 export interface GameConfigInput extends Partial<Omit<GameConfig, 'seed'>> {
@@ -99,8 +110,8 @@ export type GameCommand =
   | (CommandMeta & { type: 'DUEL_VOTE'; winnerId: string })
   | (CommandMeta & { type: 'CHAOS_TARGET'; targetId: string })
   | (CommandMeta & { type: 'NOPE_REACTION'; useNope: boolean })
-  | (CommandMeta & { type: 'TIMEOUT_TURN' })
-  | (CommandMeta & { type: 'TIMEOUT_SOCIAL' })
+  | (CommandMeta & { type: 'TIMEOUT_TURN'; timerStartedAtRevision: number })
+  | (CommandMeta & { type: 'TIMEOUT_SOCIAL'; timerStartedAtRevision: number })
   | (CommandMeta & { type: 'COMPLETE_FLOW' })
   | (CommandMeta & { type: 'FORCE_RECAP' });
 
@@ -135,6 +146,8 @@ export type CoreGameEventType =
   | 'ANSWER_CHOICE_SUBMITTED'
   | 'ANSWERED_LIVE_MARKED'
   | 'SOCIAL_EFFECT_RESOLVED'
+  | 'TURN_TIMED_OUT'
+  | 'SOCIAL_TIMED_OUT'
   | 'GAME_WON'
   | 'DECK_RECYCLED';
 
@@ -186,7 +199,10 @@ export interface EngineError {
     | 'DUPLICATE_PLAYER_ID'
     | 'PENDING_WILD_COLOR'
     | 'COMMAND_ID_COLLISION'
-    | 'SESSION_MISMATCH';
+    | 'SESSION_MISMATCH'
+    | 'NO_PENDING_TIMER'
+    | 'TIMEOUT_NOT_REACHED'
+    | 'STALE_TIMEOUT';
   message: string;
   details?: Record<string, unknown>;
 }
@@ -216,6 +232,7 @@ export interface GameState {
   activeColor: CardColor | null;
   activeSymbol: string | null;
   pendingEffect: PendingEffect | null;
+  timer: TimerState | null;
   social: import('./social.ts').SocialState | null;
   winnerId: string | null;
   rewindUsedByPlayerIds: string[];

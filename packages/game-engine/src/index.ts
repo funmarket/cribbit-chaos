@@ -30,7 +30,9 @@ export type {
   SocialPrompt,
   SocialReactionRecord,
   SocialState,
-  SocialTargeting
+  SocialTargeting,
+  TimerPurpose,
+  TimerState
 } from '@cribbit/contracts';
 
 export { createEngineError } from './errors.ts';

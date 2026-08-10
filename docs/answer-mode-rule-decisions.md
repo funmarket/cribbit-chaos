@@ -1,6 +1,6 @@
 # Answer mode rule decisions
 
-This document records the Phase 3B answer-mode slice now implemented in the authoritative reducer. It is intentionally narrow: it covers the answer controls themselves, the privacy boundary around answer content, and the current deferred line for timers.
+This document records the Phase 3B answer-mode slice now implemented in the authoritative reducer. It is intentionally narrow: it covers the answer controls themselves, the privacy boundary around answer content, and the authoritative timer boundary referenced by `docs/timer-timeout-rule-decisions.md`.
 
 | Rule | Source | Implementation | Visibility | Content storage | Configurable? | Confidence | Open question |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -22,6 +22,4 @@ The reducer remains deterministic, and answer completion still respects the dela
 
 ## Deferred by design
 
-- timers
-- timeout resolution
 - any future moderation/storage pipeline for submitted answer content

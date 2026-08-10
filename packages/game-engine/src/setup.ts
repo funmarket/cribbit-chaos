@@ -4,6 +4,7 @@ import { buildCoreDeck } from './deck.ts';
 import type { RandomSource } from './rng.ts';
 import { createSeededRandom, toSeedString } from './rng.ts';
 import { makeEvent } from './events.ts';
+import { startTimer } from './timer.ts';
 
 const DEFAULT_CONFIG: Omit<GameConfig, 'seed'> = {
   startingHandCount: 7,
@@ -13,7 +14,9 @@ const DEFAULT_CONFIG: Omit<GameConfig, 'seed'> = {
   startingDirection: 1,
   startingPlayerIndex: 0,
   initialDiscardStrategy: 'FIRST_NUMBER_CARD',
-  contentWorld: 'UNDER_18_CLEAN'
+  contentWorld: 'UNDER_18_CLEAN',
+  turnTimeoutMs: 40_000,
+  socialTimeoutMs: 45_000
 };
 
 function resolveConfig(input: GameConfigInput): GameConfig {
@@ -26,7 +29,9 @@ function resolveConfig(input: GameConfigInput): GameConfig {
     startingDirection: input.startingDirection ?? DEFAULT_CONFIG.startingDirection,
     startingPlayerIndex: input.startingPlayerIndex ?? DEFAULT_CONFIG.startingPlayerIndex,
     initialDiscardStrategy: input.initialDiscardStrategy ?? DEFAULT_CONFIG.initialDiscardStrategy,
-    contentWorld: input.contentWorld ?? DEFAULT_CONFIG.contentWorld
+    contentWorld: input.contentWorld ?? DEFAULT_CONFIG.contentWorld,
+    turnTimeoutMs: input.turnTimeoutMs ?? DEFAULT_CONFIG.turnTimeoutMs,
+    socialTimeoutMs: input.socialTimeoutMs ?? DEFAULT_CONFIG.socialTimeoutMs
   };
 }
 
@@ -74,7 +79,8 @@ function pickStarterCard(deck: Card[], strategy: GameConfig['initialDiscardStrat
 export function createGame(
   config: GameConfigInput,
   players: readonly GamePlayerSetup[],
-  rng: RandomSource = createSeededRandom(config.seed)
+  rng: RandomSource = createSeededRandom(config.seed),
+  context: { now?: number } = {}
 ): GameTransition<GameState> {
   const validationError = validatePlayers(players);
   if (validationError) {
@@ -108,11 +114,14 @@ export function createGame(
     activeColor: starter.color || null,
     activeSymbol: starter.kind === 'number' ? String(starter.value ?? 0) : starter.symbol ?? starter.kind,
     pendingEffect: null,
+    timer: null,
     social: null,
     winnerId: null,
     rewindUsedByPlayerIds: [],
     processedCommands: {}
   };
+
+  startTimer(state, 'TURN', currentPlayerId, context.now, state.revision);
 
   const events: GameEvent[] = [
     makeEvent(state, 'GAME_CREATED', {

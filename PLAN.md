@@ -57,8 +57,30 @@
 - [x] Type
 - [x] Choose
 - [x] Answered Live
-- [ ] timers
-- [ ] timeout resolution
+- [x] timers
+- [x] timeout resolution
+
+## Phase 3.5 — Visual integration checkpoint
+
+- [ ] approved V4 visual migration into shared UI
+- [ ] fixture-state renderer
+- [ ] web visual preview
+- [ ] Telegram Mini App visual preview
+- [ ] development Telegram bot / Mini App staging configuration
+- [ ] Vercel web staging
+- [ ] Vercel Telegram staging
+- [ ] mobile visual QA
+- [ ] desktop visual QA
+- [ ] Telegram safe-area QA
+- [ ] board / hand / draw / discard visual verification
+- [ ] social modal/control visual verification
+- [ ] animation verification
+- [ ] shared Web ↔ Telegram visual parity
+- [ ] no client gameplay authority
+- [ ] no fake multiplayer state
+- [ ] no production auth
+
+Do not redesign Cribbit CHAOS. Treat the approved V4 HTML as a visual specification. Migrate it faithfully, then improve only defects—not the design language.
 
 ## Phase 4 — Multiplayer server
 
@@ -135,4 +157,4 @@
 
 ## Current Next Task
 
-Phase 3C — timers and timeout resolution is next. Phase 3B Answer modes is complete. Phase 3A Safety Controls is complete.
+Phase 3.5 — Visual integration checkpoint is next. Phase 3C timers and timeout resolution is complete. Phase 3B Answer modes is complete. Phase 3A Safety Controls is complete.
