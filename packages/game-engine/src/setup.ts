@@ -110,6 +110,7 @@ export function createGame(
     pendingEffect: null,
     social: null,
     winnerId: null,
+    rewindUsedByPlayerIds: [],
     processedCommands: {}
   };
 

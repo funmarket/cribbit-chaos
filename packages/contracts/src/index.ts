@@ -84,7 +84,7 @@ export type GameCommand =
   | (CommandMeta & { type: 'PUBLISH_PROMPT' })
   | (CommandMeta & { type: 'REWIND_PROMPT' })
   | (CommandMeta & { type: 'PASS_PROMPT' })
-  | (CommandMeta & { type: 'FLAG_PROMPT'; promptId: string })
+  | (CommandMeta & { type: 'FLAG_PROMPT'; promptId: string; reasonCode?: string })
   | (CommandMeta & { type: 'SELECT_ANSWER_MODE'; mode: AnswerMode })
   | (CommandMeta & { type: 'REVIEW_ANSWER'; value?: string; choice?: string; completionOnly?: boolean })
   | (CommandMeta & { type: 'SUBMIT_ANSWER' })
@@ -127,6 +127,9 @@ export type CoreGameEventType =
   | 'DUEL_RESPONSE_SUBMITTED'
   | 'NOPE_WINDOW_OPENED'
   | 'NOPE_PLAYED'
+  | 'SOCIAL_PASSED'
+  | 'PROMPT_REWOUND'
+  | 'CONTENT_FLAGGED'
   | 'ANSWER_MODE_SELECTED'
   | 'ANSWER_SUBMITTED'
   | 'ANSWER_CHOICE_SUBMITTED'
@@ -170,6 +173,11 @@ export interface EngineError {
     | 'NO_ELIGIBLE_PROMPT'
     | 'PROMPT_NOT_ELIGIBLE'
     | 'INELIGIBLE_NOPE'
+    | 'PASS_NOT_ALLOWED'
+    | 'REWIND_ALREADY_USED'
+    | 'REWIND_NOT_ALLOWED'
+    | 'NO_ALTERNATE_PROMPT'
+    | 'INVALID_FLAG_TARGET'
     | 'GAME_ALREADY_FINISHED'
     | 'COMMAND_NOT_IMPLEMENTED'
     | 'INVALID_COMMAND'
@@ -210,6 +218,7 @@ export interface GameState {
   pendingEffect: PendingEffect | null;
   social: import('./social.ts').SocialState | null;
   winnerId: string | null;
+  rewindUsedByPlayerIds: string[];
   processedCommands: Record<string, ProcessedCommandRecord>;
 }
 

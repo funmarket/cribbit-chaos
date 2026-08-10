@@ -28,6 +28,5 @@ The Bible v5 PDF is not stored in this repository. The social engine therefore u
 - Full authorship reveal workflow and any `REVEAL_AFTER` trigger
 - Other Chaos custom effects beyond the generic state contract
 - Duel scoring / winner determination
-- Pass / Rewind / Flag / Speak / Type / Choose / Answered Live transport behavior beyond reducer state
-- Phase 3 moderation and safety behavior
+- Speak / Type / Choose / Answered Live transport behavior beyond reducer state
 - Multiplayer transport wiring
