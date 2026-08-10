@@ -81,7 +81,19 @@ export function selectPromptForSocialEffect(
         contentWorld: state.config.contentWorld
       });
     }
-    return { prompt, selection, candidateResultIds: [prompt.id] };
+    if (!context.promptPool?.length) {
+      return { prompt, selection, candidateResultIds: [prompt.id] };
+    }
+    const eligiblePrompts = getEligiblePrompts(context.promptPool, selection);
+    if (!eligiblePrompts.some(candidate => candidate.id === prompt.id)) {
+      return createEngineError('PROMPT_NOT_ELIGIBLE', 'The selected prompt must belong to the supplied eligible prompt pool.', {
+        promptId: prompt.id,
+        kind,
+        targeting,
+        contentWorld: state.config.contentWorld
+      });
+    }
+    return { prompt, selection, candidateResultIds: eligiblePrompts.map(item => item.id) };
   }
 
   if (!context.promptPool?.length) {
@@ -114,18 +126,18 @@ export function createRoulettePresentation(
 ): RoulettePresentation {
   const candidates = [...candidateResultIds];
   return {
-    id: `${state.id}:roulette:${state.revision}:${type}:${selectedResultId}`,
+    id: `${state.id}:roulette:${state.revision}:${type}`,
     type,
     selectedResultId,
     candidateResultIds: candidates,
     revealState,
-    presentationSeed: `${state.id}|${state.revision}|${type}|${selectedResultId}|${candidates.join(',')}`
+    presentationSeed: `${state.id}|${state.revision}|${type}`
   };
 }
 
 export function projectRoulettePresentation(presentation: RoulettePresentation): RoulettePresentationView {
   if (presentation.revealState === 'REVEALED') return { ...presentation };
-  const { selectedResultId: _selectedResultId, ...sealed } = presentation;
+  const { selectedResultId: _selectedResultId, candidateResultIds: _candidateResultIds, ...sealed } = presentation;
   return sealed;
 }
 

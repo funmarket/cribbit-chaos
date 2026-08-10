@@ -60,8 +60,9 @@ export interface RoulettePresentation {
   durationHintMs?: number;
 }
 
-export interface RoulettePresentationView extends Omit<RoulettePresentation, 'selectedResultId'> {
+export interface RoulettePresentationView extends Omit<RoulettePresentation, 'selectedResultId' | 'candidateResultIds'> {
   selectedResultId?: string;
+  candidateResultIds?: readonly string[];
 }
 
 export interface SocialAuthorshipState {

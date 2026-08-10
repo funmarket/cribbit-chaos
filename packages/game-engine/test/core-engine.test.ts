@@ -949,9 +949,49 @@ test('sealed roulette and authorship projections do not expose hidden values', (
     revealState: 'SEALED'
   });
   assert.equal('selectedResultId' in sealed, false);
+  assert.equal('candidateResultIds' in sealed, false);
   assert.equal(Object.prototype.hasOwnProperty.call(sealed, 'selectedResultId'), false);
+  assert.equal(JSON.stringify(sealed).includes('hidden-prompt'), false);
+
+  const multipleCandidates = projectRoulettePresentation({
+    ...result.state.social!.roulettePresentation!,
+    selectedResultId: 'candidate-b',
+    candidateResultIds: ['candidate-a', 'candidate-b'],
+    revealState: 'SEALED'
+  });
+  assert.equal('selectedResultId' in multipleCandidates, false);
+  assert.equal('candidateResultIds' in multipleCandidates, false);
+  assert.equal(JSON.stringify(multipleCandidates).includes('candidate-b'), false);
+
+  const revealed = projectRoulettePresentation({
+    ...result.state.social!.roulettePresentation!,
+    selectedResultId: 'revealed-prompt',
+    candidateResultIds: ['revealed-prompt', 'other-prompt'],
+    revealState: 'REVEALED'
+  });
+  assert.equal(revealed.selectedResultId, 'revealed-prompt');
+  assert.deepEqual(revealed.candidateResultIds, ['revealed-prompt', 'other-prompt']);
   assert.equal(result.events.filter(event => event.visibility === 'PUBLIC').some(event => JSON.stringify(event.payload).includes('author-player')), false);
   assert.equal(result.events.filter(event => event.visibility === 'PUBLIC').some(event => JSON.stringify(event.payload).includes('hidden-prompt')), false);
+});
+
+test('explicit selected prompts use the full eligible pool for authoritative roulette candidates', () => {
+  const state = baseState(3);
+  state.currentPlayerId = 'player-1';
+  setTopDiscard(state, makeCard('starter', 'number', { color: 'lime', value: 1, symbol: '1' }));
+  setHands(state, {
+    'player-1': [makeCard('truth-card', 'truth', { symbol: 'truth', color: 'lime' })],
+    'player-2': [],
+    'player-3': []
+  });
+  const selectedPrompt = socialPrompt('prompt-z', 'truth', 'current', { text: 'selected' });
+  const promptPool = [selectedPrompt, socialPrompt('prompt-a', 'truth', 'current', { text: 'eligible alternative' })];
+  const result = applyCommand(state, playCommand(state, 'selected-with-pool', 'truth-card'), socialContext(promptPool, {}, selectedPrompt));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.state.social?.prompt?.id, 'prompt-z');
+  assert.deepEqual(result.state.social?.roulettePresentation?.candidateResultIds, ['prompt-a', 'prompt-z']);
+  assert.equal(result.state.social?.roulettePresentation?.selectedResultId, 'prompt-z');
 });
 
 test('authorship modes retain server identity while enforcing signed, reveal-after, and taboo visibility', () => {
