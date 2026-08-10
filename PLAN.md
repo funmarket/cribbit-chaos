@@ -37,14 +37,14 @@
 
 ## Phase 2 — Social card engine
 
-- [ ] Truth
-- [ ] Dare
-- [ ] Paranoia
-- [ ] Duel
-- [ ] Chaos
-- [ ] Nope reaction
-- [ ] prompt eligibility
-- [ ] sealed prompt selection
+- [x] Truth
+- [x] Dare
+- [x] Paranoia
+- [x] Duel
+- [x] Chaos
+- [x] Nope reaction
+- [x] prompt eligibility
+- [x] sealed prompt selection
 - [ ] roulette presentation contract
 - [ ] authorship modes
 
@@ -135,4 +135,4 @@
 
 ## Current Next Task
 
-Core game engine slice is complete; do not begin Phase 2 without explicit direction.
+Phase 2 social card engine is in progress on `feature/social-card-engine`.

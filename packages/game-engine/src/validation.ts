@@ -24,6 +24,9 @@ export function validatePlay(state: GameState, playerId: string, cardId: string)
   if (state.status === 'FINISHED') {
     return { ok: false, error: createEngineError('GAME_ALREADY_FINISHED', 'The game has already finished.') };
   }
+  if (state.social && !state.social.resolutionComplete) {
+    return { ok: false, error: createEngineError('PENDING_SOCIAL_EFFECT', 'Resolve the active social effect before continuing.') };
+  }
   if (state.pendingEffect?.type === 'WILD_COLOR') {
     return { ok: false, error: createEngineError('PENDING_WILD_COLOR', 'Choose the active color before any other gameplay command can continue.') };
   }
@@ -49,6 +52,9 @@ export function validateDraw(state: GameState, playerId: string): ValidationResu
   if (state.status === 'FINISHED') {
     return { ok: false, error: createEngineError('GAME_ALREADY_FINISHED', 'The game has already finished.') };
   }
+  if (state.social && !state.social.resolutionComplete) {
+    return { ok: false, error: createEngineError('PENDING_SOCIAL_EFFECT', 'Resolve the active social effect before continuing.') };
+  }
   if (state.pendingEffect?.type === 'WILD_COLOR') {
     return { ok: false, error: createEngineError('PENDING_WILD_COLOR', 'Choose the active color before any other gameplay command can continue.') };
   }
@@ -66,6 +72,9 @@ export function validateDraw(state: GameState, playerId: string): ValidationResu
 export function validateWildColor(state: GameState, playerId: string, color: CardColor): ValidationResult {
   if (state.status === 'FINISHED') {
     return { ok: false, error: createEngineError('GAME_ALREADY_FINISHED', 'The game has already finished.') };
+  }
+  if (state.social && !state.social.resolutionComplete) {
+    return { ok: false, error: createEngineError('PENDING_SOCIAL_EFFECT', 'Resolve the active social effect before continuing.') };
   }
   if (state.pendingEffect?.type !== 'WILD_COLOR') {
     return { ok: false, error: createEngineError('NO_PENDING_WILD', 'No Wild color selection is currently pending.') };

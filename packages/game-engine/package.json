@@ -4,7 +4,8 @@
   "version": "0.2.0",
   "type": "module",
   "dependencies": {
-    "@cribbit/contracts": "*"
+    "@cribbit/contracts": "*",
+    "@cribbit/prompts": "*"
   },
   "exports": {
     ".": "./src/index.ts"
