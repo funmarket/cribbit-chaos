@@ -9,6 +9,8 @@
     "dev:web": "vite --config apps/web/vite.config.ts",
     "dev:telegram": "vite --config apps/telegram/vite.config.ts",
     "dev:api": "tsx apps/api/src/index.ts",
+    "start:api": "tsx apps/api/src/index.ts",
+    "migrate:db": "tsx scripts/migrate-db.ts",
     "build:web": "vite build --config apps/web/vite.config.ts",
     "build:telegram": "vite build --config apps/telegram/vite.config.ts",
     "build:api": "tsc -p tsconfig.api.json --noEmit",
