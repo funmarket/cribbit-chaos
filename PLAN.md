@@ -81,8 +81,8 @@
 - [x] no production auth
 - [x] repository shared-auth hardening
 - [x] dedicated Railway project container created: `Cribbit Chaos`
-- [ ] dedicated Cribbit Chaos Railway API service
-- [ ] dedicated Cribbit Chaos Railway PostgreSQL service
+- [x] dedicated Cribbit Chaos Railway API service
+- [x] dedicated Cribbit Chaos Railway PostgreSQL service
 - [ ] both Vercel apps pointing to the same Railway API
 - [ ] Mini App live auth proof
 - [ ] Web Telegram login live proof
@@ -169,4 +169,4 @@ Do not redesign Cribbit CHAOS. Treat the approved V4 HTML as a visual specificat
 
 ## Current Next Task
 
-Phase 3.5 remains in progress. The next controlled slice is deployment foundation inside the dedicated `Cribbit Chaos` Railway project only: create its PostgreSQL service and API service from `funmarket/cribbit-chaos`, wire both Vercel clients to that one API, restore current-head Git deployments, then verify Telegram Mini App authentication and browser Telegram login converge on the same internal user UUID. Do not start Phase 4 multiplayer until this checkpoint is complete.
+Phase 3.5 remains in progress. The dedicated `Cribbit Chaos` Railway foundation is now live: PostgreSQL is deployed with persistent storage, the API deploys from `funmarket/cribbit-chaos` on `feature/visual-integration-checkpoint`, migrations run before deploy, and Railway's `/health` check returns HTTP 200. The next controlled slice is to point both existing Vercel clients to this one Railway API, restore current-head Git deployments, configure the required Telegram secrets without exposing them to clients, then verify Telegram Mini App authentication and browser Telegram login converge on the same internal user UUID. Do not start Phase 4 multiplayer until this checkpoint is complete.
