@@ -192,6 +192,7 @@
     .nav-button[aria-current="page"] { border-color: rgba(var(--magenta-rgb), .28); }
 
     .header-tools { display: flex; align-items: center; gap: 7px; }
+    .auth-status { max-width:145px;color:var(--muted);font-size:9px;line-height:1.2; }
 
     .tool-button {
       display: inline-flex;

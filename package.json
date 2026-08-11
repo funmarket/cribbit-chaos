@@ -14,7 +14,7 @@
     "build:api": "tsc -p tsconfig.api.json --noEmit",
     "build": "npm run build:web && npm run build:telegram && npm run build:api",
     "typecheck": "tsc -p tsconfig.check.json --noEmit",
-    "test": "tsx --test packages/game-engine/test/core-engine.test.ts",
+    "test": "tsx --test packages/game-engine/test/core-engine.test.ts apps/api/test/auth.test.ts",
     "lint": "node --check scripts/audit-ui.mjs",
     "audit:ui": "node scripts/audit-ui.mjs"
   },

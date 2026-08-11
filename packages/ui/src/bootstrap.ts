@@ -21,6 +21,7 @@ export async function bootstrap(platform: PlatformAdapter): Promise<void> {
   window.__CRIBBIT_VISUAL_FIXTURE_META__ = fixture ? VISUAL_FIXTURES[fixture] : null;
   document.documentElement.dataset.fixture = fixture || '';
   if (fixture) host.dataset.fixture = fixture;
+  setupWebTelegramLogin(platform.kind, api, config.apiUrl);
 
   // Telegram identity is useful for display immediately, but remains untrusted until
   // the Railway API validates the signed raw initData. Failure never breaks the UI.
@@ -33,6 +34,35 @@ export async function bootstrap(platform: PlatformAdapter): Promise<void> {
   }
 
   await import('../../legacy-runtime/src/runtime.ts');
+}
+
+function setupWebTelegramLogin(platformKind: PlatformAdapter['kind'], api: CribbitApiClient, apiUrl: string): void {
+  const button = document.querySelector<HTMLButtonElement>('[data-action="continue-with-telegram"]');
+  const status = document.querySelector<HTMLElement>('[data-auth-status]');
+  if (!button || !status) return;
+  if (platformKind !== 'web') {
+    button.hidden = true;
+    return;
+  }
+  if (!apiUrl) {
+    status.hidden = false;
+    status.textContent = 'Telegram login needs API config';
+    return;
+  }
+  button.addEventListener('click', async () => {
+    try {
+      const configuration = await api.getWebTelegramLoginConfiguration();
+      if (!configuration.configured) {
+        status.hidden = false;
+        status.textContent = 'Telegram login not configured';
+        return;
+      }
+      api.startWebTelegramLogin();
+    } catch {
+      status.hidden = false;
+      status.textContent = 'Telegram login unavailable';
+    }
+  });
 }
 
 declare global {

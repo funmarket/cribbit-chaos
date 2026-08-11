@@ -1,5 +1,6 @@
 import pg from 'pg';
 import { createHash, randomBytes } from 'node:crypto';
+import type { AuthIdentitySummary, AuthUser } from '../../../packages/contracts/src/index.ts';
 
 const { Pool } = pg;
 
@@ -43,7 +44,12 @@ export async function createServerSession(userId:string, provider:'telegram'|'we
 }
 
 export async function upsertTelegramIdentity(input:{telegramId:string; displayName:string; username?:string}): Promise<{id:string; displayName:string}> {
+  return resolveOrCreateTelegramIdentity(input);
+}
+
+export async function resolveOrCreateTelegramIdentity(input:{telegramId:string; displayName:string; username?:string}): Promise<AuthUser> {
   return withTransaction(async client => {
+    await client.query(`select pg_advisory_xact_lock(hashtext($1))`, [`telegram:${input.telegramId}`]);
     const existing = await client.query(
       `select u.id, u.display_name from user_identities i
        join users u on u.id=i.user_id
@@ -59,7 +65,11 @@ export async function upsertTelegramIdentity(input:{telegramId:string; displayNa
         `update user_identities set provider_username=$2 where provider='telegram' and provider_user_id=$1`,
         [input.telegramId, input.username || null]
       );
-      return { id:String(existing.rows[0].id), displayName:input.displayName };
+      return {
+        id:String(existing.rows[0].id),
+        displayName:input.displayName,
+        identities:[{ provider:'telegram', username:input.username }]
+      };
     }
     const user = await client.query(
       `insert into users(display_name) values($1) returning id,display_name`, [input.displayName]
@@ -68,7 +78,11 @@ export async function upsertTelegramIdentity(input:{telegramId:string; displayNa
       `insert into user_identities(user_id,provider,provider_user_id,provider_username)
        values($1,'telegram',$2,$3)`, [user.rows[0].id,input.telegramId,input.username || null]
     );
-    return { id:String(user.rows[0].id), displayName:String(user.rows[0].display_name) };
+    return {
+      id:String(user.rows[0].id),
+      displayName:String(user.rows[0].display_name),
+      identities:[{ provider:'telegram', username:input.username }]
+    };
   });
 }
 
@@ -82,4 +96,40 @@ export async function createGuestIdentity(displayName='Web Player'): Promise<{id
     );
     return { id:String(user.rows[0].id), displayName:String(user.rows[0].display_name) };
   });
+}
+
+export async function authenticateSessionToken(token:string): Promise<AuthUser | null> {
+  if (!pool) throw new Error('DATABASE_URL is not configured.');
+  const result = await pool.query(
+    `select u.id,u.display_name from auth_sessions s
+     join users u on u.id=s.user_id
+     where s.token_hash=$1 and s.revoked_at is null and s.expires_at > now()`,
+    [hashSessionToken(token)]
+  );
+  if (!result.rowCount) return null;
+  return loadAuthUser(String(result.rows[0].id));
+}
+
+export async function loadAuthUser(userId:string): Promise<AuthUser> {
+  if (!pool) throw new Error('DATABASE_URL is not configured.');
+  const user = await pool.query(`select id,display_name from users where id=$1`, [userId]);
+  if (!user.rowCount) throw new Error('User not found.');
+  const identities = await pool.query(
+    `select provider,provider_username from user_identities where user_id=$1 order by provider,created_at`,
+    [userId]
+  );
+  return {
+    id:String(user.rows[0].id),
+    displayName:String(user.rows[0].display_name),
+    identities:identities.rows.map((row:any): AuthIdentitySummary => ({
+      provider:row.provider,
+      username:row.provider_username || undefined
+    }))
+  };
+}
+
+export async function updateUserProfile(userId:string, input:{displayName:string}): Promise<AuthUser> {
+  if (!pool) throw new Error('DATABASE_URL is not configured.');
+  await pool.query(`update users set display_name=$2, updated_at=now() where id=$1`, [userId, input.displayName]);
+  return loadAuthUser(userId);
 }

@@ -22,6 +22,7 @@ export const ACTION_ASSIGNMENTS: readonly ActionAssignment[] = [
   { action:'clear-log', backendClass:'dev-only', target:'local-qa-log', notes:'QA-only display reset; never clears server audit events.' },
   { action:'close-rail-drawers', backendClass:'client-only', target:'local-layout', notes:'Visual panel state.' },
   { action:'complete-flow', backendClass:'game-command', target:'COMPLETE_FLOW', method:'WS', notes:'Resolve current authoritative flow when permitted.' },
+  { action:'continue-with-telegram', backendClass:'rest', target:'/v1/auth/telegram/web/start', method:'GET', notes:'Starts backend-owned Telegram Web Login/OIDC when configured; never falls back to guest auth.' },
   { action:'cycle-fixture', backendClass:'dev-only', target:'local visual fixture selector', notes:'Cycles the shared visual fixture preview without mutating gameplay authority.' },
   { action:'draw-card', backendClass:'game-command', target:'DRAW_CARD', method:'WS', notes:'Server validates active player and draw legality.' },
   { action:'duel-vote', backendClass:'game-command', target:'DUEL_VOTE', method:'WS', notes:'Submit eligible Duel resolution choice.' },

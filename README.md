@@ -179,6 +179,7 @@ The shared UI also includes a visual integration checkpoint with fixture-driven 
 - [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)
 - [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md)
 - [docs/ENVIRONMENT.md](./docs/ENVIRONMENT.md)
+- [docs/shared-auth-staging.md](./docs/shared-auth-staging.md)
 - [docs/TELEGRAM.md](./docs/TELEGRAM.md)
 - [docs/TESTING.md](./docs/TESTING.md)
 - [docs/visual-integration-checkpoint.md](./docs/visual-integration-checkpoint.md)

@@ -264,18 +264,35 @@ export interface SessionSnapshot<TState = unknown> {
   serverTime: string;
 }
 
-export interface TelegramAuthRequest {
+export interface AuthIdentitySummary {
+  provider: 'telegram' | 'web';
+  username?: string;
+}
+
+export interface AuthUser {
+  id: string;
+  displayName: string;
+  identities: AuthIdentitySummary[];
+}
+
+export interface TelegramMiniAppAuthRequest {
   initData: string;
+}
+
+export type TelegramAuthRequest = TelegramMiniAppAuthRequest;
+
+export interface ProfileUpdateRequest {
+  displayName?: string;
 }
 
 export interface AuthSession {
   accessToken: string;
-  user: {
-    id: string;
-    displayName: string;
-    provider: 'telegram' | 'web';
-    telegramUserId?: string;
-  };
+  user: AuthUser;
+}
+
+export interface WebTelegramLoginConfiguration {
+  configured: boolean;
+  error?: 'TELEGRAM_WEB_LOGIN_NOT_CONFIGURED';
 }
 
 export interface ClientConfig {

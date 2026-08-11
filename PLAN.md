@@ -79,6 +79,15 @@
 - [x] no client gameplay authority
 - [x] no fake multiplayer state
 - [x] no production auth
+- [x] repository shared-auth hardening
+- [ ] dedicated Cribbit Chaos Railway API
+- [ ] dedicated Cribbit Chaos Railway PostgreSQL
+- [ ] both Vercel apps pointing to the same Railway API
+- [ ] Mini App live auth proof
+- [ ] Web Telegram login live proof
+- [ ] same UUID cross-platform proof
+- [ ] Vercel Git sync proof
+- [ ] Bot Main Mini App link
 
 Do not redesign Cribbit CHAOS. Treat the approved V4 HTML as a visual specification. Migrate it faithfully, then improve only defects—not the design language.
 
@@ -157,4 +166,4 @@ Do not redesign Cribbit CHAOS. Treat the approved V4 HTML as a visual specificat
 
 ## Current Next Task
 
-Phase 3.5 — Visual integration checkpoint is in progress. The shared UI migration, fixture renderer, local previews, visual QA, animation verification, and Vercel staging proof are complete. The remaining work is the Telegram BotFather / Main Mini App link for @CribbitChaos_bot. Phase 3C timers and timeout resolution is complete. Phase 3B Answer modes is complete. Phase 3A Safety Controls is complete.
+Phase 3.5 — Visual integration checkpoint is in progress. The shared UI migration, fixture renderer, local previews, visual QA, animation verification, and repository shared-auth hardening are complete. Remaining blockers are the dedicated Cribbit Chaos Railway API/PostgreSQL, both Vercel apps pointing to the same Railway API, live Mini App auth proof, live Web Telegram login proof, same-UUID cross-platform proof, Vercel Git sync proof, and BotFather Main Mini App linking for @CribbitChaos_bot. Phase 3C timers and timeout resolution is complete. Phase 3B Answer modes is complete. Phase 3A Safety Controls is complete.
