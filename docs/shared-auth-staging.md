@@ -12,6 +12,23 @@ Web Vercel
 Telegram Vercel
 ```
 
+## Dedicated Railway foundation
+
+Cribbit CHAOS uses only the dedicated Railway project `Cribbit Chaos` (`e2b0a674-43d9-4aac-ad8d-3e72b3ff486f`).
+
+Current production environment:
+
+- environment ID: `60d848a2-a7df-4145-a2ec-757a5ec4dc31`
+- API service ID: `c255714c-95a2-4194-8bb0-e1846a5e4cf1`
+- PostgreSQL service ID: `951b9c62-7cd3-404b-b9f0-c93e2c2a51d7`
+- API domain: `https://api-production-2556.up.railway.app`
+- PostgreSQL is deployed with persistent storage
+- API deploy source: `funmarket/cribbit-chaos` / `feature/visual-integration-checkpoint`
+- database migrations run before API deployment
+- Railway health check: `/health`
+
+The separate Railway project `Cribbit` (`1440dc2c-e7fd-4bee-8ef7-57e663b8c735`) belongs to another repository/product and must never be mutated for Cribbit CHAOS.
+
 ## Auth methods
 
 Telegram Mini App:
@@ -35,6 +52,8 @@ Telegram Web Login/OIDC
 ```
 
 The Web OIDC routes fail closed with `TELEGRAM_WEB_LOGIN_NOT_CONFIGURED` until the Railway-only Telegram login secrets are configured. The repository does not fake Telegram OIDC success without a verified identity adapter.
+
+The browser bearer token handoff must follow `docs/browser-auth-handoff.md`; the Cribbit bearer session token must never be placed in a redirect URL.
 
 ## Identity convergence
 
@@ -81,11 +100,18 @@ Never expose `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, Telegram client secrets, JWT 
 
 ## Staging blockers
 
+Completed foundation:
+
 - dedicated Cribbit Chaos Railway API live
 - dedicated Cribbit Chaos Railway PostgreSQL live
+- migrations execute before API deployment
+- Railway `/health` check returns HTTP 200
+
+Still open:
+
 - both Vercel apps pointing to the same Railway API
 - Mini App live auth proof
-- Web Telegram login live proof
+- Web Telegram login implementation and live proof
 - same Telegram account resolving to the same Cribbit UUID from both clients
 - Vercel Git deployment proof from current GitHub source
 - BotFather Main Mini App link for `@CribbitChaos_bot`
