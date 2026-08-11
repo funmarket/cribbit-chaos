@@ -55,6 +55,11 @@ function telegramWebLoginConfigured(): boolean {
   );
 }
 
+export function guestAuthEnabled(env:NodeJS.ProcessEnv = process.env): boolean {
+  const runtime = String(env.APP_ENV || env.NODE_ENV || 'development').trim().toLowerCase();
+  return runtime !== 'production' && env.ALLOW_GUEST_AUTH === 'true';
+}
+
 function readBearerToken(request:any): string | null {
   const header = request.headers.authorization;
   if (typeof header !== 'string') return null;
@@ -121,6 +126,12 @@ export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
   });
 
   app.post('/v1/auth/guest', async (_request:any, reply:any) => {
+    if (!guestAuthEnabled()) {
+      return reply.code(403).send({
+        error:'GUEST_AUTH_DISABLED',
+        message:'Guest authentication is disabled. Use Telegram authentication.'
+      });
+    }
     try {
       const user = await deps.createGuestIdentity('Web Player');
       const accessToken = await deps.createServerSession(user.id, 'web');
