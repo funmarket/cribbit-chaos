@@ -67,8 +67,8 @@
 - [x] web visual preview
 - [x] Telegram Mini App visual preview
 - [ ] development Telegram bot / Mini App staging configuration
-- [x] Vercel web staging
-- [x] Vercel Telegram staging
+- [ ] current-head Vercel web staging
+- [ ] current-head Vercel Telegram staging
 - [x] mobile visual QA
 - [x] desktop visual QA
 - [x] Telegram safe-area QA
@@ -80,14 +80,17 @@
 - [x] no fake multiplayer state
 - [x] no production auth
 - [x] repository shared-auth hardening
-- [ ] dedicated Cribbit Chaos Railway API
-- [ ] dedicated Cribbit Chaos Railway PostgreSQL
+- [x] dedicated Railway project container created: `Cribbit Chaos`
+- [ ] dedicated Cribbit Chaos Railway API service
+- [ ] dedicated Cribbit Chaos Railway PostgreSQL service
 - [ ] both Vercel apps pointing to the same Railway API
 - [ ] Mini App live auth proof
 - [ ] Web Telegram login live proof
 - [ ] same UUID cross-platform proof
 - [ ] Vercel Git sync proof
 - [ ] Bot Main Mini App link
+
+Railway safety boundary: Cribbit CHAOS may use only Railway project `Cribbit Chaos` (`e2b0a674-43d9-4aac-ad8d-3e72b3ff486f`). The separate Railway project `Cribbit` (`1440dc2c-e7fd-4bee-8ef7-57e663b8c735`) belongs to another repository/product and must not be mutated for Cribbit CHAOS.
 
 Do not redesign Cribbit CHAOS. Treat the approved V4 HTML as a visual specification. Migrate it faithfully, then improve only defects—not the design language.
 
@@ -166,4 +169,4 @@ Do not redesign Cribbit CHAOS. Treat the approved V4 HTML as a visual specificat
 
 ## Current Next Task
 
-Phase 3.5 — Visual integration checkpoint is in progress. The shared UI migration, fixture renderer, local previews, visual QA, animation verification, and repository shared-auth hardening are complete. Remaining blockers are the dedicated Cribbit Chaos Railway API/PostgreSQL, both Vercel apps pointing to the same Railway API, live Mini App auth proof, live Web Telegram login proof, same-UUID cross-platform proof, Vercel Git sync proof, and BotFather Main Mini App linking for @CribbitChaos_bot. Phase 3C timers and timeout resolution is complete. Phase 3B Answer modes is complete. Phase 3A Safety Controls is complete.
+Phase 3.5 remains in progress. The next controlled slice is deployment foundation inside the dedicated `Cribbit Chaos` Railway project only: create its PostgreSQL service and API service from `funmarket/cribbit-chaos`, wire both Vercel clients to that one API, restore current-head Git deployments, then verify Telegram Mini App authentication and browser Telegram login converge on the same internal user UUID. Do not start Phase 4 multiplayer until this checkpoint is complete.
