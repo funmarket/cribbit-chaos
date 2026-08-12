@@ -1,6 +1,7 @@
 import type { Card } from '../../../packages/contracts/src/index.ts';
 import type { PlatformAdapter } from '../../../packages/platform/src/types.ts';
 import { installContextualRuleUI } from './contextualRuleUI.ts';
+import { renderCribbitCard } from './cardRenderer.ts';
 import './styles/game.css';
 
 interface DemoPlayer {
@@ -88,7 +89,7 @@ function gameTemplate(game: TelegramDemoGame): string {
         <div class="tg-board__piles">
           <article class="tg-board-zone tg-board-zone--discard">
             <span class="tg-board-zone__label">DISCARD CARD</span>
-            ${renderCard(game.discard, 'board')}
+            ${renderCribbitCard(game.discard, 'board')}
           </article>
           <article class="tg-board-zone tg-board-zone--draw">
             <span class="tg-board-zone__label">DRAW PILE</span>
@@ -125,7 +126,7 @@ function gameTemplate(game: TelegramDemoGame): string {
       <section class="tg-hand" aria-label="Your hand">
         <div class="tg-section-label"><span>Your QA Hand</span><strong>${game.hand.length} cards</strong></div>
         <div class="tg-hand-rail">
-          ${game.hand.map(card => renderCard(card, 'hand')).join('')}
+          ${game.hand.map(card => renderCribbitCard(card, 'hand')).join('')}
         </div>
       </section>
 
@@ -139,53 +140,6 @@ function gameTemplate(game: TelegramDemoGame): string {
       <div class="tg-action-status" data-game-status role="status" aria-live="polite">Demo preview only — no authoritative multiplayer state is being changed.</div>
     </main>
   `;
-}
-
-function renderCard(card: Card, size: 'board' | 'hand'): string {
-  const tone = card.color || 'wild';
-  const title = cardTitle(card);
-  const symbol = cardSymbol(card);
-  return `
-    <button class="tg-card tg-card--${size}" type="button" data-card-id="${escapeHTML(card.id)}" data-card-kind="${card.kind}" data-card-color="${tone}" data-action="play-card" aria-label="${escapeHTML(title)} card">
-      <span class="tg-card__corner tg-card__corner--top">${escapeHTML(symbol)}</span>
-      <span class="tg-card__center">
-        <small>${escapeHTML(card.kind.toUpperCase())}</small>
-        <strong>${escapeHTML(symbol)}</strong>
-        <em>${escapeHTML(title)}</em>
-      </span>
-      <span class="tg-card__corner tg-card__corner--bottom">${escapeHTML(symbol)}</span>
-    </button>
-  `;
-}
-
-function cardTitle(card: Card): string {
-  switch (card.kind) {
-    case 'number': return `${card.color || ''} ${card.value ?? card.symbol ?? ''}`.trim();
-    case 'skip': return 'Skip';
-    case 'reverse': return 'Reverse';
-    case 'draw': return 'Draw Two';
-    case 'wild': return 'Wild';
-    case 'truth': return 'Truth';
-    case 'dare': return 'Dare';
-    case 'paranoia': return 'Paranoia';
-    case 'chaos': return 'Chaos';
-    case 'duel': return 'Duel';
-    case 'nope': return 'Nope';
-  }
-}
-
-function cardSymbol(card: Card): string {
-  if (card.kind === 'number') return String(card.value ?? card.symbol ?? '');
-  if (card.kind === 'skip') return '⊘';
-  if (card.kind === 'reverse') return '↻';
-  if (card.kind === 'draw') return '+2';
-  if (card.kind === 'wild') return '★';
-  if (card.kind === 'truth') return '?';
-  if (card.kind === 'dare') return '⚡';
-  if (card.kind === 'paranoia') return '◉';
-  if (card.kind === 'chaos') return '✹';
-  if (card.kind === 'duel') return '⚔';
-  return '✋';
 }
 
 function bindGamePreview(host: HTMLElement, platform: PlatformAdapter, onBack: () => void): void {
@@ -211,7 +165,7 @@ function bindGamePreview(host: HTMLElement, platform: PlatformAdapter, onBack: (
 function actionMessage(action: string): string {
   switch (action) {
     case 'draw-card': return 'Draw action mapped. Demo preview does not change the authoritative draw pile.';
-    case 'open-chaos-board': return 'CHAOS Board is a secondary view and remains outside the core T3/T4 slice.';
+    case 'open-chaos-board': return 'CHAOS Board is a secondary view and remains outside the current visual slice.';
     case 'safety-pass': return 'Pass action mapped to the existing PASS_PROMPT safety command boundary.';
     case 'safety-rewind': return 'Rewind action mapped to the existing REWIND_PROMPT safety command boundary.';
     case 'use-nope': return 'Nope action mapped to the existing PLAY_NOPE reaction command boundary.';
