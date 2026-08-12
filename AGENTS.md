@@ -1,22 +1,69 @@
 # Cribbit CHAOS Codex Rules
 
+## Project control rule — mandatory
+
+The repository documentation is a set of living project-control documents, not passive notes.
+
+GitHub is the canonical source of truth for deployable source and project documentation.
+
+After every completed implementation slice:
+
+1. update `PLAN.md` to match the verified current state
+2. update every affected architecture, deployment, auth, database, environment, testing, or operational document
+3. update the active PR description when scope, blockers, deployment state, or next task changed
+4. remove resolved blockers and obsolete instructions
+5. replace `Current Next Task` with the next real unfinished task
+6. never leave a completed task presented as pending
+7. never leave stale hosting/backend/database instructions in repository documentation
+8. if runtime state and documentation disagree, correct documentation before starting further implementation
+
+At phase completion, preserve a concise completion summary, collapse unnecessary completed detail, and move active focus to the next unfinished phase. Do not erase useful evidence, but do remove stale instructions that could send implementation in the wrong direction.
+
+No implementation slice is considered fully complete until its project-control documentation is synchronized.
+
 ## Product model
 
 Cribbit CHAOS is one multiplayer platform with two clients:
 
-- `apps/web` — standalone browser application deployed on Vercel
-- `apps/telegram` — Telegram Mini App deployed on Vercel
+- `apps/web` — standalone browser application; primary live host is Cloudflare Pages
+- `apps/telegram` — Telegram Mini App; primary live host is Cloudflare Pages
 
 Both clients use:
 
 - one shared game engine
 - one shared contracts package
 - one Railway backend
-- one PostgreSQL database
+- one Railway PostgreSQL database
 - one account system
 - one room/session system
 
 Never implement Telegram and Web as separate games.
+
+Vercel Web and Telegram projects are secondary/fallback deployments only and are not allowed to become an alternate source of truth.
+
+## Canonical deployment architecture
+
+```text
+GitHub
+  |
+  +--> Cloudflare Pages Web
+  |
+  +--> Cloudflare Pages Telegram
+              \
+               Railway API
+                   |
+            Railway PostgreSQL
+```
+
+Primary live endpoints:
+
+- Web: `https://cribbit-chaos-web.pages.dev`
+- Telegram: `https://cribbit-chaos-telegram.pages.dev`
+- API: `https://api-production-2556.up.railway.app`
+
+Cribbit CHAOS Railway resources belong only to project `Cribbit Chaos` (`e2b0a674-43d9-4aac-ad8d-3e72b3ff486f`).
+
+Never use or mutate the separate Railway project `Cribbit` (`1440dc2c-e7fd-4bee-8ef7-57e663b8c735`).
 
 ## Production architecture
 
@@ -72,6 +119,7 @@ Never expose:
 
 - `TELEGRAM_BOT_TOKEN`
 - `DATABASE_URL`
+- Telegram OIDC client secrets
 - JWT secrets
 - session secrets
 
@@ -79,9 +127,13 @@ inside client bundles.
 
 ## Database rule
 
-There is one shared PostgreSQL database.
+There is one shared Railway PostgreSQL database for Cribbit CHAOS.
 
 Never create separate Telegram and Web databases.
+
+Never put `DATABASE_URL` in Cloudflare Pages, Vercel, or any Vite client environment.
+
+Clients access persistent data only through the Railway API.
 
 Internal Cribbit UUIDs are the user primary identity.
 
@@ -137,15 +189,16 @@ Do not force-push `main`.
 
 Do not rewrite history unless explicitly requested.
 
-## Documentation
+New implementation must continue on the active controlled branch/PR unless explicitly directed otherwise.
 
-If architecture, contracts, deployment, database, or game rules change,
-update the corresponding documentation.
+## Documentation ownership
 
-`README.md` explains how to use the repository.
+`README.md` explains the repository and current deployment model.
 
 `REQUIREMENTS.md` defines what the product must satisfy.
 
-`PLAN.md` defines implementation sequence/status.
+`PLAN.md` defines implementation sequence, verified current status, blockers, and the single current next task.
 
-`docs/` contains deeper technical detail.
+`docs/` contains deeper technical and operational detail.
+
+All of these must remain synchronized with verified project reality after each implementation slice.
