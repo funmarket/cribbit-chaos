@@ -98,12 +98,15 @@ Completed and verified:
 - [x] real-device Telegram smoke test proved that shared Web/Telegram layout parity is not the desired product outcome
 - [x] dedicated Telegram mobile room/game visual direction approved
 - [x] detailed Telegram mobile implementation-control plan committed at `docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md`
+- [x] T1 Telegram presentation boundary implemented: `apps/telegram` now boots a Telegram-owned TypeScript/Vite composition instead of the desktop/shared page hierarchy
+- [x] T1 preserves `TelegramPlatform`, existing API client/auth initialization, fixture metadata, safe-area variables, shared contracts, Web source, Railway API and PostgreSQL schema
+- [x] T1 exact implementation head `80008599d42d70b6453a9e9d314b4cc9310dfd19` passed GitHub CI typecheck, tests, Web build, Telegram build and API build
 
 Still required before Phase 3.5 can close:
 
 ### Telegram mobile composition
 
-- [ ] T1 Telegram presentation boundary: stop using the desktop/shared page composition as Telegram's primary layout
+- [x] T1 Telegram presentation boundary
 - [ ] T2 Telegram room-creation screen
 - [ ] `CREATE GAME | DEMO GAME` same-row CTA with Create Game dominant
 - [ ] T3 Telegram full-width mobile game board
@@ -215,10 +218,10 @@ Remaining:
 
 ## Current Next Task
 
-**T1 — Telegram presentation boundary.**
+**T2 — Telegram Room Creation screen.**
 
-Follow `docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md`.
+Follow `docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md` exactly.
 
-Create the Telegram-specific TypeScript/Vite bootstrap and presentation layer so `apps/telegram` no longer uses the desktop/shared page composition as its primary layout, while preserving `TelegramPlatform`, the existing API client/auth initialization, fixture/demo access, shared game contracts/action semantics, Web appearance, Railway API, and PostgreSQL schema.
+Replace the temporary T1 Telegram foundation shell with the approved mobile Room Creation composition using the existing TypeScript/Vite Telegram bootstrap. Implement Profile Name, canonical Content World and Personal Ceiling controls, canonical mode selection, player count, current prompt-source controls, QA test-hand staging control, Join Room binding, and same-row `[ CREATE GAME ] [ DEMO GAME ]` CTAs. Reuse existing auth/profile/API/setup semantics and preserve honest staging behavior for unavailable real room persistence.
 
-Do not begin room persistence or Phase 4 multiplayer work.
+Do not alter Web appearance, game mechanics, API contracts, Railway architecture, PostgreSQL schema, or begin Phase 4 multiplayer work.
