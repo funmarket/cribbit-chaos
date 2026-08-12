@@ -1,5 +1,6 @@
 import type { Card } from '../../../packages/contracts/src/index.ts';
 import type { PlatformAdapter } from '../../../packages/platform/src/types.ts';
+import './styles/game.css';
 
 interface DemoPlayer {
   readonly id: string;
