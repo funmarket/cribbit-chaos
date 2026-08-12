@@ -1,16 +1,25 @@
 # Shared auth staging
 
+This is a living auth/staging control document. Update it whenever hosting, auth configuration, identity proof, backend state, or staging blockers change.
+
 Cribbit CHAOS is one product with two clients. Web and Telegram must converge on the same Railway API, the same Railway PostgreSQL database, and the same internal `users.id` UUID.
 
-## Architecture
+## Current architecture
 
 ```text
-Web Vercel
-      \
-       Railway API -> Railway PostgreSQL
-      /
-Telegram Vercel
+Web Cloudflare Pages
+        \
+         Railway API -> Railway PostgreSQL
+        /
+Telegram Cloudflare Pages
 ```
+
+Primary frontend URLs:
+
+- Web: `https://cribbit-chaos-web.pages.dev`
+- Telegram: `https://cribbit-chaos-telegram.pages.dev`
+
+Vercel remains secondary/fallback only.
 
 ## Dedicated Railway foundation
 
@@ -26,6 +35,7 @@ Current production environment:
 - API deploy source: `funmarket/cribbit-chaos` / `feature/visual-integration-checkpoint`
 - database migrations run before API deployment
 - Railway health check: `/health`
+- `FRONTEND_ORIGINS` includes the exact two Cloudflare production origins
 
 The separate Railway project `Cribbit` (`1440dc2c-e7fd-4bee-8ef7-57e663b8c735`) belongs to another repository/product and must never be mutated for Cribbit CHAOS.
 
@@ -51,9 +61,9 @@ Telegram Web Login/OIDC
 -> same users.id
 ```
 
-The Web OIDC routes fail closed with `TELEGRAM_WEB_LOGIN_NOT_CONFIGURED` until the Railway-only Telegram login secrets are configured. The repository does not fake Telegram OIDC success without a verified identity adapter.
+The Web OIDC routes fail closed with `TELEGRAM_WEB_LOGIN_NOT_CONFIGURED` until the Railway-only Telegram login secrets are configured and the flow is implemented/live-verified. The repository must not fake Telegram OIDC success without a verified identity adapter.
 
-The browser bearer token handoff must follow `docs/browser-auth-handoff.md`; the Cribbit bearer session token must never be placed in a redirect URL.
+The browser bearer-token handoff must follow `docs/browser-auth-handoff.md`; the Cribbit bearer session token must never be placed in a redirect URL.
 
 ## Identity convergence
 
@@ -77,7 +87,7 @@ Authorization: Bearer <session token>
 
 Clients store the staging token in `sessionStorage` with an in-memory fallback when storage is unavailable. Tokens are never placed in URLs and should never be logged.
 
-The server stores only `sha256` token hashes in `auth_sessions.token_hash`. Plaintext session tokens are not persisted server-side.
+The server stores only SHA-256 token hashes in `auth_sessions.token_hash`. Plaintext session tokens are not persisted server-side.
 
 ## Secrets
 
@@ -89,8 +99,9 @@ Railway only:
 - `TELEGRAM_LOGIN_CLIENT_SECRET`
 - `TELEGRAM_LOGIN_REDIRECT_URI`
 - `FRONTEND_ORIGINS`
+- server session/JWT secrets
 
-Vercel:
+Cloudflare Pages primary clients:
 
 - `VITE_API_URL`
 - `VITE_WS_URL`
@@ -98,20 +109,30 @@ Vercel:
 
 Never expose `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, Telegram client secrets, JWT secrets, or session secrets to Vite.
 
-## Staging blockers
+## Current staging state
 
 Completed foundation:
 
 - dedicated Cribbit Chaos Railway API live
 - dedicated Cribbit Chaos Railway PostgreSQL live
 - migrations execute before API deployment
-- Railway `/health` check returns HTTP 200
+- Railway API deployment successful
+- current-head Cloudflare Web deployment successful
+- current-head Cloudflare Telegram deployment successful
+- both primary clients point to the same Railway API/WS URL
+- Railway CORS/origins configured for both exact Cloudflare origins
 
 Still open:
 
-- both Vercel apps pointing to the same Railway API
+- live Web visual smoke test
+- live Telegram visual smoke test
+- regenerated Railway-only `TELEGRAM_BOT_TOKEN`
+- BotFather Main Mini App link to the Cloudflare Telegram URL
 - Mini App live auth proof
-- Web Telegram login implementation and live proof
+- Web Telegram OIDC implementation and live proof
 - same Telegram account resolving to the same Cribbit UUID from both clients
-- Vercel Git deployment proof from current GitHub source
-- BotFather Main Mini App link for `@CribbitChaos_bot`
+- shared profile update/read proof across both clients
+
+Vercel Git deployment freshness is not a Phase 3.5 blocker while the current-head Cloudflare staging path remains healthy.
+
+After each auth/staging implementation slice, synchronize this file, `PLAN.md`, relevant deployment/environment/database docs, and the active PR description.
