@@ -14,9 +14,10 @@
 - T3 verified deployment head: `561f9056c73a279cdf2ddb8207f875bcc4414398`
 - T4 verified deployment head: `76cbdaff1ff4ff64e81a0914f7fe1318eb00337d`
 - T5 verified deployment head: `df581a56accbf6f128e7e460317508f26cdd366e`
-- Current task: **T6 — Live Telegram real-device signoff**
+- T6 card-visual correction code head: `2094e1464d3a8d0b0ed67e23b275e254341bb0da`
+- Current task: **T6 — re-verify corrected cards on real Telegram device**
 
-This is a living execution document. After every T-slice, update this file, `PLAN.md`, affected technical/operational docs, and PR #8 before starting the next slice.
+This is a living execution document. After every controlled slice, update this file, `PLAN.md`, affected technical/operational docs, and PR #8 before proceeding.
 
 ## Locked architecture
 
@@ -25,19 +26,11 @@ GitHub = canonical source of truth
         |
         +--> apps/web
         |      Web/desktop presentation
-        |      Cloudflare Web
         |
         +--> apps/telegram
                Telegram/mobile presentation
-               Cloudflare Telegram
 
-Both clients
-        |
-        v
-same Railway API
-        |
-        v
-same Railway PostgreSQL
+Both clients -> same Railway API -> same Railway PostgreSQL
 ```
 
 Permanent identity rule:
@@ -134,72 +127,48 @@ Telegram owns its TypeScript/Vite composition while preserving `TelegramPlatform
 
 ## T2 — Telegram Room Creation screen — COMPLETE FOR IMPLEMENTATION
 
-Implemented:
-- Profile Name and Room Name
-- canonical Content World / Personal Ceiling values
-- Duel / Squad / Party / Mayhem
-- mode-dependent player counts
-- Original / Community / House / Live prompt sources
-- QA test-hand staging toggle
-- Join Room bound to existing API contract
-- same-row `[ CREATE GAME ] [ DEMO GAME ]`
-- no fake room persistence
+Implemented Profile Name, Room Name, canonical Content World / Personal Ceiling, Duel / Squad / Party / Mayhem, mode-dependent player counts, prompt sources, QA test hand, Join Room, and same-row `[ CREATE GAME ] [ DEMO GAME ]` without fake room persistence.
 
 ## T3 — Core mobile Game screen — COMPLETE FOR IMPLEMENTATION
 
-Implemented:
-- Telegram-owned mobile game view
-- full-width discard + draw board
-- compact room/current-turn/timer information
-- compact player strip
-- contextual active-state host
-- horizontal hand rail
-- Pass / Rewind / Nope / Flag bar
-- Demo Game opens Telegram mobile board
-- explicit `compat=1` path retains legacy compatibility QA
-- no authoritative multiplayer mutation in demo state
+Implemented Telegram-owned full-width game board, room/current-turn/timer info, player strip, contextual state host, horizontal hand rail, Pass/Rewind/Nope/Flag bar, and Demo Game flow without authoritative multiplayer mutation.
 
 ## T4 — Contextual rule UI — COMPLETE FOR IMPLEMENTATION
 
-Implemented state-triggered Telegram sheets/panels for:
-- Wild color choice
-- Truth
-- Dare
-- Paranoia
-- Duel
-- Chaos
-- Nope reaction
-- answer modes
-- Pass
-- Rewind
-- Flag
-
-No game rule was duplicated in Telegram and no backend/database behavior changed.
+Implemented presentation-only state-triggered sheets for Wild, Truth, Dare, Paranoia, Duel, Chaos, Nope, answer modes, Pass, Rewind and Flag. No rule or backend/database behavior was duplicated.
 
 ## T5 — Mobile hardening — COMPLETE FOR IMPLEMENTATION
 
-Implemented dedicated `apps/telegram/src/styles/hardening.css` and loaded it from the Telegram entrypoint.
+Implemented 320–430 px hardening, Telegram safe-area spacing, overflow containment, hand/player rail touch scrolling, long-name handling, short-height/keyboard fallback, contextual-sheet bounds, sticky safety controls and reduced motion.
 
-Hardening covers:
-- 320–430 px responsive ranges
-- explicit 320–359, 360–389, and 390–430 behavior
-- Telegram safe-area-aware horizontal and bottom padding
-- prevention of body/page horizontal overflow
-- hand/player rails as intended horizontal scrolling surfaces
-- touch-safe minimum control heights
-- responsive room setup controls
-- same-line `CREATE GAME | DEMO GAME` preservation on very narrow widths
-- responsive full-width game board/card/deck sizing
-- compact player-name truncation
-- 7+ card hand rail sizing and inertial touch scroll
-- sticky safety bar with safe-area bottom spacing
-- contextual sheet max-height based on Telegram platform height and safe areas
-- short-height/keyboard-open fallback that disables sticky action bars so fields are not covered
-- reduced-motion support
+Exact T5 head `df581a56accbf6f128e7e460317508f26cdd366e` passed typecheck, tests, Web build, Telegram build and API build, and deployed successfully to Cloudflare Telegram.
 
-Before hardening, the current Telegram entrypoint was rechecked against the live branch and confirmed that normal Demo Game clicks are intercepted to open `renderTelegramGame`, while `compat=1` remains the explicit legacy fixture route. No backend/database change was needed.
+## T6 — Live Telegram signoff — CURRENT
 
-Exact T5 implementation head `df581a56accbf6f128e7e460317508f26cdd366e` verification:
+### Real-device findings
+
+The first real-device T6 screenshots verified that the room-creation layout, same-row `CREATE GAME | DEMO GAME`, mobile board hierarchy, player strip, hand rail and safety bar are rendering inside Telegram.
+
+A verified defect was found: **the game cards were generic placeholder cards and did not match the approved Cribbit card visual family.**
+
+The approved visual direction is the supplied Cribbit card family: dark/black card body, neon category frame, top-left category marker, large central category symbol/art, strong uppercase title, compact rule copy, and Cribbit branding. Category tones remain consistent with the supplied references, including lime Truth, orange Dare, purple Paranoia, pink Chaos, cyan Duel, gold Nope, rainbow Wild, and matching number/action treatments.
+
+### T6 card correction — IMPLEMENTED / NEEDS REAL-DEVICE RECHECK
+
+Implemented:
+- new Telegram `apps/telegram/src/cardRenderer.ts`
+- new `apps/telegram/src/styles/cards.css`
+- separate TypeScript renderer consuming the existing shared `Card` contract
+- Truth, Dare, Paranoia, Chaos, Duel, Nope, Wild, Number, Skip, Reverse and Draw visual treatments
+- board and hand use the same renderer at different responsive sizes
+- retained existing `data-card-id`, `data-card-kind`, `data-card-color` and `data-action="play-card"` hooks
+- no gameplay rule changes
+- no API/database/backend changes
+- no Web presentation change
+
+The implementation deliberately recreates the approved card language as TypeScript/CSS components rather than embedding flattened reference screenshots as gameplay cards.
+
+Exact card-correction code head `2094e1464d3a8d0b0ed67e23b275e254341bb0da` verification:
 - typecheck: PASS
 - tests: PASS
 - Web build: PASS
@@ -207,43 +176,20 @@ Exact T5 implementation head `df581a56accbf6f128e7e460317508f26cdd366e` verifica
 - API build: PASS
 - Cloudflare Telegram Git deployment: PASS
 
-T5 does not modify:
-- `apps/web`
-- `packages/game-engine`
-- API routes/contracts
-- Railway architecture
-- PostgreSQL schema
+### Remaining T6 checks
 
-## T6 — Live Telegram signoff — CURRENT
-
-For exact GitHub head:
-
-```text
-GitHub push
- -> Cloudflare Telegram build
- -> open stable Telegram Pages URL inside actual Telegram
- -> compare Room Creation against approved reference
- -> enter Demo Game
- -> compare mobile game board against approved reference
- -> trigger contextual sheets
- -> record real-device defects
- -> fix only verified defects
-```
-
-Required device checks:
-- room creation first viewport and scrolling
-- `CREATE GAME | DEMO GAME` same-line CTA
+Re-open the stable Telegram URL and verify:
+- discard card now follows Cribbit card visual language
+- Truth / Dare / Paranoia / Chaos / Duel / Nope / Wild hand cards match the approved family closely enough for mobile gameplay
+- hand cards remain readable/tappable at real device width
+- horizontal hand scrolling still works
+- card selection lift/highlight still works
+- contextual sheets still open from special cards
+- board layout remains intact
 - no body horizontal overflow
-- board/discard/draw hierarchy
-- player strip horizontal scroll
-- hand horizontal scroll with 7 cards
-- card readability/touchability
-- Pass / Rewind / Nope / Flag bar
-- Wild/Truth/Dare/Paranoia/Duel/Chaos/Nope/safety sheets
-- top and bottom Telegram safe areas
-- keyboard-open state on profile/room/join inputs
+- safe-area and keyboard behavior remain acceptable
 
-Actual Telegram WebView is final visual acceptance.
+Actual Telegram WebView remains final visual acceptance.
 
 ## Authentication after visual approval
 
@@ -273,6 +219,6 @@ Presentation should remain stable while the state provider becomes real.
 
 ## Current Next Task
 
-**T6 — Live Telegram real-device signoff.**
+**T6 — Real-device recheck of the corrected Cribbit cards.**
 
-Open `https://cribbit-chaos-telegram.pages.dev` inside the actual Telegram Mini App/WebView and compare Room Creation, Demo Game board, player/hand rails, safety actions, and contextual rule sheets against the approved references. Record screenshots/defects and fix only verified real-device issues. Do not modify Web, backend routes, game mechanics, Railway architecture, PostgreSQL schema, or begin Phase 4 multiplayer.
+Open `https://cribbit-chaos-telegram.pages.dev` inside the actual Telegram Mini App/WebView, enter Demo Game, and verify the corrected card renderer against the approved card references. Record screenshots and fix only verified remaining card/layout defects. Do not modify Web, backend routes, game mechanics, Railway architecture, PostgreSQL schema, or begin Phase 4 multiplayer.
