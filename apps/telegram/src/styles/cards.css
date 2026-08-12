@@ -1,0 +1,242 @@
+/* Cribbit card visual system recreated in TypeScript/CSS from approved card references. */
+
+.cribbit-card {
+  --card-accent: #ffd329;
+  --card-accent-rgb: 255,211,41;
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-rows: auto minmax(0,1fr) auto auto;
+  align-items: center;
+  justify-items: center;
+  overflow: hidden;
+  padding: 14px 11px 12px;
+  border: 2px solid var(--card-accent);
+  border-radius: 15px;
+  color: #f8f9fb;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(var(--card-accent-rgb),.20), transparent 34%),
+    radial-gradient(circle at 17% 15%, rgba(var(--card-accent-rgb),.10), transparent 22%),
+    repeating-linear-gradient(125deg, rgba(255,255,255,.018) 0 1px, transparent 1px 6px),
+    linear-gradient(155deg, #090b0f 0%, #08090d 64%, #050608 100%);
+  box-shadow:
+    0 12px 30px rgba(0,0,0,.44),
+    0 0 18px rgba(var(--card-accent-rgb),.14),
+    inset 0 0 24px rgba(var(--card-accent-rgb),.05);
+  isolation: isolate;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cribbit-card::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  z-index: -1;
+  border: 1px solid rgba(var(--card-accent-rgb),.72);
+  border-radius: 10px;
+  box-shadow: inset 0 0 14px rgba(var(--card-accent-rgb),.06);
+}
+
+.cribbit-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    linear-gradient(135deg, rgba(var(--card-accent-rgb),.26), transparent 11%) top left / 35% 35% no-repeat,
+    linear-gradient(315deg, rgba(var(--card-accent-rgb),.14), transparent 13%) bottom right / 42% 42% no-repeat;
+  opacity: .75;
+}
+
+.cribbit-card__frame {
+  position: absolute;
+  inset: 12px;
+  border: 1px solid rgba(255,255,255,.055);
+  clip-path: polygon(0 8%,8% 0,92% 0,100% 8%,100% 92%,92% 100%,8% 100%,0 92%);
+  pointer-events: none;
+}
+
+.cribbit-card__corner {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  min-height: 24px;
+  color: var(--card-accent);
+  font-size: 15px;
+  font-weight: 950;
+  line-height: 1;
+  text-shadow: 0 0 10px rgba(var(--card-accent-rgb),.7);
+}
+
+.cribbit-card__corner--top { top: 11px; left: 12px; }
+.cribbit-card__corner--bottom { right: 12px; bottom: 9px; transform: rotate(180deg); }
+
+.cribbit-card__art {
+  position: relative;
+  align-self: end;
+  display: grid;
+  place-items: center;
+  width: 62%;
+  aspect-ratio: 1;
+  margin-top: 22px;
+}
+
+.cribbit-card__halo {
+  position: absolute;
+  inset: 5%;
+  border: 2px solid rgba(var(--card-accent-rgb),.72);
+  border-radius: 23%;
+  transform: rotate(45deg);
+  box-shadow:
+    0 0 20px rgba(var(--card-accent-rgb),.22),
+    inset 0 0 20px rgba(var(--card-accent-rgb),.10);
+}
+
+.cribbit-card__halo::after {
+  content: '';
+  position: absolute;
+  inset: 15%;
+  border: 1px solid rgba(var(--card-accent-rgb),.48);
+  border-radius: 20%;
+}
+
+.cribbit-card__icon {
+  position: relative;
+  z-index: 2;
+  color: var(--card-accent);
+  font-size: clamp(34px, 10vw, 60px);
+  font-weight: 950;
+  line-height: 1;
+  text-shadow:
+    0 0 7px rgba(var(--card-accent-rgb),.9),
+    0 0 20px rgba(var(--card-accent-rgb),.45);
+}
+
+.cribbit-card__title {
+  align-self: end;
+  margin-top: 7px;
+  max-width: 100%;
+  color: #fff;
+  font-size: clamp(14px, 4.4vw, 22px);
+  font-weight: 950;
+  line-height: .95;
+  letter-spacing: .015em;
+  text-align: center;
+  text-transform: uppercase;
+  text-shadow: 0 2px 4px #000;
+}
+
+.cribbit-card__rule {
+  align-self: start;
+  max-width: 92%;
+  margin-top: 8px;
+  color: #d7dbe1;
+  font-size: 9px;
+  font-weight: 650;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.cribbit-card__brand {
+  align-self: end;
+  margin-top: 8px;
+  color: var(--card-accent);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .13em;
+  opacity: .8;
+}
+
+.cribbit-card--board {
+  width: min(154px, 45vw);
+  aspect-ratio: .69;
+}
+
+.cribbit-card--board .cribbit-card__rule {
+  font-size: 9px;
+}
+
+.cribbit-card--hand {
+  width: clamp(84px, 24vw, 96px);
+  aspect-ratio: .69;
+  scroll-snap-align: start;
+  padding: 10px 7px 8px;
+  border-radius: 12px;
+}
+
+.cribbit-card--hand .cribbit-card__frame { inset: 8px; }
+.cribbit-card--hand .cribbit-card__corner { min-width: 18px; min-height: 18px; font-size: 11px; }
+.cribbit-card--hand .cribbit-card__corner--top { top: 7px; left: 8px; }
+.cribbit-card--hand .cribbit-card__corner--bottom { right: 8px; bottom: 6px; }
+.cribbit-card--hand .cribbit-card__art { width: 58%; margin-top: 18px; }
+.cribbit-card--hand .cribbit-card__icon { font-size: clamp(27px, 8vw, 36px); }
+.cribbit-card--hand .cribbit-card__title { margin-top: 5px; font-size: 11px; }
+.cribbit-card--hand .cribbit-card__rule { display: none; }
+.cribbit-card--hand .cribbit-card__brand { margin-top: 5px; font-size: 5.5px; }
+
+.cribbit-card.is-selected {
+  transform: translateY(-8px);
+  box-shadow:
+    0 16px 32px rgba(0,0,0,.5),
+    0 0 26px rgba(var(--card-accent-rgb),.4),
+    inset 0 0 26px rgba(var(--card-accent-rgb),.08);
+}
+
+.cribbit-card--lime { --card-accent:#9cff16; --card-accent-rgb:156,255,22; }
+.cribbit-card--orange { --card-accent:#ff7a16; --card-accent-rgb:255,122,22; }
+.cribbit-card--purple { --card-accent:#c34dff; --card-accent-rgb:195,77,255; }
+.cribbit-card--pink { --card-accent:#ff2f87; --card-accent-rgb:255,47,135; }
+.cribbit-card--cyan { --card-accent:#30cfff; --card-accent-rgb:48,207,255; }
+.cribbit-card--gold { --card-accent:#ffd329; --card-accent-rgb:255,211,41; }
+.cribbit-card--red { --card-accent:#ff3535; --card-accent-rgb:255,53,53; }
+
+.cribbit-card--wild {
+  --card-accent:#ffffff;
+  --card-accent-rgb:255,255,255;
+  border-color: #fff;
+  background:
+    radial-gradient(circle at 44% 34%, rgba(255,255,255,.07), transparent 26%),
+    conic-gradient(from 218deg at 50% 42%, #23cfff, #8b2fff, #ff2f87, #ff861d, #ffe03b, #84ff1e, #23cfff) center 34% / 72% 38% no-repeat,
+    linear-gradient(155deg,#08090d 0%,#050608 100%);
+  box-shadow:
+    0 12px 30px rgba(0,0,0,.44),
+    0 0 18px rgba(255,47,135,.18),
+    0 0 22px rgba(56,207,255,.14);
+}
+
+.cribbit-card--wild::before {
+  border-color: rgba(255,255,255,.6);
+  box-shadow:
+    -3px 0 8px rgba(56,207,255,.36),
+    3px 0 8px rgba(255,47,135,.36);
+}
+
+.cribbit-card--wild .cribbit-card__halo {
+  border-color: rgba(255,255,255,.65);
+  background: conic-gradient(#9cff16,#38cfff,#b34cff,#ff2f87,#ff861d,#ffd329,#9cff16);
+  opacity: .9;
+}
+
+.cribbit-card--wild .cribbit-card__icon,
+.cribbit-card--wild .cribbit-card__brand {
+  color: #fff;
+}
+
+@media (max-width: 359px) {
+  .cribbit-card--board { width: min(128px, 42vw); }
+  .cribbit-card--hand { width: 78px; }
+  .cribbit-card__rule { font-size: 8px; }
+  .cribbit-card--board .cribbit-card__title { font-size: 15px; }
+}
+
+@media (min-width: 390px) and (max-width: 430px) {
+  .cribbit-card--board { width: min(154px, 40vw); }
+  .cribbit-card--hand { width: 90px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cribbit-card { transition: none; }
+}
