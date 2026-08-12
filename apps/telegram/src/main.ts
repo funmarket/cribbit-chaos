@@ -1,4 +1,4 @@
 import { TelegramPlatform } from '../../../packages/platform/src/telegram.ts';
-import { bootstrap } from '../../../packages/ui/src/bootstrap.ts';
+import { bootstrapTelegram } from './bootstrapTelegram.ts';
 
-void bootstrap(new TelegramPlatform());
+void bootstrapTelegram(new TelegramPlatform());
