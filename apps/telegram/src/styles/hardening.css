@@ -1,0 +1,398 @@
+/* T5 — Telegram mobile hardening. Presentation only. */
+
+html,
+body,
+#app,
+.tg-app {
+  max-width: 100%;
+}
+
+html,
+body {
+  overscroll-behavior-x: none;
+}
+
+body {
+  min-width: 0;
+}
+
+.tg-app {
+  overflow-x: clip;
+  padding-left: max(10px, var(--cribbit-safe-left, 0px));
+  padding-right: max(10px, var(--cribbit-safe-right, 0px));
+}
+
+.tg-room-form,
+.tg-setup-card,
+.tg-grid-2,
+.tg-source-grid,
+.tg-mode-grid,
+.tg-join-row,
+.tg-primary-actions,
+.tg-game-meta,
+.tg-board,
+.tg-player-strip,
+.tg-hand,
+.tg-active-state {
+  min-width: 0;
+}
+
+.tg-input,
+.tg-select,
+.tg-button,
+.tg-mode-card,
+.tg-source-card,
+.tg-count-chip,
+.tg-safety-bar button,
+.tg-context-sheet button {
+  touch-action: manipulation;
+}
+
+.tg-input,
+.tg-select,
+.tg-button,
+.tg-mode-card,
+.tg-source-card,
+.tg-count-chip,
+.tg-safety-bar button {
+  min-height: 44px;
+}
+
+.tg-field-meta,
+.tg-section-label,
+.tg-toggle-row,
+.tg-game-meta,
+.tg-player-chip,
+.tg-context-header,
+.tg-reaction-window {
+  min-width: 0;
+}
+
+.tg-field-meta > *,
+.tg-section-label > *,
+.tg-toggle-row > *,
+.tg-game-meta > *,
+.tg-player-chip > *,
+.tg-context-header > * {
+  min-width: 0;
+}
+
+.tg-field-meta span,
+.tg-section-label small,
+.tg-toggle-row small,
+.tg-player-chip b,
+.tg-player-chip small {
+  overflow-wrap: anywhere;
+}
+
+.tg-player-chip b {
+  max-width: 92px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tg-player-rail,
+.tg-hand-rail {
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-inline: contain;
+}
+
+.tg-player-rail {
+  scroll-snap-type: x proximity;
+}
+
+.tg-player-chip {
+  scroll-snap-align: start;
+}
+
+.tg-hand-rail {
+  padding-bottom: 14px;
+}
+
+.tg-card--hand {
+  width: clamp(76px, 23vw, 92px);
+}
+
+.tg-board__piles {
+  grid-template-columns: minmax(0, 1.5fr) minmax(88px, .72fr);
+}
+
+.tg-card--board {
+  width: min(148px, 44vw);
+}
+
+.tg-deck__back {
+  width: min(102px, 28vw);
+}
+
+.tg-safety-bar {
+  position: sticky;
+  bottom: max(6px, var(--cribbit-safe-bottom, 0px));
+  z-index: 8;
+  padding: 5px;
+  margin-left: -5px;
+  margin-right: -5px;
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 12px;
+  background: rgba(5,6,10,.92);
+  backdrop-filter: blur(8px);
+}
+
+.tg-context-layer {
+  padding-top: max(8px, var(--cribbit-safe-top, 0px));
+  padding-right: max(10px, var(--cribbit-safe-right, 0px));
+  padding-bottom: max(8px, var(--cribbit-safe-bottom, 0px));
+  padding-left: max(10px, var(--cribbit-safe-left, 0px));
+}
+
+.tg-context-sheet {
+  max-height: min(
+    calc(var(--cribbit-platform-height, 100dvh) - var(--cribbit-safe-top, 0px) - var(--cribbit-safe-bottom, 0px) - 18px),
+    620px
+  );
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tg-context-close,
+.tg-color-grid button,
+.tg-answer-grid button,
+.tg-flag-grid button,
+.tg-target-grid button,
+.tg-context-wide {
+  min-height: 44px;
+}
+
+/* Compact phones: 320–359px */
+@media (max-width: 359px) {
+  .tg-app {
+    padding-left: max(8px, var(--cribbit-safe-left, 0px));
+    padding-right: max(8px, var(--cribbit-safe-right, 0px));
+  }
+
+  .tg-app__header {
+    grid-template-columns: 38px minmax(0,1fr) 38px;
+    gap: 6px;
+  }
+
+  .tg-icon-button {
+    width: 38px;
+    height: 38px;
+  }
+
+  .tg-room-hero h1 {
+    font-size: clamp(26px, 9vw, 32px);
+  }
+
+  .tg-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .tg-mode-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+
+  .tg-mode-card {
+    min-height: 76px;
+  }
+
+  .tg-count-grid {
+    grid-template-columns: repeat(5, minmax(0,1fr));
+  }
+
+  .tg-source-card {
+    grid-template-columns: 24px minmax(0,1fr) 16px;
+    gap: 5px;
+  }
+
+  .tg-join-row {
+    grid-template-columns: minmax(0,1fr) 76px;
+  }
+
+  .tg-primary-actions {
+    grid-template-columns: minmax(0,1.75fr) minmax(92px,1fr);
+  }
+
+  .tg-primary-actions .tg-button {
+    padding-left: 7px;
+    padding-right: 7px;
+    font-size: 11px;
+  }
+
+  .tg-game-meta {
+    grid-template-columns: minmax(0,1fr) 92px;
+  }
+
+  .tg-turn-pill {
+    min-width: 0;
+  }
+
+  .tg-board__piles {
+    grid-template-columns: minmax(0,1.42fr) minmax(84px,.72fr);
+    min-height: 226px;
+  }
+
+  .tg-card--board {
+    width: min(126px, 43vw);
+  }
+
+  .tg-deck__back {
+    width: min(86px, 27vw);
+  }
+
+  .tg-board-zone {
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+
+  .tg-card--hand {
+    width: 76px;
+  }
+
+  .tg-player-chip {
+    min-width: 88px;
+  }
+
+  .tg-active-state {
+    padding: 9px 10px;
+  }
+
+  .tg-active-state strong {
+    font-size: 15px;
+  }
+
+  .tg-safety-bar button {
+    min-height: 48px;
+  }
+
+  .tg-safety-bar b {
+    font-size: 7px;
+  }
+
+  .tg-context-sheet {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .tg-context-header h2 {
+    font-size: 19px;
+  }
+
+  .tg-target-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tg-target-grid button {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    text-align: left;
+  }
+
+  .tg-target-grid button span {
+    margin: 0;
+    flex: 0 0 auto;
+  }
+}
+
+/* Very narrow devices: retain same-line primary CTA without creating body overflow. */
+@media (max-width: 329px) {
+  .tg-source-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tg-join-row {
+    grid-template-columns: 1fr;
+  }
+
+  .tg-primary-actions {
+    grid-template-columns: minmax(0,1.6fr) minmax(86px,1fr);
+    gap: 5px;
+  }
+
+  .tg-primary-actions .tg-button {
+    min-width: 0;
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+
+  .tg-board__piles {
+    grid-template-columns: minmax(0,1.48fr) minmax(78px,.68fr);
+  }
+
+  .tg-card--board {
+    width: min(118px, 42vw);
+  }
+
+  .tg-deck__back {
+    width: min(80px, 26vw);
+  }
+
+  .tg-board-actions {
+    gap: 5px;
+    padding: 6px;
+  }
+
+  .tg-button--board-action {
+    font-size: 10px;
+  }
+
+  .tg-safety-bar {
+    gap: 3px;
+  }
+
+  .tg-safety-bar span {
+    font-size: 16px;
+  }
+}
+
+/* 360–389px phones */
+@media (min-width: 360px) and (max-width: 389px) {
+  .tg-card--hand {
+    width: 80px;
+  }
+
+  .tg-board__piles {
+    min-height: 240px;
+  }
+}
+
+/* 390–430px phones: preserve the visual reference's larger board hierarchy. */
+@media (min-width: 390px) and (max-width: 430px) {
+  .tg-board__piles {
+    min-height: 258px;
+  }
+
+  .tg-card--board {
+    width: min(148px, 40vw);
+  }
+
+  .tg-card--hand {
+    width: 88px;
+  }
+}
+
+/* Telegram keyboard / short-height WebView: stop sticky controls covering form fields. */
+@media (max-height: 620px) {
+  .tg-primary-actions,
+  .tg-safety-bar {
+    position: static;
+  }
+
+  .tg-context-sheet {
+    max-height: calc(var(--cribbit-platform-height, 100dvh) - var(--cribbit-safe-top, 0px) - var(--cribbit-safe-bottom, 0px) - 12px);
+  }
+}
+
+/* Accessibility: avoid motion dependence while preserving selected state. */
+@media (prefers-reduced-motion: reduce) {
+  .tg-card,
+  .tg-switch span,
+  .tg-switch span::after {
+    transition: none;
+  }
+}
