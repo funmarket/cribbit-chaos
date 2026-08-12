@@ -1,21 +1,17 @@
 # Visual integration checkpoint
 
-This checkpoint makes the approved Cribbit CHAOS V4 look visible again inside the shared UI while keeping gameplay authority out of the client.
+This is a living Phase 3.5 control document. Update it whenever visual staging, hosting, live smoke-test evidence, or Phase 3.5 blockers change.
+
+This checkpoint makes the approved Cribbit CHAOS V4 look visible inside the shared UI while keeping gameplay authority out of the client.
 
 ## What changed
 
-- The shared UI now accepts a visual fixture name from the web query string or Telegram start parameter.
+- The shared UI accepts a visual fixture name from the Web query string or Telegram start parameter.
 - The legacy runtime can seed deterministic fixture states for preview purposes without introducing new gameplay authority.
 - Legacy preview runtime reuse is preview/demo compatibility only.
 - No authoritative gameplay logic was migrated into `packages/legacy-runtime`.
-- The fixture layer exists only to make the approved V4 interface inspectable now.
-- Web and Telegram both render the same shared UI surfaces for:
-  - board
-  - hand
-  - draw pile
-  - discard pile
-  - social interaction modals
-  - private/public control affordances
+- The fixture layer exists only to make the approved V4 interface inspectable during Phase 3.5.
+- Web and Telegram both render the same shared UI surfaces for board, hand, draw pile, discard pile, social interaction modals, and private/public control affordances.
 - A dev-only fixture cycle control is available in local preview so the shared fixtures can be reviewed quickly.
 
 ## Fixture set
@@ -29,39 +25,49 @@ This checkpoint makes the approved Cribbit CHAOS V4 look visible again inside th
 
 ## Verified preview surfaces
 
-- Desktop web preview
-- Mobile web preview
+- Desktop Web preview
+- Mobile Web preview
 - Telegram Mini App preview
 - Telegram safe-area preview with mocked insets
 
-## Staging evidence
+## Current primary staging evidence
 
-### Vercel Web
+GitHub branch:
 
-- Project: `cribbit-chaos-web`
-- Project ID: `prj_K6SAnoJOLLkGcrHslIfQ7l6buqXH`
-- Deployment ID: `dpl_Ai6ZZRDPVM6d6FhYdxDv7J43FKxo`
-- Staging URL: `https://cribbit-chaos-1wucz1c70-wise2030.vercel.app`
-- Source branch: `feature/visual-integration-checkpoint`
-- Source commit: `048314a2996582c8cd44acfbe0e7a885007c5e91`
-- Verification result: deployed successfully; live HTML fetch returned the app shell. Headless browser access in this environment still hits the Vercel login wall, so the browser proof is limited here.
+- `feature/visual-integration-checkpoint`
 
-### Vercel Telegram
+Primary Cloudflare Web:
 
-- Project: `cribbit-chaos-telegram`
-- Project ID: `prj_zuoFsp76d0jEUFNHbFxCAbxB57D9`
-- Deployment ID: `dpl_DfV2M6fc8aQLkk2vXD8g2yamg2V6`
-- Staging URL: `https://cribbit-chaos-telegram-qw4guoi0r-wise2030.vercel.app`
-- Source branch: `feature/visual-integration-checkpoint`
-- Source commit: `048314a2996582c8cd44acfbe0e7a885007c5e91`
-- Verification result: deployed successfully; live browser verification of the deployed Telegram bundle passed in the browser session used for this checkpoint, and the current deployment uses the same commit-built artifact.
+- project: `cribbit-chaos-web`
+- URL: `https://cribbit-chaos-web.pages.dev`
+- Git integration: `funmarket/cribbit-chaos`
+- build command: `npm run build:web`
+- output: `apps/web/dist`
+- current-head production deployment: successful
 
-### Telegram launch status
+Primary Cloudflare Telegram:
+
+- project: `cribbit-chaos-telegram`
+- URL: `https://cribbit-chaos-telegram.pages.dev`
+- Git integration: `funmarket/cribbit-chaos`
+- build command: `npm run build:telegram`
+- output: `apps/telegram/dist`
+- current-head production deployment: successful
+
+Both primary clients are configured with the shared Railway API/WS URL:
+
+- `https://api-production-2556.up.railway.app`
+
+Railway accepts the exact two Cloudflare production origins.
+
+Vercel historical deployments remain useful as old evidence/fallbacks only. They are not the current Phase 3.5 staging source and do not block progress.
+
+## Telegram launch status
 
 - Bot username: `@CribbitChaos_bot`
-- Main Mini App configured? `no`
-- Launch verified? `no`
-- Exact manual step remaining: connect `@CribbitChaos_bot` in BotFather / Mini App settings to the Telegram staging URL above.
+- Main Mini App configured to current Cloudflare URL? `no`
+- live Mini App auth verified? `no`
+- remaining step: configure a regenerated Railway-only bot token, point BotFather Main Mini App to `https://cribbit-chaos-telegram.pages.dev`, then perform live auth proof
 
 ## Verified visual coverage
 
@@ -75,41 +81,43 @@ This checkpoint makes the approved Cribbit CHAOS V4 look visible again inside th
 - shared Web ↔ Telegram visual parity
 - no client gameplay authority
 - no fake multiplayer state
-- no production auth
+- production guest auth fail-closed
 
 ## Animation QA results
 
-- hand/card hover lift is present on the live board
-- playing a legal card animates into the normal board transition flow
+- hand/card hover lift is present in the preview board
+- playing a legal fixture card animates through the normal board transition flow
 - social answer tiles animate on hover and keep the modal presentation readable
 - roulette result selection is sealed before the wheel spins
 - roulette spin is visual-only and resolves to the preselected prompt afterward
-- board transitions remain present only as presentation; they do not decide state
+- board transitions remain presentation only; they do not decide authoritative state
 
-## Visual proof notes
+## Current live-proof status
 
-- Local web preview was verified against `http://127.0.0.1:5173`
-- Standard fixture showed legal-card hover and board play transition
-- Social fixture showed the prompt modal and answer tiles
-- Roulette was verified by playing Truth, observing `PROMPT PRESELECTED`, starting the wheel spin, and confirming the prompt reveal followed the sealed selection
-- Live Telegram preview screenshot verified the deployed mobile layout and fixture badge on the staging URL
-- Live web deployment HTML was fetched successfully for the staging URL, but browser access remained blocked by the Vercel auth wall in this environment
+Local and prior staging visual QA has passed, but the current Cloudflare production URLs still require the explicit live smoke-test checkpoint recorded in `PLAN.md`.
 
-## Still open
+Current next visual task:
 
-- Telegram BotFather / Main Mini App linking
+- open `https://cribbit-chaos-web.pages.dev`
+- confirm the approved V4 interface renders
+- confirm HTML/JS/CSS load correctly
+- confirm the client can reach the Railway API without CORS/runtime failure
+- record the exact visible/runtime result
+- fix only defects discovered by that test
+
+Then repeat the equivalent visual smoke test for `https://cribbit-chaos-telegram.pages.dev` before closing Phase 3.5 visual staging.
 
 ## Fixture / legacy-runtime boundary
 
 - `packages/game-engine` remains the authoritative rules source.
 - `packages/legacy-runtime` is only a preview compatibility layer for fixture rendering while Phase 3.5 is in progress.
-- The fixture layer is not multiplayer simulation.
-- The fixture layer is not the future client runtime.
-- The fixture layer will be replaced when Phase 7 connects clients to the server engine.
-- No new game logic should be moved into the legacy runtime as part of this checkpoint.
+- the fixture layer is not multiplayer simulation
+- the fixture layer is not the future client runtime
+- the fixture layer will be replaced when Phase 7 connects clients to the server engine
+- no new game logic should be moved into the legacy runtime as part of this checkpoint
 
 ## Notes
 
-- The fixture renderer is for preview and QA only; it does not replace server-authoritative gameplay.
-- The approved V4 design language remains the baseline. This checkpoint migrates it into the shared UI without redesigning it.
-- Legacy preview runtime reuse is compatibility infrastructure, not authoritative gameplay migration.
+The approved V4 design language remains the baseline. This checkpoint migrates it into the shared UI without redesigning it.
+
+After each visual/staging implementation slice, synchronize this file, `PLAN.md`, `docs/DEPLOYMENT.md`, and the active PR description.
