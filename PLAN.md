@@ -1,74 +1,73 @@
 # Cribbit CHAOS Implementation Plan
 
-## Phase 0 — Repository foundation
+## Project control rules
 
-- [x] Git repository
-- [x] GitHub private repo
-- [x] monorepo
-- [x] Vite web build
-- [x] Vite Telegram build
-- [x] Railway API scaffold
-- [x] PostgreSQL schema foundation
-- [x] button/action audit
-- [x] CI
-- [x] repository cleanup completed
+This file is a living project-control document. It must describe the current verified project state, not historical assumptions.
 
-## Phase 1 — Authoritative core game engine
+1. GitHub is the canonical source of truth for deployable source and project documentation.
+2. After every implementation slice, update `PLAN.md` and every affected architecture, deployment, auth, database, testing, or environment document in the same controlled slice.
+3. If the active PR scope or status changed, update the PR description before starting the next implementation slice.
+4. Remove resolved blockers and obsolete instructions immediately. Never leave a completed task as `Current Next Task`.
+5. At the end of each phase, preserve a concise completion summary, collapse unnecessary completed detail, and move active focus to the next unfinished phase.
+6. Runtime/deployment claims must be based on verified GitHub/platform state, not assumptions.
+7. If documentation and verified runtime state disagree, correct documentation before further implementation.
+8. Do not start the next phase while required blockers for the active phase remain.
+9. Do not redesign Cribbit CHAOS without explicit authorization. The approved V4 visual language remains the baseline.
+10. Never use or mutate the separate Railway project `Cribbit` (`1440dc2c-e7fd-4bee-8ef7-57e663b8c735`) for Cribbit CHAOS.
 
-- [x] define canonical `GameState`
-- [x] define `Card` model
-- [x] define `Player` model
-- [x] define command model
-- [x] define event model
-- [x] deterministic shuffle/deal
-- [x] starting discard
-- [x] legal-play validator
-- [x] draw
-- [x] normal/value card
-- [x] Skip
-- [x] Reverse
-- [x] Draw effect
-- [x] Wild
-- [x] Wild color selection
-- [x] next turn
-- [x] zero-card win
-- [x] command idempotency
-- [x] transition tests
+## Canonical architecture
 
-## Phase 2 — Social card engine
+```text
+GitHub
+source of truth
+    |
+    +--> Cloudflare Pages Web
+    |
+    +--> Cloudflare Pages Telegram
+                 \
+                  Railway API
+                      |
+               Railway PostgreSQL
 
-- [x] Truth
-- [x] Dare
-- [x] Paranoia
-- [x] Duel
-- [x] Chaos
-- [x] Nope reaction
-- [x] prompt eligibility
-- [x] sealed prompt selection
-- [x] roulette presentation contract
-- [x] authorship modes
+Vercel Web + Telegram = secondary/fallback deployments only
+```
 
-## Phase 3 — Safety & answers
+Current verified deployment targets:
 
-- [x] Pass
-- [x] Rewind
-- [x] Flag
-- [x] Speak
-- [x] Type
-- [x] Choose
-- [x] Answered Live
-- [x] timers
-- [x] timeout resolution
+- Web primary: `https://cribbit-chaos-web.pages.dev`
+- Telegram primary: `https://cribbit-chaos-telegram.pages.dev`
+- API: `https://api-production-2556.up.railway.app`
+- Railway project: `Cribbit Chaos` (`e2b0a674-43d9-4aac-ad8d-3e72b3ff486f`)
+- Railway production environment: `60d848a2-a7df-4145-a2ec-757a5ec4dc31`
+- Railway API service: `c255714c-95a2-4194-8bb0-e1846a5e4cf1`
+- Railway PostgreSQL service: `951b9c62-7cd3-404b-b9f0-c93e2c2a51d7`
 
-## Phase 3.5 — Visual integration checkpoint
+Both primary clients use the same Railway API and the same Railway PostgreSQL database. There is one canonical internal `users.id` UUID per Cribbit account.
+
+## Phase 0 — Repository foundation — COMPLETE
+
+Completed: private GitHub repo, monorepo, Vite Web and Telegram builds, Railway API scaffold, PostgreSQL schema foundation, button/action audit, CI, and repository cleanup.
+
+## Phase 1 — Authoritative core game engine — COMPLETE
+
+Completed: canonical state/card/player/command/event models, deterministic setup, legal-play validation, classic actions, wild flow, turn progression, zero-card win, idempotency, and transition tests.
+
+## Phase 2 — Social card engine — COMPLETE
+
+Completed: Truth, Dare, Paranoia, Duel, Chaos, Nope reaction, prompt eligibility, sealed prompt selection, roulette presentation contract, and authorship modes.
+
+## Phase 3 — Safety & answers — COMPLETE
+
+Completed: Pass, Rewind, Flag, Speak, Type, Choose, Answered Live, timers, and timeout resolution.
+
+## Phase 3.5 — Visual integration + shared staging — IN PROGRESS
+
+Completed and verified:
 
 - [x] approved V4 visual migration into shared UI
 - [x] fixture-state renderer
-- [x] web visual preview
+- [x] Web visual preview
 - [x] Telegram Mini App visual preview
-- [ ] development Telegram bot / Mini App staging configuration
-- [ ] current-head Vercel web staging
-- [ ] current-head Vercel Telegram staging
 - [x] mobile visual QA
 - [x] desktop visual QA
 - [x] Telegram safe-area QA
@@ -78,23 +77,35 @@
 - [x] shared Web ↔ Telegram visual parity
 - [x] no client gameplay authority
 - [x] no fake multiplayer state
-- [x] no production auth
+- [x] production guest auth fail-closed
 - [x] repository shared-auth hardening
-- [x] dedicated Railway project container created: `Cribbit Chaos`
-- [x] dedicated Cribbit Chaos Railway API service
-- [x] dedicated Cribbit Chaos Railway PostgreSQL service
-- [ ] both Vercel apps pointing to the same Railway API
-- [ ] Mini App live auth proof
-- [ ] Web Telegram login live proof
-- [ ] same UUID cross-platform proof
-- [ ] Vercel Git sync proof
-- [ ] Bot Main Mini App link
+- [x] dedicated `Cribbit Chaos` Railway API live
+- [x] dedicated `Cribbit Chaos` Railway PostgreSQL live with persistent storage
+- [x] migrations run before Railway API deploy
+- [x] Railway `/health` previously verified HTTP 200
+- [x] Cloudflare Web project created with GitHub integration
+- [x] Cloudflare Telegram project created with GitHub integration
+- [x] Cloudflare Web current-head production deployment successful
+- [x] Cloudflare Telegram current-head production deployment successful
+- [x] Cloudflare Web and Telegram both target the same Railway API through `VITE_API_URL` and `VITE_WS_URL`
+- [x] Railway `FRONTEND_ORIGINS` configured for the two exact Cloudflare production origins
+- [x] Railway API redeployed successfully from the same current GitHub head after CORS configuration
 
-Railway safety boundary: Cribbit CHAOS may use only Railway project `Cribbit Chaos` (`e2b0a674-43d9-4aac-ad8d-3e72b3ff486f`). The separate Railway project `Cribbit` (`1440dc2c-e7fd-4bee-8ef7-57e663b8c735`) belongs to another repository/product and must not be mutated for Cribbit CHAOS.
+Still required before Phase 3.5 can close:
 
-Do not redesign Cribbit CHAOS. Treat the approved V4 HTML as a visual specification. Migrate it faithfully, then improve only defects—not the design language.
+- [ ] live Web visual smoke test from `https://cribbit-chaos-web.pages.dev`
+- [ ] live Telegram visual smoke test from `https://cribbit-chaos-telegram.pages.dev`
+- [ ] regenerated `TELEGRAM_BOT_TOKEN` configured in Railway only
+- [ ] BotFather Main Mini App pointed to the Cloudflare Telegram production URL
+- [ ] Mini App live authentication proof using raw `initData`
+- [ ] browser Telegram OIDC implementation and live proof
+- [ ] same real Telegram account resolves to the same internal Cribbit UUID from Web and Telegram
+- [ ] cross-client shared profile update/read proof through the same Railway PostgreSQL database
+- [ ] final Phase 3.5 staging signoff
 
-## Phase 4 — Multiplayer server
+Vercel is not a Phase 3.5 blocker. Existing Vercel projects remain secondary/fallback deployments and may be brought current later without blocking Cloudflare-based staging progress.
+
+## Phase 4 — Multiplayer server — BLOCKED UNTIL PHASE 3.5 COMPLETES
 
 - [ ] room creation
 - [ ] room joining
@@ -107,12 +118,12 @@ Do not redesign Cribbit CHAOS. Treat the approved V4 HTML as a visual specificat
 - [ ] disconnect grace
 - [ ] server event stream
 
-## Phase 5 — Authentication
+## Phase 5 — Authentication completion
 
-- [ ] Telegram `initData` production validation
-- [ ] web login/session
-- [ ] user identity linking
-- [ ] auth middleware
+- [ ] finalize Telegram `initData` production validation proof
+- [ ] finalize browser Telegram login/session flow
+- [ ] prove shared identity linking
+- [ ] finalize auth middleware coverage
 
 ## Phase 6 — Persistent ecosystem
 
@@ -128,26 +139,27 @@ Do not redesign Cribbit CHAOS. Treat the approved V4 HTML as a visual specificat
 ## Phase 7 — Client migration
 
 - [ ] replace legacy local gameplay authority
-- [ ] connect web to server engine
+- [ ] connect Web to server engine
 - [ ] connect Telegram to server engine
 - [ ] remove remaining legacy runtime
-- [ ] ensure all mapped buttons use real owner
+- [ ] ensure all mapped buttons use the real owner
 
-## Phase 8 — Deployment
+## Phase 8 — Deployment hardening
 
-- [ ] Railway Postgres
-- [ ] Railway API
-- [ ] Vercel Web
-- [ ] Vercel Telegram
+Current foundation already live: Railway PostgreSQL, Railway API, Cloudflare Web, Cloudflare Telegram.
+
+Remaining:
+
 - [ ] Telegram Bot configuration
-- [ ] staging environment
-- [ ] production environment
+- [ ] staging signoff
+- [ ] production environment hardening
+- [ ] optional Vercel fallback sync
 
 ## Phase 9 — Multiplayer QA
 
-- [ ] web ↔ web
+- [ ] Web ↔ Web
 - [ ] Telegram ↔ Telegram
-- [ ] Telegram ↔ web
+- [ ] Telegram ↔ Web
 - [ ] reconnect
 - [ ] refresh
 - [ ] duplicate commands
@@ -169,4 +181,6 @@ Do not redesign Cribbit CHAOS. Treat the approved V4 HTML as a visual specificat
 
 ## Current Next Task
 
-Phase 3.5 remains in progress. The dedicated `Cribbit Chaos` Railway foundation is now live: PostgreSQL is deployed with persistent storage, the API deploys from `funmarket/cribbit-chaos` on `feature/visual-integration-checkpoint`, migrations run before deploy, and Railway's `/health` check returns HTTP 200. The next controlled slice is to point both existing Vercel clients to this one Railway API, restore current-head Git deployments, configure the required Telegram secrets without exposing them to clients, then verify Telegram Mini App authentication and browser Telegram login converge on the same internal user UUID. Do not start Phase 4 multiplayer until this checkpoint is complete.
+Perform a live Web visual smoke test against `https://cribbit-chaos-web.pages.dev`.
+
+Confirm the deployed approved V4 interface renders correctly, HTML/JS/CSS load successfully, and the client can reach the Railway API through the configured Cloudflare origin. Record the exact visible/runtime result. Fix only defects found by this live staging test. Do not begin Phase 4.
