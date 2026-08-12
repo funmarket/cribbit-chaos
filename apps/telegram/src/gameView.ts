@@ -1,5 +1,6 @@
 import type { Card } from '../../../packages/contracts/src/index.ts';
 import type { PlatformAdapter } from '../../../packages/platform/src/types.ts';
+import { installContextualRuleUI } from './contextualRuleUI.ts';
 import './styles/game.css';
 
 interface DemoPlayer {
@@ -28,13 +29,13 @@ const DEMO_GAME: TelegramDemoGame = {
   drawCount: 24,
   discard: { id: 'demo-discard-3', kind: 'number', color: 'orange', value: 3, symbol: '3' },
   hand: [
-    { id: 'demo-lime-2', kind: 'number', color: 'lime', value: 2, symbol: '2' },
-    { id: 'demo-orange-skip', kind: 'skip', color: 'orange', symbol: 'SKIP' },
-    { id: 'demo-cyan-reverse', kind: 'reverse', color: 'cyan', symbol: 'REVERSE' },
-    { id: 'demo-purple-draw', kind: 'draw', color: 'purple', symbol: '+2' },
-    { id: 'demo-wild', kind: 'wild', symbol: 'WILD' },
     { id: 'demo-truth', kind: 'truth', color: 'lime', symbol: 'TRUTH' },
-    { id: 'demo-dare', kind: 'dare', color: 'orange', symbol: 'DARE' }
+    { id: 'demo-dare', kind: 'dare', color: 'orange', symbol: 'DARE' },
+    { id: 'demo-paranoia', kind: 'paranoia', color: 'purple', symbol: 'PARANOIA' },
+    { id: 'demo-chaos', kind: 'chaos', symbol: 'CHAOS' },
+    { id: 'demo-duel', kind: 'duel', color: 'cyan', symbol: 'DUEL' },
+    { id: 'demo-nope', kind: 'nope', symbol: 'NOPE' },
+    { id: 'demo-wild', kind: 'wild', symbol: 'WILD' }
   ],
   players: [
     { id: 'you', name: 'You', cards: 7, active: true },
@@ -47,6 +48,7 @@ const DEMO_GAME: TelegramDemoGame = {
 export function renderTelegramGame(host: HTMLElement, platform: PlatformAdapter, onBack: () => void): void {
   host.innerHTML = gameTemplate(DEMO_GAME);
   bindGamePreview(host, platform, onBack);
+  installContextualRuleUI(host, platform);
   platform.haptic('light');
 }
 
@@ -117,11 +119,11 @@ function gameTemplate(game: TelegramDemoGame): string {
       <section class="tg-active-state" aria-live="polite">
         <small>YOUR TURN</small>
         <strong>PLAY OR DRAW</strong>
-        <span>Match the active color or symbol, play an eligible special, or draw.</span>
+        <span>Tap a special card to preview its contextual rule panel, or draw.</span>
       </section>
 
       <section class="tg-hand" aria-label="Your hand">
-        <div class="tg-section-label"><span>Your Hand</span><strong>${game.hand.length} cards</strong></div>
+        <div class="tg-section-label"><span>Your QA Hand</span><strong>${game.hand.length} cards</strong></div>
         <div class="tg-hand-rail">
           ${game.hand.map(card => renderCard(card, 'hand')).join('')}
         </div>
@@ -197,7 +199,7 @@ function bindGamePreview(host: HTMLElement, platform: PlatformAdapter, onBack: (
         host.querySelectorAll<HTMLButtonElement>('[data-card-id]').forEach(card => card.classList.remove('is-selected'));
         button.classList.add('is-selected');
         platform.haptic('light');
-        if (status) status.textContent = 'Card selected. Demo preview does not execute the authoritative play command.';
+        if (status) status.textContent = 'Card selected. Context UI may open, but no authoritative play command is sent in the demo preview.';
         return;
       }
       platform.haptic(action === 'draw-card' ? 'medium' : 'light');
@@ -209,11 +211,11 @@ function bindGamePreview(host: HTMLElement, platform: PlatformAdapter, onBack: (
 function actionMessage(action: string): string {
   switch (action) {
     case 'draw-card': return 'Draw action mapped. Demo preview does not change the authoritative draw pile.';
-    case 'open-chaos-board': return 'CHAOS Board is a secondary view and remains outside the core T3 board slice.';
-    case 'safety-pass': return 'Pass action mapped to the existing safety command boundary.';
-    case 'safety-rewind': return 'Rewind action mapped to the existing safety command boundary.';
-    case 'use-nope': return 'Nope action mapped to the existing reaction command boundary.';
-    case 'safety-flag': return 'Flag action mapped to the existing safety command boundary.';
+    case 'open-chaos-board': return 'CHAOS Board is a secondary view and remains outside the core T3/T4 slice.';
+    case 'safety-pass': return 'Pass action mapped to the existing PASS_PROMPT safety command boundary.';
+    case 'safety-rewind': return 'Rewind action mapped to the existing REWIND_PROMPT safety command boundary.';
+    case 'use-nope': return 'Nope action mapped to the existing PLAY_NOPE reaction command boundary.';
+    case 'safety-flag': return 'Flag action mapped to the existing FLAG_PROMPT safety command boundary.';
     default: return 'Demo preview only — no authoritative multiplayer state was changed.';
   }
 }
