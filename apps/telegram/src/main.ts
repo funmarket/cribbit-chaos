@@ -1,6 +1,7 @@
 import { TelegramPlatform } from '../../../packages/platform/src/telegram.ts';
 import { bootstrapTelegram } from './bootstrapTelegram.ts';
 import { renderTelegramGame } from './gameView.ts';
+import './styles/hardening.css';
 
 const platform = new TelegramPlatform();
 const params = new URLSearchParams(location.search);
