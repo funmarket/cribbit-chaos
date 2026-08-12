@@ -10,7 +10,9 @@
 - API: `https://api-production-2556.up.railway.app`
 - Shared database: Railway PostgreSQL in dedicated `Cribbit Chaos`
 - T1 implementation head verified by CI: `80008599d42d70b6453a9e9d314b4cc9310dfd19`
-- Current task: **T2 — Telegram Room Creation screen**
+- T2 implementation/deployment head verified: `e88f141d83e6b21100a461969d670230109bdc6d`
+- T3 implementation/deployment head verified: `561f9056c73a279cdf2ddb8207f875bcc4414398`
+- Current task: **T4 — Contextual rule UI**
 
 This is a living execution document. After every T-slice, update this file, `PLAN.md`, affected technical/operational docs, and PR #8 before starting the next slice.
 
@@ -172,108 +174,75 @@ Verification on exact implementation head `80008599d42d70b6453a9e9d314b4cc9310df
 
 T1 exit gate: **passed**.
 
-## T2 — Telegram Room Creation screen — CURRENT
+## T2 — Telegram Room Creation screen — IMPLEMENTED / VISUAL HARDENING DEFERRED TO T5–T6
 
-Replace the temporary T1 foundation shell with the approved mobile Room Creation composition.
+Implemented in Telegram-owned TypeScript/Vite UI:
 
-### Layout target
+- compact Telegram header and room-creation hierarchy
+- Profile Name
+- Room Name
+- canonical Content World values
+- canonical Personal Ceiling values
+- canonical Duel / Squad / Party / Mayhem modes
+- exact mode-dependent player counts
+- Original / Community / House / Live prompt-source toggles
+- QA Test Hand staging toggle
+- Join Room bound to the existing `api.joinRoom(code)` contract
+- same-row `[ CREATE GAME ] [ DEMO GAME ]` with Create Game visually dominant
+- profile hydration/update through existing auth/profile client methods
+- honest staging messages when auth/room persistence are unavailable
+- no fake room persistence or multiplayer success
 
-```text
-Cribbit Chaos
-Telegram Mini App
+T2 verified on implementation/deployment head `e88f141d83e6b21100a461969d670230109bdc6d`:
 
-ROOM CREATION
-BUILD TONIGHT'S CHAOS
-Set your room, pick the chaos, and jump in.
+- typecheck: PASS
+- tests: PASS
+- Web build: PASS
+- Telegram build: PASS
+- API build: PASS
+- Cloudflare Telegram Git deployment: PASS
 
-PROFILE NAME
-[ authenticated/current profile ]
+Real-device pixel/spacing refinement remains part of T5/T6 and must not be confused with implementation incompleteness.
 
-CONTENT WORLD
-[ canonical value ▼ ]
+## T3 — Core mobile Game screen — IMPLEMENTED / VISUAL HARDENING DEFERRED TO T5–T6
 
-PERSONAL CEILING
-[ canonical value ▼ ]
+Implemented:
 
-CHOOSE MODE
-[ DUEL ] [ SQUAD ] [ PARTY ] [ MAYHEM ]
-
-PLAYER COUNT
-[2] [3] [4] [5] [6] [7] [8]
-
-PROMPT SOURCES
-[ ORIGINAL ] [ COMMUNITY ]
-[ HOUSE    ] [ LIVE      ]
-
-QA TEST HAND                 [toggle]
-
-JOIN ROOM
-[ room code ] [ JOIN ]
-
-[        CREATE GAME        ] [ DEMO GAME ]
-```
-
-### T2 rules
-
-- Use canonical existing values only; do not invent Grok/reference-image rule values.
-- Profile field hydrates from existing Telegram auth/session + `/v1/me` when available.
-- Profile editing, if enabled in this slice, must use existing `PATCH /v1/me/profile`.
-- Room configuration selections remain draft/presentation state until a real room exists.
-- Do not call the API for every mode/player/source tap.
-- Join Room must bind to existing `api.joinRoom(code)` and show the real current unavailable/`ROOMS_NOT_MIGRATED` outcome honestly.
-- `CREATE GAME` is the dominant normal CTA.
-- `DEMO GAME` is secondary and uses deterministic demo/fixture compatibility state.
-- Do not fabricate successful multiplayer or fake persisted rooms.
-- Keep both CTAs on the same row where target width permits; preserve usability down to 320 px.
-
-### Responsive target
-
-Test:
-
-- 320 px
-- 360 px
-- 375 px
-- 390 px
-- 412 px
-- 430 px
-
-Requirements:
-
-- no body horizontal overflow
-- no whole-page scaling
-- Telegram safe-area variables respected
-- touch-safe controls
-- readable labels and values
-- long profile names must truncate/wrap safely
-- software keyboard must not destroy layout
-
-### T2 exit criteria
-
-- approved Room Creation hierarchy rendered by Telegram-owned TypeScript/Vite UI
-- all controls have known ownership/bindings
-- `CREATE GAME | DEMO GAME` implementation matches product decision
-- no fake server success
-- Web source/appearance untouched
-- CI typecheck/tests/Web build/Telegram build/API build pass
-- exact Cloudflare Telegram deployment head recorded
-- project-control docs synchronized
-
-## T3 — Core mobile Game screen — PENDING
-
-After T2 passes, implement:
-
-- compact room/turn/timer bar
-- full-width game board
-- real Cribbit active/discard card renderer/assets
-- draw pile
+- Telegram-owned `gameView.ts`
+- dedicated mobile game styles in `apps/telegram/src/styles/game.css`
+- compact live-game strip
+- room / code / current-turn / timer header
+- full-width mobile board with discard and draw pile as primary content
+- no permanent desktop `PLAY OR DRAW` side column
 - compact horizontal player strip
-- contextual active-state strip
-- horizontally scrollable hand
-- persistent compact Pass / Rewind / Nope / Flag bar
+- contextual active-state host
+- horizontally scrollable hand rail
+- selected-card visual state
+- compact persistent Pass / Rewind / Nope / Flag bar
+- Draw and CHAOS Board action surfaces
+- Demo Game now routes to the Telegram mobile board instead of the legacy desktop-style game composition
+- explicit compatibility fixture route remains available only when `compat=1` is requested
 
-Board must own the available width. Do not recreate the previous desktop split-screen instruction column.
+T3 demo preview uses canonical `Card` contract shapes and existing action names. It does **not** execute authoritative multiplayer state changes. This is intentional until Phase 4/7 replaces fixture/demo state with Railway authoritative state.
 
-## T4 — Contextual rule UI — PENDING
+T3 verified on exact implementation/deployment head `561f9056c73a279cdf2ddb8207f875bcc4414398`:
+
+- typecheck: PASS
+- tests: PASS
+- Web build: PASS
+- Telegram build: PASS
+- API build: PASS
+- Cloudflare Telegram Git deployment: PASS
+
+T3 does not modify:
+
+- `apps/web`
+- `packages/game-engine`
+- API routes/contracts
+- Railway architecture
+- PostgreSQL schema
+
+## T4 — Contextual rule UI — CURRENT
 
 Use state-triggered panels/sheets for existing mechanics only:
 
@@ -287,7 +256,13 @@ Use state-triggered panels/sheets for existing mechanics only:
 - Speak / Type / Choose / Answered Live
 - Pass / Rewind / Flag
 
-Do not duplicate rule logic in Telegram.
+Rules for T4:
+
+- do not duplicate rule logic in Telegram
+- panels appear only when the corresponding existing game state/fixture calls for them
+- reuse existing command/action names and shared contract terminology
+- no new gameplay rule or backend route
+- demo interactions may preview the UI but must clearly avoid pretending to mutate authoritative multiplayer state
 
 ## T5 — Mobile hardening — PENDING
 
@@ -350,6 +325,6 @@ The presentation should remain stable while the state provider becomes real.
 
 ## Current Next Task
 
-**T2 — Telegram Room Creation screen.**
+**T4 — Contextual rule UI.**
 
-Implement the approved mobile room-creation composition in `apps/telegram` using the existing T1 Telegram bootstrap. Reuse current auth/profile/API/setup semantics, preserve honest unavailable behavior for real room persistence, keep `[ CREATE GAME ] [ DEMO GAME ]` on the same row with Create Game dominant, and do not modify Web, gameplay rules, API contracts, Railway architecture, PostgreSQL schema, or Phase 4 multiplayer behavior.
+Implement Telegram-specific state-triggered panels/sheets for the already-existing Wild, Truth, Dare, Paranoia, Duel, Chaos, Nope, answer-mode, Pass, Rewind and Flag mechanics. Reuse existing shared contract/action terminology, keep all rule authority outside Telegram view code, preserve honest demo-only behavior until authoritative multiplayer is active, and do not modify Web, backend routes, Railway architecture, PostgreSQL schema, or Phase 4 multiplayer behavior.
