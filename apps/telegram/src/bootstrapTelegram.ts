@@ -53,7 +53,7 @@ const telegramShell = `
       <p class="tg-eyebrow">T1 — PRESENTATION BOUNDARY</p>
       <h2 id="tg-next-title">Mobile composition active</h2>
       <p>This shell is intentionally Telegram-only. It does not load the desktop page hierarchy or legacy visual runtime on the normal Mini App route.</p>
-      <a class="tg-secondary-link" href="?fixture=mobile">Open legacy mobile fixture for compatibility QA</a>
+      <a class="tg-secondary-link" href="?fixture=mobile&compat=1">Open legacy mobile fixture for compatibility QA</a>
     </section>
   </main>
 `;
