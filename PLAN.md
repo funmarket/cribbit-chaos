@@ -5,13 +5,12 @@
 This file is a living project-control document. It must describe the current verified project state, not historical assumptions.
 
 1. GitHub is the canonical source of truth for deployable source and project documentation.
-2. After every implementation slice, update `PLAN.md` and every affected architecture, deployment, auth, database, testing, or environment document in the same controlled slice.
-3. If the active PR scope or status changed, update the PR description before starting the next implementation slice.
-4. Remove resolved blockers and obsolete instructions immediately. Never leave a completed task as `Current Next Task`.
-5. Runtime/deployment claims must be based on verified GitHub/platform state, not assumptions.
-6. Do not start the next phase while required blockers for the active phase remain.
-7. Do not redesign Cribbit CHAOS without explicit authorization. Telegram has an approved mobile-specific composition target in `docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md`.
-8. Never use or mutate the separate Railway project `Cribbit` (`1440dc2c-e7fd-4bee-8ef7-57e663b8c735`) for Cribbit CHAOS.
+2. After every implementation slice, update `PLAN.md`, `docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md`, affected technical/operational docs, and the active PR before starting the next slice.
+3. Remove resolved blockers and obsolete instructions immediately. Never leave a completed task as `Current Next Task`.
+4. Runtime/deployment claims must be based on verified GitHub/platform state.
+5. Do not start the next phase while required blockers for the active phase remain.
+6. Telegram has an approved mobile-specific composition target and is not required to preserve the Web layout.
+7. Never use or mutate the separate Railway project `Cribbit` (`1440dc2c-e7fd-4bee-8ef7-57e663b8c735`) for Cribbit CHAOS.
 
 ## Canonical architecture
 
@@ -34,7 +33,6 @@ Vercel = secondary/fallback only
 ```
 
 Primary endpoints:
-
 - Web: `https://cribbit-chaos-web.pages.dev`
 - Telegram: `https://cribbit-chaos-telegram.pages.dev`
 - API: `https://api-production-2556.up.railway.app`
@@ -43,53 +41,55 @@ Both clients use the same Railway API and PostgreSQL database and must resolve t
 
 ## Phase 0 — Repository foundation — COMPLETE
 
-Completed: private GitHub repo, monorepo, Vite Web and Telegram builds, Railway API scaffold, PostgreSQL schema foundation, CI, and repository cleanup.
+Private GitHub repo, monorepo, Vite Web/Telegram builds, Railway API scaffold, PostgreSQL schema foundation, CI, and repository cleanup complete.
 
 ## Phase 1 — Authoritative core game engine — COMPLETE
 
-Completed: canonical state/card/player/command/event models, deterministic setup, legal-play validation, classic actions, wild flow, turn progression, zero-card win, idempotency, and transition tests.
+Canonical state/card/player/command/event models, deterministic setup, legal play, classic actions, wild flow, turn progression, win handling, idempotency, and tests complete.
 
 ## Phase 2 — Social card engine — COMPLETE
 
-Completed: Truth, Dare, Paranoia, Duel, Chaos, Nope reaction, prompt eligibility, sealed prompt selection, roulette presentation contract, and authorship modes.
+Truth, Dare, Paranoia, Duel, Chaos, Nope reaction, prompt eligibility, sealed prompt selection, roulette presentation, and authorship modes complete.
 
 ## Phase 3 — Safety & answers — COMPLETE
 
-Completed: Pass, Rewind, Flag, Speak, Type, Choose, Answered Live, timers, and timeout resolution.
+Pass, Rewind, Flag, Speak, Type, Choose, Answered Live, timers, and timeout resolution complete.
 
 ## Phase 3.5 — Visual integration + shared staging — IN PROGRESS
 
 Completed and verified:
-
 - [x] approved V4 Web visual baseline and deterministic fixtures
-- [x] Telegram Mini App platform/safe-area foundation
+- [x] Telegram platform/safe-area foundation
 - [x] dedicated Railway API + PostgreSQL live
 - [x] Cloudflare Web + Telegram Git-integrated deployments live
-- [x] both clients target the same Railway API / database architecture
-- [x] real-device Telegram smoke test established that Telegram needs its own mobile composition
-- [x] detailed Telegram execution plan committed at `docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md`
+- [x] both clients target the same Railway API/database architecture
+- [x] real-device Telegram smoke test established need for mobile-specific composition
+- [x] detailed Telegram execution plan in `docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md`
 - [x] T1 Telegram presentation boundary
-- [x] T2 Telegram Room Creation screen with Profile, Room Name, canonical world/ceiling/modes/player counts, prompt sources, QA toggle, Join Room, and same-row `CREATE GAME | DEMO GAME`
-- [x] T3 Telegram core mobile Game screen with full-width board, discard/draw, compact room/turn/timer, players strip, contextual state host, horizontal hand rail, and Pass/Rewind/Nope/Flag bar
-- [x] T4 Telegram contextual rule UI implemented for Wild, Truth, Dare, Paranoia, Duel, Chaos, Nope, answer modes, Pass, Rewind and Flag
-- [x] T4 uses state-triggered bottom sheets/panels and does not duplicate gameplay authority
-- [x] T4 exact implementation head `76cbdaff1ff4ff64e81a0914f7fe1318eb00337d` passed GitHub CI: typecheck, tests, Web build, Telegram build, API build
-- [x] Cloudflare Telegram deployment for exact T4 head `76cbdaff1ff4ff64e81a0914f7fe1318eb00337d` succeeded
-- [x] T1–T4 did not change Web presentation, API routes/contracts, game engine, Railway architecture, or PostgreSQL schema
+- [x] T2 Telegram Room Creation screen
+- [x] same-row `CREATE GAME | DEMO GAME`
+- [x] T3 Telegram core mobile Game screen
+- [x] full-width board/discard/draw hierarchy
+- [x] compact room/turn/timer and player strip
+- [x] horizontal hand rail
+- [x] Pass / Rewind / Nope / Flag bar
+- [x] T4 contextual rule UI for Wild, Truth, Dare, Paranoia, Duel, Chaos, Nope, answer modes and safety actions
+- [x] T5 mobile hardening implemented for 320–430 px ranges, Telegram safe areas, keyboard/short-height fallback, overflow containment, long player names, 7+ card hand rails, touch targets, responsive board sizing, contextual-sheet height and reduced motion
+- [x] T5 exact implementation head `df581a56accbf6f128e7e460317508f26cdd366e` passed GitHub CI: typecheck, tests, Web build, Telegram build and API build
+- [x] Cloudflare Telegram deployment for exact T5 head `df581a56accbf6f128e7e460317508f26cdd366e` succeeded
+- [x] T1–T5 did not change Web presentation, game engine, API routes/contracts, Railway architecture, or PostgreSQL schema
 
 Still required before Phase 3.5 can close:
 
 ### Telegram mobile composition
-
 - [x] T1 presentation boundary
 - [x] T2 room creation
 - [x] T3 core mobile game board
 - [x] T4 contextual rule UI
-- [ ] T5 mobile hardening at 320–430 px, safe areas, keyboard, overflow, long names, large hands, contextual-sheet overflow, touch targets
+- [x] T5 mobile hardening
 - [ ] T6 live Telegram real-device signoff against approved references
 
 ### Shared staging/auth proof
-
 - [ ] live Web visual smoke test
 - [ ] regenerated `TELEGRAM_BOT_TOKEN` configured Railway-only
 - [ ] BotFather Main Mini App points to Cloudflare Telegram URL
@@ -114,7 +114,7 @@ Vercel is not a Phase 3.5 blocker.
 - [ ] disconnect grace
 - [ ] server event stream
 
-Do not implement Phase 4 during Telegram visual work.
+Do not implement Phase 4 during Telegram visual/staging work.
 
 ## Later phases
 
@@ -122,8 +122,8 @@ Phase 5 auth completion, Phase 6 persistent ecosystem, Phase 7 client migration,
 
 ## Current Next Task
 
-**T5 — Telegram mobile hardening.**
+**T6 — Live Telegram real-device signoff.**
 
-Follow `docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md` exactly. Verify and fix the Telegram-owned room, game, and contextual-rule presentation at 320, 360, 375, 390, 412, and 430 px widths; safe-area behavior; keyboard-open layout; long names; 7+ card hands; contextual sheet overflow; touch target sizing; body overflow; and hand-only horizontal scrolling.
+Open `https://cribbit-chaos-telegram.pages.dev` inside the actual Telegram Mini App/WebView and compare the Room Creation screen, same-row Create/Demo CTA, Demo Game board, player/hand rails, safety bar, contextual rule sheets, safe areas and keyboard behavior against the approved references. Record screenshots/defects and fix only verified real-device issues.
 
 Do not alter Web appearance, game mechanics, API contracts, Railway architecture, PostgreSQL schema, or begin Phase 4 multiplayer work.
