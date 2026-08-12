@@ -12,7 +12,7 @@ This file is a living project-control document. It must describe the current ver
 6. Runtime/deployment claims must be based on verified GitHub/platform state, not assumptions.
 7. If documentation and verified runtime state disagree, correct documentation before further implementation.
 8. Do not start the next phase while required blockers for the active phase remain.
-9. Do not redesign Cribbit CHAOS without explicit authorization. The approved V4 visual language remains the baseline.
+9. Do not redesign Cribbit CHAOS without explicit authorization. The approved visual language remains the baseline; Telegram now has an explicitly approved mobile-specific composition target documented in `docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md`.
 10. Never use or mutate the separate Railway project `Cribbit` (`1440dc2c-e7fd-4bee-8ef7-57e663b8c735`) for Cribbit CHAOS.
 
 ## Canonical architecture
@@ -22,8 +22,10 @@ GitHub
 source of truth
     |
     +--> Cloudflare Pages Web
+    |      desktop / large-screen Web presentation
     |
     +--> Cloudflare Pages Telegram
+           Telegram/mobile presentation
                  \
                   Railway API
                       |
@@ -43,6 +45,11 @@ Current verified deployment targets:
 - Railway PostgreSQL service: `951b9c62-7cd3-404b-b9f0-c93e2c2a51d7`
 
 Both primary clients use the same Railway API and the same Railway PostgreSQL database. There is one canonical internal `users.id` UUID per Cribbit account.
+
+Presentation rule:
+
+- Web and Telegram may use different page/layout composition.
+- Web and Telegram must keep shared identity, backend, database, game rules, contracts, and persistent state semantics.
 
 ## Phase 0 — Repository foundation — COMPLETE
 
@@ -67,14 +74,12 @@ Completed and verified:
 - [x] approved V4 visual migration into shared UI
 - [x] fixture-state renderer
 - [x] Web visual preview
-- [x] Telegram Mini App visual preview
-- [x] mobile visual QA
-- [x] desktop visual QA
-- [x] Telegram safe-area QA
-- [x] board / hand / draw / discard visual verification
-- [x] social modal/control visual verification
+- [x] Telegram Mini App launches inside Telegram
+- [x] Telegram platform adapter and safe-area plumbing
+- [x] mobile/desktop preview QA for the previous shared layout
+- [x] board / hand / draw / discard visual verification for the previous shared layout
+- [x] social modal/control visual verification for the previous shared layout
 - [x] animation verification
-- [x] shared Web ↔ Telegram visual parity
 - [x] no client gameplay authority
 - [x] no fake multiplayer state
 - [x] production guest auth fail-closed
@@ -90,11 +95,30 @@ Completed and verified:
 - [x] Cloudflare Web and Telegram both target the same Railway API through `VITE_API_URL` and `VITE_WS_URL`
 - [x] Railway `FRONTEND_ORIGINS` configured for the two exact Cloudflare production origins
 - [x] Railway API redeployed successfully from the same current GitHub head after CORS configuration
+- [x] real-device Telegram smoke test proved that shared Web/Telegram layout parity is not the desired product outcome
+- [x] dedicated Telegram mobile room/game visual direction approved
+- [x] detailed Telegram mobile implementation-control plan committed at `docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md`
 
 Still required before Phase 3.5 can close:
 
+### Telegram mobile composition
+
+- [ ] T1 Telegram presentation boundary: stop using the desktop/shared page composition as Telegram's primary layout
+- [ ] T2 Telegram room-creation screen
+- [ ] `CREATE GAME | DEMO GAME` same-row CTA with Create Game dominant
+- [ ] T3 Telegram full-width mobile game board
+- [ ] compact room/turn/timer bar
+- [ ] compact player strip
+- [ ] horizontal touch-friendly hand rail
+- [ ] contextual active-state host instead of permanent desktop instruction column
+- [ ] persistent compact Pass / Rewind / Nope / Flag bar
+- [ ] T4 contextual rule UI for Wild, Truth, Dare, Paranoia, Duel, Chaos, Nope, answer modes and safety actions
+- [ ] T5 small-device/safe-area hardening at 320–430 px widths
+- [ ] T6 live Telegram real-device signoff against the approved references
+
+### Shared staging/auth proof
+
 - [ ] live Web visual smoke test from `https://cribbit-chaos-web.pages.dev`
-- [ ] live Telegram visual smoke test from `https://cribbit-chaos-telegram.pages.dev`
 - [ ] regenerated `TELEGRAM_BOT_TOKEN` configured in Railway only
 - [ ] BotFather Main Mini App pointed to the Cloudflare Telegram production URL
 - [ ] Mini App live authentication proof using raw `initData`
@@ -104,6 +128,14 @@ Still required before Phase 3.5 can close:
 - [ ] final Phase 3.5 staging signoff
 
 Vercel is not a Phase 3.5 blocker. Existing Vercel projects remain secondary/fallback deployments and may be brought current later without blocking Cloudflare-based staging progress.
+
+### Telegram implementation authority
+
+The detailed ordered execution plan and guardrails for T1–T6 live in:
+
+`docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md`
+
+That file must be followed and kept synchronized after every Telegram implementation slice.
 
 ## Phase 4 — Multiplayer server — BLOCKED UNTIL PHASE 3.5 COMPLETES
 
@@ -117,6 +149,8 @@ Vercel is not a Phase 3.5 blocker. Existing Vercel projects remain secondary/fal
 - [ ] reconnect
 - [ ] disconnect grace
 - [ ] server event stream
+
+Do not implement Phase 4 room/game persistence as part of the Telegram visual conversion. The Telegram UI should bind to existing action/API contracts and honest staging states so Phase 4 can activate the same controls later without another redesign.
 
 ## Phase 5 — Authentication completion
 
@@ -181,6 +215,10 @@ Remaining:
 
 ## Current Next Task
 
-Perform a live Web visual smoke test against `https://cribbit-chaos-web.pages.dev`.
+**T1 — Telegram presentation boundary.**
 
-Confirm the deployed approved V4 interface renders correctly, HTML/JS/CSS load successfully, and the client can reach the Railway API through the configured Cloudflare origin. Record the exact visible/runtime result. Fix only defects found by this live staging test. Do not begin Phase 4.
+Follow `docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md`.
+
+Create the Telegram-specific TypeScript/Vite bootstrap and presentation layer so `apps/telegram` no longer uses the desktop/shared page composition as its primary layout, while preserving `TelegramPlatform`, the existing API client/auth initialization, fixture/demo access, shared game contracts/action semantics, Web appearance, Railway API, and PostgreSQL schema.
+
+Do not begin room persistence or Phase 4 multiplayer work.
