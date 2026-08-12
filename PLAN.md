@@ -74,10 +74,17 @@ Completed and verified:
 - [x] horizontal hand rail
 - [x] Pass / Rewind / Nope / Flag bar
 - [x] T4 contextual rule UI for Wild, Truth, Dare, Paranoia, Duel, Chaos, Nope, answer modes and safety actions
-- [x] T5 mobile hardening implemented for 320–430 px ranges, Telegram safe areas, keyboard/short-height fallback, overflow containment, long player names, 7+ card hand rails, touch targets, responsive board sizing, contextual-sheet height and reduced motion
-- [x] T5 exact implementation head `df581a56accbf6f128e7e460317508f26cdd366e` passed GitHub CI: typecheck, tests, Web build, Telegram build and API build
-- [x] Cloudflare Telegram deployment for exact T5 head `df581a56accbf6f128e7e460317508f26cdd366e` succeeded
-- [x] T1–T5 did not change Web presentation, game engine, API routes/contracts, Railway architecture, or PostgreSQL schema
+- [x] T5 mobile hardening for 320–430 px, Telegram safe areas, keyboard/short-height fallback, overflow containment, long names, 7+ card hands, touch targets and contextual-sheet bounds
+- [x] T5 exact implementation head `df581a56accbf6f128e7e460317508f26cdd366e` passed GitHub CI and Cloudflare Telegram deployment
+- [x] T6 first real-device screenshots received and reviewed
+- [x] T6 verified card-visual defect: Telegram cards were generic placeholders rather than the approved Cribbit card family
+- [x] dedicated Telegram Cribbit card renderer added in `apps/telegram/src/cardRenderer.ts`
+- [x] dedicated card visual system added in `apps/telegram/src/styles/cards.css`
+- [x] game board and hand now render from the shared `Card` contract through the new Cribbit renderer
+- [x] Truth, Dare, Paranoia, Chaos, Duel, Nope, Wild, Number, Skip, Reverse and Draw visual treatments implemented
+- [x] card-correction code head `2094e1464d3a8d0b0ed67e23b275e254341bb0da` passed typecheck, tests, Web build, Telegram build and API build
+- [x] Cloudflare Telegram deployment for card-correction code head `2094e1464d3a8d0b0ed67e23b275e254341bb0da` succeeded
+- [x] T1–T6 corrections have not changed Web presentation, game engine, API routes/contracts, Railway architecture, or PostgreSQL schema
 
 Still required before Phase 3.5 can close:
 
@@ -87,7 +94,7 @@ Still required before Phase 3.5 can close:
 - [x] T3 core mobile game board
 - [x] T4 contextual rule UI
 - [x] T5 mobile hardening
-- [ ] T6 live Telegram real-device signoff against approved references
+- [ ] T6 real-device recheck/signoff of corrected Cribbit cards and remaining layout behavior
 
 ### Shared staging/auth proof
 - [ ] live Web visual smoke test
@@ -122,8 +129,8 @@ Phase 5 auth completion, Phase 6 persistent ecosystem, Phase 7 client migration,
 
 ## Current Next Task
 
-**T6 — Live Telegram real-device signoff.**
+**T6 — Real-device recheck of corrected Cribbit cards.**
 
-Open `https://cribbit-chaos-telegram.pages.dev` inside the actual Telegram Mini App/WebView and compare the Room Creation screen, same-row Create/Demo CTA, Demo Game board, player/hand rails, safety bar, contextual rule sheets, safe areas and keyboard behavior against the approved references. Record screenshots/defects and fix only verified real-device issues.
+Open `https://cribbit-chaos-telegram.pages.dev` inside the actual Telegram Mini App/WebView, enter Demo Game, and compare the discard card plus Truth/Dare/Paranoia/Chaos/Duel/Nope/Wild hand cards against the approved Cribbit references. Verify hand scrolling, card tap/selection, contextual-sheet triggers, board layout, safe areas and body overflow. Record screenshots and fix only verified defects.
 
 Do not alter Web appearance, game mechanics, API contracts, Railway architecture, PostgreSQL schema, or begin Phase 4 multiplayer work.
