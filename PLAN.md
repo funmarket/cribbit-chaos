@@ -83,6 +83,13 @@ Completed and verified:
 - [x] blueprint locks supplied rendered cards as canonical visual assets; TypeScript is used for runtime registry/resolution/bindings rather than re-creating the deck design
 - [x] blueprint defines one shared card system for Web + Telegram, with separate presentation layers only
 - [x] no backend, database, game-rule, Web-layout, Railway or Phase 4 change made by the blueprint slice
+- [x] C1 complete audit/mapping of all 112 supplied cards in `docs/card-system-c1-mapping-audit.md` and `docs/card-system-c1-mapping-audit.csv`
+- [x] C2 shared `packages/cards` TypeScript foundation with normalized 112-card catalogue, registry/resolver helpers, back definitions, mappings and tests
+- [x] C2 preserved supplied design-generation source and did not ingest/replace runtime card art yet
+- [x] C3 canonical card masters and backs ingested into `packages/cards/assets`
+- [x] C3 preserved supplied design-source files in `packages/cards/design-source`
+- [x] C3 generated deterministic PNG derivatives for `web-medium`, `mobile`, and `thumbnail`
+- [x] C3 added asset integrity tests for counts, dimensions and design-source preservation
 
 Still required before Phase 3.5 can close:
 
@@ -92,8 +99,10 @@ Still required before Phase 3.5 can close:
 - [x] T3 core mobile game board
 - [x] T4 contextual rule UI
 - [x] T5 mobile hardening
-- [ ] C1 complete audit/mapping of all 112 supplied cards to existing canonical engine/action taxonomy
-- [ ] replace temporary CSS-generated Telegram card faces with supplied canonical card assets through shared card registry/resolver
+- [x] C1 complete audit/mapping of all 112 supplied cards to existing canonical engine/action taxonomy
+- [x] C2 shared `packages/cards` foundation
+- [x] C3 asset ingestion / optimization of canonical masters and deterministic runtime derivatives
+- [ ] C4 Telegram integration: replace temporary CSS-generated Telegram card faces with supplied canonical card assets through shared card registry/resolver
 - [ ] T6 real-device recheck/signoff of canonical cards and remaining layout behavior
 
 ### Shared staging/auth proof
@@ -129,6 +138,6 @@ Phase 5 auth completion, Phase 6 persistent ecosystem, Phase 7 client migration,
 
 ## Current Next Task
 
-**C1 — Audit all 112 supplied card definitions and map them to the existing canonical game-rule/action taxonomy.**
+**C4 — Telegram integration.**
 
-Produce a complete machine-checkable report for every manifest ID/filename/type/family/variant, proposed runtime role, proposed engine/action mapping where unambiguous, back category, and any ambiguity requiring canonical-rule verification. Do not alter Web appearance, game mechanics, API contracts, Railway architecture, PostgreSQL schema, or begin Phase 4 multiplayer work during C1.
+Replace the temporary CSS-generated Telegram card faces with actual supplied canonical card assets selected through the shared `packages/cards` registry/resolver. Preserve existing card action hooks, horizontal hand behavior, board layout, contextual rule UI, demo fixture semantics, and Telegram mobile/safe-area constraints. Do not alter game mechanics, API contracts, Railway architecture, PostgreSQL schema, Web rendering, or begin Phase 4 multiplayer work during C4.

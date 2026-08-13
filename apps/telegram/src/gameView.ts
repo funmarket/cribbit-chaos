@@ -1,7 +1,7 @@
 import type { Card } from '../../../packages/contracts/src/index.ts';
 import type { PlatformAdapter } from '../../../packages/platform/src/types.ts';
 import { installContextualRuleUI } from './contextualRuleUI.ts';
-import { renderCribbitCard } from './cardRenderer.ts';
+import { renderCribbitCard, renderCribbitCardBack } from './cardRenderer.ts';
 import './styles/game.css';
 
 interface DemoPlayer {
@@ -28,15 +28,15 @@ const DEMO_GAME: TelegramDemoGame = {
   mode: 'Party',
   timerSeconds: 35,
   drawCount: 24,
-  discard: { id: 'demo-discard-3', kind: 'number', color: 'orange', value: 3, symbol: '3' },
+  discard: { id: '001', kind: 'truth', color: 'lime', symbol: 'TRUTH' },
   hand: [
-    { id: 'demo-truth', kind: 'truth', color: 'lime', symbol: 'TRUTH' },
-    { id: 'demo-dare', kind: 'dare', color: 'orange', symbol: 'DARE' },
-    { id: 'demo-paranoia', kind: 'paranoia', color: 'purple', symbol: 'PARANOIA' },
-    { id: 'demo-chaos', kind: 'chaos', symbol: 'CHAOS' },
-    { id: 'demo-duel', kind: 'duel', color: 'cyan', symbol: 'DUEL' },
-    { id: 'demo-nope', kind: 'nope', symbol: 'NOPE' },
-    { id: 'demo-wild', kind: 'wild', symbol: 'WILD' }
+    { id: '001', kind: 'truth', color: 'lime', symbol: 'TRUTH' },
+    { id: '011', kind: 'dare', color: 'orange', symbol: 'DARE' },
+    { id: '020', kind: 'paranoia', color: 'purple', symbol: 'PARANOIA' },
+    { id: '027', kind: 'chaos', symbol: 'CHAOS' },
+    { id: '034', kind: 'duel', color: 'cyan', symbol: 'DUEL' },
+    { id: '039', kind: 'nope', symbol: 'NOPE' },
+    { id: '044', kind: 'wild', symbol: 'WILD' }
   ],
   players: [
     { id: 'you', name: 'You', cards: 7, active: true },
@@ -94,7 +94,7 @@ function gameTemplate(game: TelegramDemoGame): string {
           <article class="tg-board-zone tg-board-zone--draw">
             <span class="tg-board-zone__label">DRAW PILE</span>
             <button class="tg-deck" type="button" data-action="draw-card" aria-label="Draw a card">
-              <span class="tg-deck__back" aria-hidden="true"><b>CRIBBIT</b><em>CHAOS</em></span>
+              ${renderCribbitCardBack('board')}
               <span class="tg-deck__count">${game.drawCount} left</span>
             </button>
           </article>

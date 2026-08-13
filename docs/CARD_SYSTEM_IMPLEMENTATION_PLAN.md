@@ -642,9 +642,41 @@ This card-system work is a correction inside T6 because the real-device Telegram
 
 Do not mark T6 complete until Telegram is rendering the supplied canonical cards correctly on a real device.
 
-The first implementation step from this blueprint is **C1 — package audit and mapping report**.
+The first implementation step from this blueprint was **C1 — package audit and mapping report**.
 
-C1 must happen before importing/replacing runtime card assets because the 112 catalogue contains multiple categories beyond directly playable hand cards.
+C1 happened before importing/replacing runtime card assets because the 112 catalogue contains multiple categories beyond directly playable hand cards.
+
+The completed C1 artifacts are:
+
+```text
+docs/card-system-c1-mapping-audit.md
+docs/card-system-c1-mapping-audit.csv
+```
+
+The completed C2 runtime foundation added:
+
+```text
+packages/cards/src/types.ts
+packages/cards/src/manifest.ts
+packages/cards/src/registry.ts
+packages/cards/src/assetResolver.ts
+packages/cards/src/deckBacks.ts
+packages/cards/src/mappings.ts
+packages/cards/test/card-registry.test.ts
+```
+
+The completed C3 asset ingestion added:
+
+```text
+packages/cards/assets/masters/
+packages/cards/assets/backs/
+packages/cards/assets/generated/web-medium/
+packages/cards/assets/generated/mobile/
+packages/cards/assets/generated/thumbnail/
+packages/cards/design-source/
+packages/cards/test/card-assets.test.ts
+docs/card-system-c3-asset-ingestion.md
+```
 
 ---
 
@@ -668,8 +700,24 @@ C1 must happen before importing/replacing runtime card assets because the 112 ca
 
 ---
 
-## Current Next Card Task
+## Completed Card Tasks
 
 **C1 — Audit all 112 supplied card definitions and map them to the existing canonical game-rule/action taxonomy.**
 
-Produce a complete report containing every manifest ID, filename, type, family, variant, proposed runtime role, proposed engine/action mapping where unambiguous, card-back category, and any ambiguity requiring canonical rule verification. Do not alter backend, database, game rules, Web layout, or begin Phase 4 multiplayer work during C1.
+The audit report contains every manifest ID, filename, type, family, variant, proposed runtime role, proposed engine/action mapping where unambiguous, card-back category, and any ambiguity requiring canonical rule verification. It did not alter backend, database, game rules, Web layout, Telegram layout, or Phase 4 multiplayer scope.
+
+**C2 — Shared `packages/cards` foundation.**
+
+The shared runtime package now exposes typed card definitions, normalized 112-record catalogue data, registry/resolver helpers, game-rule/action mappings, card-back definitions, and tests that cover all 112 records. It does not ingest master PNG assets into the repo and does not replace Web or Telegram rendering yet.
+
+**C3 — Asset ingestion / optimization.**
+
+The supplied canonical `1080×1512` PNG fronts and backs are now preserved in `packages/cards/assets`, the design-generation source is preserved in `packages/cards/design-source`, and deterministic PNG derivatives exist for `web-medium`, `mobile`, and `thumbnail`. Asset tests verify counts and dimensions. Web/Telegram rendering is not replaced yet.
+
+---
+
+## Current Next Card Task
+
+**C4 — Telegram integration.**
+
+Replace the temporary CSS-generated Telegram card faces with actual supplied card assets selected through the shared `packages/cards` registry/resolver. Preserve existing card action hooks, horizontal hand behavior, board layout, contextual rule UI, demo fixture semantics, and Telegram mobile/safe-area constraints. Do not start Phase 4 multiplayer.

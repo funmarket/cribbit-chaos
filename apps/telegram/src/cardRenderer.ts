@@ -1,80 +1,119 @@
+import {
+  getCardBackAsset,
+  getCardDefinition,
+  getCardFrontAsset,
+  getCardsByFamily,
+  hasCardDefinition
+} from '@cribbit/cards';
+import type { CardBackKind, CardDefinition, CardFamily } from '@cribbit/cards';
 import type { Card, CardKind } from '../../../packages/contracts/src/index.ts';
 import './styles/cards.css';
 
-type CardVisual = {
-  title: string;
-  icon: string;
-  copy: string;
-  tone: 'lime' | 'orange' | 'purple' | 'pink' | 'cyan' | 'gold' | 'red' | 'wild';
+type TelegramCardSize = 'board' | 'hand';
+type ImportedAssetMap = Record<string, string>;
+
+const FRONT_ASSET_URLS = normalizeAssetUrls({
+  ...import.meta.glob<string>('../../../packages/cards/assets/generated/mobile/fronts/*.png', {
+    eager: true,
+    import: 'default',
+    query: '?url'
+  }),
+  ...import.meta.glob<string>('../../../packages/cards/assets/generated/thumbnail/fronts/*.png', {
+    eager: true,
+    import: 'default',
+    query: '?url'
+  })
+});
+
+const BACK_ASSET_URLS = normalizeAssetUrls({
+  ...import.meta.glob<string>('../../../packages/cards/assets/generated/mobile/backs/*.png', {
+    eager: true,
+    import: 'default',
+    query: '?url'
+  }),
+  ...import.meta.glob<string>('../../../packages/cards/assets/generated/thumbnail/backs/*.png', {
+    eager: true,
+    import: 'default',
+    query: '?url'
+  })
+});
+
+const REPRESENTATIVE_CARD_ID_BY_KIND: Partial<Record<CardKind, string>> = {
+  truth: firstCardId('truth'),
+  dare: firstCardId('dare'),
+  paranoia: firstCardId('paranoia'),
+  chaos: firstCardId('chaos'),
+  duel: firstCardId('duel'),
+  nope: firstCardId('nope'),
+  wild: firstCardId('wild')
 };
 
-const CARD_VISUALS: Record<CardKind, CardVisual> = {
-  number: { title: 'Number', icon: '#', copy: 'Match color or number.', tone: 'gold' },
-  skip: { title: 'Skip', icon: '⊘', copy: 'Skip the next turn.', tone: 'red' },
-  reverse: { title: 'Reverse', icon: '↶', copy: 'Reverse play direction.', tone: 'cyan' },
-  draw: { title: 'Draw Two', icon: '+2', copy: 'Make the next player draw.', tone: 'orange' },
-  wild: { title: 'Wild', icon: '◉', copy: 'Be any color. Play anytime.', tone: 'wild' },
-  truth: { title: 'Truth', icon: '?', copy: 'Reveal something real. Answer honestly.', tone: 'lime' },
-  dare: { title: 'Dare', icon: '⚡', copy: 'Do something bold. No backing out.', tone: 'orange' },
-  paranoia: { title: 'Paranoia', icon: '◉', copy: 'Trust no one. Guess, bluff, expose secrets.', tone: 'purple' },
-  chaos: { title: 'Chaos', icon: '◌', copy: 'Shake things up. Unpredictable effects.', tone: 'pink' },
-  duel: { title: 'Duel', icon: '⚔', copy: 'Challenge another player. Winner takes the win.', tone: 'cyan' },
-  nope: { title: 'Nope', icon: '✋', copy: 'Not today. Block or cancel a card or effect.', tone: 'gold' }
-};
-
-export function renderCribbitCard(card: Card, size: 'board' | 'hand'): string {
-  const visual = resolveVisual(card);
-  const value = card.kind === 'number' ? String(card.value ?? card.symbol ?? '') : visual.icon;
-  const title = card.kind === 'number' ? value : visual.title;
-  const label = card.kind === 'number' ? `${colorName(card.color)} ${value}`.trim() : visual.title;
-  const tone = card.kind === 'number' ? numberTone(card) : visual.tone;
+export function renderCribbitCard(card: Card, size: TelegramCardSize): string {
+  const definition = resolveCardDefinition(card);
+  const backKind = definition?.defaultBack ?? 'classic';
+  const frontUrl = definition ? getImportedAssetUrl(FRONT_ASSET_URLS, getCardFrontAsset(definition.id, assetSize(size))) : null;
+  const backUrl = getImportedAssetUrl(BACK_ASSET_URLS, getCardBackAsset(backKind, assetSize(size)));
+  const imageUrl = frontUrl ?? backUrl;
+  const label = definition ? `${definition.title} card` : `${fallbackCardLabel(card)} card back`;
+  const dataDefinitionId = definition ? ` data-card-definition-id="${escapeHTML(definition.id)}"` : '';
 
   return `
     <button
-      class="cribbit-card cribbit-card--${size} cribbit-card--${tone}"
+      class="cribbit-card cribbit-card--${size}${definition ? '' : ' cribbit-card--unmapped'}"
       type="button"
       data-card-id="${escapeHTML(card.id)}"
       data-card-kind="${card.kind}"
       data-card-color="${card.color || ''}"
       data-action="play-card"
-      aria-label="${escapeHTML(label)} card"
+      ${dataDefinitionId}
+      aria-label="${escapeHTML(label)}"
     >
-      <span class="cribbit-card__frame" aria-hidden="true"></span>
-      <span class="cribbit-card__corner cribbit-card__corner--top" aria-hidden="true">${escapeHTML(value)}</span>
-      <span class="cribbit-card__art" aria-hidden="true">
-        <span class="cribbit-card__halo"></span>
-        <span class="cribbit-card__icon">${escapeHTML(value)}</span>
-      </span>
-      <span class="cribbit-card__title">${escapeHTML(title)}</span>
-      <span class="cribbit-card__rule">${escapeHTML(visual.copy)}</span>
-      <span class="cribbit-card__brand" aria-hidden="true">◡ CRIBBIT</span>
-      <span class="cribbit-card__corner cribbit-card__corner--bottom" aria-hidden="true">${escapeHTML(value)}</span>
+      <img class="cribbit-card__image" src="${escapeHTML(imageUrl)}" alt="" loading="lazy" decoding="async" draggable="false" />
     </button>
   `;
 }
 
-function resolveVisual(card: Card): CardVisual {
-  if (card.kind === 'number') {
-    return {
-      title: String(card.value ?? card.symbol ?? ''),
-      icon: String(card.value ?? card.symbol ?? ''),
-      copy: 'Match color or number.',
-      tone: numberTone(card)
-    };
-  }
-  return CARD_VISUALS[card.kind];
+export function renderCribbitCardBack(size: TelegramCardSize, backKind: CardBackKind = 'classic'): string {
+  const backUrl = getImportedAssetUrl(BACK_ASSET_URLS, getCardBackAsset(backKind, assetSize(size)));
+  return `<span class="cribbit-card-back cribbit-card-back--${size}" aria-hidden="true"><img src="${escapeHTML(backUrl)}" alt="" loading="lazy" decoding="async" draggable="false" /></span>`;
 }
 
-function numberTone(card: Card): CardVisual['tone'] {
-  if (card.color === 'lime') return 'lime';
-  if (card.color === 'orange') return 'orange';
-  if (card.color === 'cyan') return 'cyan';
-  if (card.color === 'purple') return 'purple';
-  return 'gold';
+function resolveCardDefinition(card: Card): CardDefinition | null {
+  if (hasCardDefinition(card.id)) return getCardDefinition(card.id);
+  const representativeId = REPRESENTATIVE_CARD_ID_BY_KIND[card.kind];
+  return representativeId ? getCardDefinition(representativeId) : null;
 }
 
-function colorName(color: Card['color']): string {
-  return color ? color[0].toUpperCase() + color.slice(1) : '';
+function firstCardId(family: CardFamily): string {
+  const [definition] = getCardsByFamily(family);
+  if (!definition) throw new Error(`Missing Telegram card representative for ${family}`);
+  return definition.id;
+}
+
+function assetSize(size: TelegramCardSize): 'mobile' | 'thumbnail' {
+  return size === 'board' ? 'mobile' : 'thumbnail';
+}
+
+function normalizeAssetUrls(modules: ImportedAssetMap): ImportedAssetMap {
+  return Object.fromEntries(
+    Object.entries(modules).map(([path, url]) => {
+      const normalizedPath = path.replaceAll('\\', '/');
+      const [, packagePath] = normalizedPath.match(/packages\/cards\/(.+)$/) ?? [];
+      return [packagePath ?? normalizedPath, url];
+    })
+  );
+}
+
+function getImportedAssetUrl(assetUrls: ImportedAssetMap, logicalPath: string): string {
+  const url = assetUrls[logicalPath];
+  if (!url) throw new Error(`Telegram card asset was not bundled: ${logicalPath}`);
+  return url;
+}
+
+function fallbackCardLabel(card: Card): string {
+  if (card.symbol) return card.symbol;
+  if (card.kind === 'number' && typeof card.value === 'number') return `${card.color ?? ''} ${card.value}`.trim();
+  return card.kind;
 }
 
 function escapeHTML(value: string): string {

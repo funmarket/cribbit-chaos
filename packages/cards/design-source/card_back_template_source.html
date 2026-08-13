@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<style>
+* { box-sizing: border-box; margin:0; padding:0; }
+html,body { width:1080px; height:1512px; background:#000; overflow:hidden; }
+.card { position:relative; width:1080px; height:1512px; border-radius:56px; overflow:hidden;
+  font-family: "Helvetica Neue", Arial, sans-serif; }
+.v1 { background: radial-gradient(circle at 50% 45%, #1a1a24 0%, #0A0A0F 70%); }
+.v2 { background: linear-gradient(160deg, #12121A 0%, #05050a 100%); }
+.v3 { background: #0A0A0F; }
+.frame { position:absolute; inset:20px; border-radius:44px; border:3px solid var(--fc);
+  box-shadow: 0 0 28px 2px var(--fcs), 0 0 70px 10px var(--fcs); }
+.corner { position:absolute; width:46px; height:46px; border:3px solid var(--fc); opacity:.85; }
+.corner.tl{top:44px;left:44px;border-right:none;border-bottom:none;border-radius:10px 0 0 0;}
+.corner.tr{top:44px;right:44px;border-left:none;border-bottom:none;border-radius:0 10px 0 0;}
+.corner.bl{bottom:44px;left:44px;border-right:none;border-top:none;border-radius:0 0 0 10px;}
+.corner.br{bottom:44px;right:44px;border-left:none;border-top:none;border-radius:0 0 10px 0;}
+.center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:36px; }
+.hex { width:260px; height:260px; }
+.wordmark { font-weight:900; font-size:64px; letter-spacing:-0.01em; color:var(--fc); text-shadow:0 0 30px var(--fcs); text-transform:uppercase; }
+.sub { font-family:"Courier New",monospace; font-size:20px; letter-spacing:.35em; color:rgba(255,255,255,.45); text-transform:uppercase; }
+.pattern { position:absolute; inset:0; opacity:.06; }
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+const params = new URLSearchParams(location.search);
+const v = params.get("v") || "1";
+const variants = {
+  "1": { cls: "v1", fc: "#7CFF3D", fcs: "rgba(124,255,61,0.35)", label: "CLASSIC DECK" },
+  "2": { cls: "v2", fc: "#FF2E9A", fcs: "rgba(255,46,154,0.35)", label: "CHAOS TIER DECK" },
+  "3": { cls: "v3", fc: "#3DD6FF", fcs: "rgba(61,214,255,0.35)", label: "HOUSE DECK" },
+};
+const d = variants[v];
+document.documentElement.style.setProperty('--fc', d.fc);
+document.documentElement.style.setProperty('--fcs', d.fcs);
+document.getElementById("root").innerHTML = `
+  <div class="card ${d.cls}">
+    <svg class="pattern" viewBox="0 0 1080 1512"><defs><pattern id="hexgrid" width="120" height="104" patternUnits="userSpaceOnUse">
+      <polygon points="60,2 110,28 110,78 60,104 10,78 10,28" fill="none" stroke="${d.fc}" stroke-width="2"/>
+    </pattern></defs><rect width="100%" height="100%" fill="url(#hexgrid)"/></svg>
+    <div class="frame"></div>
+    <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+    <div class="center">
+      <svg class="hex" viewBox="0 0 200 200">
+        <polygon points="100,10 180,55 180,145 100,190 20,145 20,55" fill="none" stroke="${d.fc}" stroke-width="6" style="filter:drop-shadow(0 0 20px ${d.fcs})"/>
+        <ellipse cx="100" cy="115" rx="40" ry="30" fill="none" stroke="${d.fc}" stroke-width="4"/>
+        <circle cx="80" cy="90" r="13" fill="none" stroke="${d.fc}" stroke-width="4"/>
+        <circle cx="120" cy="90" r="13" fill="none" stroke="${d.fc}" stroke-width="4"/>
+        <circle cx="80" cy="90" r="4" fill="${d.fc}"/>
+        <circle cx="120" cy="90" r="4" fill="${d.fc}"/>
+      </svg>
+      <div class="wordmark">Cribbit Chaos</div>
+      <div class="sub">${d.label}</div>
+    </div>
+  </div>
+`;
+document.body.setAttribute("data-ready","true");
+</script>
+</body></html>
