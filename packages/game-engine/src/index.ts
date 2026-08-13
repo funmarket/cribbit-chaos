@@ -36,7 +36,7 @@ export type {
 } from '@cribbit/contracts';
 
 export { createEngineError } from './errors.ts';
-export { buildCoreDeck, drawCards, recycleDiscardPile } from './deck.ts';
+export { CANONICAL_DECK_COUNTS, CANONICAL_DECK_SIZE, buildCoreDeck, drawCards, recycleDiscardPile } from './deck.ts';
 export { applyCommand } from './reducer.ts';
 export { createGame } from './setup.ts';
 export { advanceTurn, getCurrentPlayer, getNextPlayerIndex, getPlayerIndex } from './turn.ts';
@@ -50,4 +50,3 @@ export {
   type GameCommandContext,
   type SocialPromptSelection
 } from './social.ts';
-
