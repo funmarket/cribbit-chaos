@@ -12,6 +12,11 @@
   scroll-snap-align: start;
 }
 
+/* Compact Telegram hand cards prioritize readable title/icon content over the decorative corner tab. */
+.game-card--tg-hand .game-card__tab {
+  display: none;
+}
+
 .game-card--tg-board,
 .game-card--tg-hand {
   flex: 0 0 auto;
