@@ -1,0 +1,5 @@
+/* Compact cards prioritize readable title/rule content over the decorative corner tab. */
+.game-card--mini .game-card__tab,
+.game-card--tiny .game-card__tab {
+  display: none;
+}
