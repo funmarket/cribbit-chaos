@@ -1,121 +1,69 @@
-import {
-  getCardBackAsset,
-  getCardDefinition,
-  getCardFrontAsset,
-  getCardsByFamily,
-  hasCardDefinition
-} from '@cribbit/cards';
-import type { CardBackKind, CardDefinition, CardFamily } from '@cribbit/cards';
-import type { Card, CardKind } from '../../../packages/contracts/src/index.ts';
-import './styles/cards.css';
+import type { Card } from '../../../packages/contracts/src/index.ts';
+import '../../../packages/ui/src/styles.css';
 
 type TelegramCardSize = 'board' | 'hand';
-type ImportedAssetMap = Record<string, string>;
 
-const FRONT_ASSET_URLS = normalizeAssetUrls({
-  ...import.meta.glob<string>('../../../packages/cards/assets/generated/mobile/fronts/*.png', {
-    eager: true,
-    import: 'default',
-    query: '?url'
-  }),
-  ...import.meta.glob<string>('../../../packages/cards/assets/generated/thumbnail/fronts/*.png', {
-    eager: true,
-    import: 'default',
-    query: '?url'
-  })
-});
+type CardVisual = {
+  title: string;
+  glyph: string;
+  ruleLead: string;
+  ruleDetail: string;
+};
 
-const BACK_ASSET_URLS = normalizeAssetUrls({
-  ...import.meta.glob<string>('../../../packages/cards/assets/generated/mobile/backs/*.png', {
-    eager: true,
-    import: 'default',
-    query: '?url'
-  }),
-  ...import.meta.glob<string>('../../../packages/cards/assets/generated/thumbnail/backs/*.png', {
-    eager: true,
-    import: 'default',
-    query: '?url'
-  })
-});
-
-const REPRESENTATIVE_CARD_ID_BY_KIND: Partial<Record<CardKind, string>> = {
-  truth: firstCardId('truth'),
-  dare: firstCardId('dare'),
-  paranoia: firstCardId('paranoia'),
-  chaos: firstCardId('chaos'),
-  duel: firstCardId('duel'),
-  nope: firstCardId('nope'),
-  wild: firstCardId('wild')
+const CARD_VISUALS: Record<Card['kind'], CardVisual> = {
+  number: { title: 'Number', glyph: '', ruleLead: 'Match color or value.', ruleDetail: 'Fast hand-management play.' },
+  skip: { title: 'Skip', glyph: '⊘', ruleLead: 'Tempo control.', ruleDetail: 'Next player loses a turn.' },
+  reverse: { title: 'Reverse', glyph: '⇄', ruleLead: 'Change direction.', ruleDetail: 'Two-player mode returns the turn.' },
+  draw: { title: 'Draw', glyph: '+2', ruleLead: 'Pressure card.', ruleDetail: 'Next player draws the configured penalty.' },
+  wild: { title: 'Wild', glyph: '●●●', ruleLead: 'Choose the active color.', ruleDetail: 'Server validates the choice.' },
+  truth: { title: 'Truth', glyph: '?', ruleLead: 'Reveal something real.', ruleDetail: 'Answer honestly.' },
+  dare: { title: 'Dare', glyph: 'ϟ', ruleLead: 'Do something bold.', ruleDetail: 'Complete the challenge.' },
+  paranoia: { title: 'Paranoia', glyph: '◉', ruleLead: 'Trust no one.', ruleDetail: 'Choose, guess or suspect.' },
+  chaos: { title: 'Chaos', glyph: '↻', ruleLead: 'Shake things up.', ruleDetail: 'Resolve the effect.' },
+  duel: { title: 'Duel', glyph: '⚔', ruleLead: 'Challenge another player.', ruleDetail: 'Resolve the Duel.' },
+  nope: { title: 'Nope', glyph: '✋', ruleLead: 'Not today.', ruleDetail: 'Block an eligible effect.' }
 };
 
 export function renderCribbitCard(card: Card, size: TelegramCardSize): string {
-  const definition = resolveCardDefinition(card);
-  const backKind = definition?.defaultBack ?? 'classic';
-  const frontUrl = definition ? getImportedAssetUrl(FRONT_ASSET_URLS, getCardFrontAsset(definition.id, assetSize(size))) : null;
-  const backUrl = getImportedAssetUrl(BACK_ASSET_URLS, getCardBackAsset(backKind, assetSize(size)));
-  const imageUrl = frontUrl ?? backUrl;
-  const label = definition ? `${definition.title} card` : `${fallbackCardLabel(card)} card back`;
-  const dataDefinitionId = definition ? ` data-card-definition-id="${escapeHTML(definition.id)}"` : '';
+  const visual = CARD_VISUALS[card.kind];
+  const title = card.kind === 'number' ? String(card.value ?? card.symbol ?? '') : visual.title;
+  const glyph = card.kind === 'number' ? String(card.value ?? card.symbol ?? '') : visual.glyph;
+  const kindAttr = card.kind === 'number' || ['skip', 'reverse', 'draw'].includes(card.kind)
+    ? ''
+    : ` data-kind="${escapeHTML(card.kind)}"`;
+  const colorAttr = card.color ? ` data-color="${escapeHTML(card.color)}"` : '';
+  const modifier = size === 'board' ? 'game-card--tg-board' : 'game-card--tg-hand';
 
   return `
     <button
-      class="cribbit-card cribbit-card--${size}${definition ? '' : ' cribbit-card--unmapped'}"
+      class="game-card ${modifier}"
       type="button"
       data-card-id="${escapeHTML(card.id)}"
-      data-card-kind="${card.kind}"
-      data-card-color="${card.color || ''}"
+      data-card-kind="${escapeHTML(card.kind)}"
       data-action="play-card"
-      ${dataDefinitionId}
-      aria-label="${escapeHTML(label)}"
+      data-legal="true"
+      ${kindAttr}
+      ${colorAttr}
+      aria-label="${escapeHTML(`${title} card`)}"
     >
-      <img class="cribbit-card__image" src="${escapeHTML(imageUrl)}" alt="" loading="lazy" decoding="async" draggable="false" />
+      <span class="game-card__tab" aria-hidden="true">${escapeHTML(glyph || title.slice(0, 1))}</span>
+      <strong class="game-card__title">${escapeHTML(title)}</strong>
+      <span class="game-card__icon${card.kind === 'number' ? ' is-number' : ''}" aria-hidden="true">${escapeHTML(glyph)}</span>
+      <p class="game-card__rule"><strong>${escapeHTML(visual.ruleLead)}</strong><br>${escapeHTML(visual.ruleDetail)}</p>
+      <span class="frog-seal" aria-hidden="true">●</span>
     </button>
   `;
 }
 
-export function renderCribbitCardBack(size: TelegramCardSize, backKind: CardBackKind = 'classic'): string {
-  const backUrl = getImportedAssetUrl(BACK_ASSET_URLS, getCardBackAsset(backKind, assetSize(size)));
-  return `<span class="cribbit-card-back cribbit-card-back--${size}" aria-hidden="true"><img src="${escapeHTML(backUrl)}" alt="" loading="lazy" decoding="async" draggable="false" /></span>`;
+export function renderCribbitCardBack(size: TelegramCardSize): string {
+  return `
+    <span class="tg-shared-card-back tg-shared-card-back--${size}" aria-hidden="true">
+      <b>CRIBBIT</b>
+      <em>CHAOS</em>
+    </span>
+  `;
 }
 
-function resolveCardDefinition(card: Card): CardDefinition | null {
-  if (hasCardDefinition(card.id)) return getCardDefinition(card.id);
-  const representativeId = REPRESENTATIVE_CARD_ID_BY_KIND[card.kind];
-  return representativeId ? getCardDefinition(representativeId) : null;
-}
-
-function firstCardId(family: CardFamily): string {
-  const [definition] = getCardsByFamily(family);
-  if (!definition) throw new Error(`Missing Telegram card representative for ${family}`);
-  return definition.id;
-}
-
-function assetSize(size: TelegramCardSize): 'mobile' | 'thumbnail' {
-  return size === 'board' ? 'mobile' : 'thumbnail';
-}
-
-function normalizeAssetUrls(modules: ImportedAssetMap): ImportedAssetMap {
-  return Object.fromEntries(
-    Object.entries(modules).map(([path, url]) => {
-      const normalizedPath = path.replaceAll('\\', '/');
-      const [, packagePath] = normalizedPath.match(/packages\/cards\/(.+)$/) ?? [];
-      return [packagePath ?? normalizedPath, url];
-    })
-  );
-}
-
-function getImportedAssetUrl(assetUrls: ImportedAssetMap, logicalPath: string): string {
-  const url = assetUrls[logicalPath];
-  if (!url) throw new Error(`Telegram card asset was not bundled: ${logicalPath}`);
-  return url;
-}
-
-function fallbackCardLabel(card: Card): string {
-  if (card.symbol) return card.symbol;
-  if (card.kind === 'number' && typeof card.value === 'number') return `${card.color ?? ''} ${card.value}`.trim();
-  return card.kind;
-}
-
-function escapeHTML(value: string): string {
-  return value.replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char] || char);
+function escapeHTML(value: unknown): string {
+  return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char] || char);
 }
