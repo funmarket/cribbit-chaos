@@ -1,0 +1,47 @@
+/* Web-only live-game presentation corrections.
+   Keep these overrides scoped to the browser client; Telegram has its own layout layer. */
+
+/* The active Wild color picker sits in the narrow left state panel. Keep the
+   existing component/markup, but make each option self-contained and readable. */
+.inline-wild-grid {
+  gap: 4px;
+}
+
+.inline-color-choice {
+  min-height: 36px;
+  grid-template-columns: 7px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 5px;
+  row-gap: 0;
+  padding: 4px 5px;
+  overflow: hidden;
+}
+
+.inline-color-choice i {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  width: 6px;
+  height: 6px;
+  align-self: center;
+  box-shadow: 0 0 7px color-mix(in srgb, var(--choice) 45%, transparent);
+}
+
+.inline-color-choice b {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  font-size: 6px;
+  line-height: .95;
+  letter-spacing: -.015em;
+  overflow-wrap: anywhere;
+}
+
+.inline-color-choice span {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  margin-top: 1px;
+  font-size: 4.5px;
+  line-height: 1;
+  white-space: nowrap;
+}
