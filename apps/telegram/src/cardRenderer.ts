@@ -1,5 +1,6 @@
 import type { Card } from '../../../packages/contracts/src/index.ts';
 import '../../../packages/ui/src/styles.css';
+import '../../../packages/ui/src/compact-cards.css';
 
 type TelegramCardSize = 'board' | 'hand';
 
@@ -33,6 +34,9 @@ export function renderCribbitCard(card: Card, size: TelegramCardSize): string {
     : ` data-kind="${escapeHTML(card.kind)}"`;
   const colorAttr = card.color ? ` data-color="${escapeHTML(card.color)}"` : '';
   const modifier = size === 'board' ? 'game-card--tg-board' : 'game-card--tg-hand';
+  const tabMarkup = size === 'board'
+    ? `<span class="game-card__tab" aria-hidden="true">${escapeHTML(glyph || title.slice(0, 1))}</span>`
+    : '';
 
   return `
     <button
@@ -46,7 +50,7 @@ export function renderCribbitCard(card: Card, size: TelegramCardSize): string {
       ${colorAttr}
       aria-label="${escapeHTML(`${title} card`)}"
     >
-      <span class="game-card__tab" aria-hidden="true">${escapeHTML(glyph || title.slice(0, 1))}</span>
+      ${tabMarkup}
       <strong class="game-card__title">${escapeHTML(title)}</strong>
       <span class="game-card__icon${card.kind === 'number' ? ' is-number' : ''}" aria-hidden="true">${escapeHTML(glyph)}</span>
       <p class="game-card__rule"><strong>${escapeHTML(visual.ruleLead)}</strong><br>${escapeHTML(visual.ruleDetail)}</p>
