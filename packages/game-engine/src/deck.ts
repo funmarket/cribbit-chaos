@@ -8,19 +8,19 @@ const COLORS: readonly CardColor[] = ['lime', 'orange', 'cyan', 'purple'];
 
 export const CANONICAL_DECK_COUNTS = Object.freeze({
   number: 76,
-  skip: 4,
-  reverse: 4,
+  skip: 8,
+  reverse: 8,
   draw: 8,
   wild: 4,
-  truth: 3,
-  dare: 3,
-  paranoia: 3,
-  chaos: 3,
-  duel: 2,
-  nope: 2
+  truth: 5,
+  dare: 5,
+  paranoia: 4,
+  chaos: 4,
+  duel: 3,
+  nope: 3
 } satisfies Record<Card['kind'], number>);
 
-export const CANONICAL_DECK_SIZE = 112;
+export const CANONICAL_DECK_SIZE = 128;
 
 function createCard(seed: string | number, index: number, kind: Card['kind'], fields: Partial<Card> = {}): Card {
   return {
@@ -42,6 +42,8 @@ export function buildCoreDeck(seed: string | number, random: RandomSource = crea
     }
 
     deck.push(createCard(seed, index += 1, 'skip', { color, symbol: 'skip' }));
+    deck.push(createCard(seed, index += 1, 'skip', { color, symbol: 'skip' }));
+    deck.push(createCard(seed, index += 1, 'reverse', { color, symbol: 'reverse' }));
     deck.push(createCard(seed, index += 1, 'reverse', { color, symbol: 'reverse' }));
     deck.push(createCard(seed, index += 1, 'draw', { color, symbol: 'draw' }));
     deck.push(createCard(seed, index += 1, 'draw', { color, symbol: 'draw' }));
