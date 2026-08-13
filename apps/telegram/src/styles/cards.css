@@ -1,91 +1,72 @@
-/* Telegram renders canonical package-owned PNG card assets. The card artwork is not recreated in CSS. */
+/* Telegram now reuses the shared Web card visual grammar from packages/ui/styles.css.
+   This file contains Telegram-only sizing and interaction overrides. */
 
-.cribbit-card,
-.cribbit-card-back {
-  position: relative;
-  flex: 0 0 auto;
-  display: block;
-  overflow: hidden;
-  padding: 0;
-  border: 0;
-  border-radius: 13px;
-  background: #070a10;
-  box-shadow: 0 12px 28px rgba(0,0,0,.46), 0 0 0 1px rgba(255,255,255,.08);
-  isolation: isolate;
+.game-card--tg-board {
+  width: min(154px, 45vw);
+  min-width: 0;
 }
 
-.cribbit-card {
+.game-card--tg-hand {
+  width: clamp(84px, 24vw, 96px);
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
+.game-card--tg-board,
+.game-card--tg-hand {
+  flex: 0 0 auto;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: transform .16s ease, box-shadow .16s ease;
 }
 
-.cribbit-card__image,
-.cribbit-card-back img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  user-select: none;
-  -webkit-user-drag: none;
-}
-
-.cribbit-card--board,
-.cribbit-card-back--board {
-  width: min(154px, 45vw);
-  aspect-ratio: 1080 / 1512;
-}
-
-.cribbit-card--hand,
-.cribbit-card-back--hand {
-  width: clamp(84px, 24vw, 96px);
-  aspect-ratio: 1080 / 1512;
-  scroll-snap-align: start;
-  border-radius: 10px;
-}
-
-.cribbit-card.is-selected {
+.game-card--tg-board.is-selected,
+.game-card--tg-hand.is-selected {
   transform: translateY(-8px);
-  box-shadow:
-    0 16px 32px rgba(0,0,0,.55),
-    0 0 0 2px rgba(156,255,22,.86),
-    0 0 24px rgba(156,255,22,.35);
 }
 
-.cribbit-card--unmapped {
-  opacity: .86;
-}
-
-.cribbit-card-back {
+.tg-shared-card-back {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  aspect-ratio: 5 / 7;
+  border: 2px solid var(--purple, #b34cff);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at center, rgba(179,76,255,.30), transparent 45%),
+    repeating-linear-gradient(45deg,#0c0d14,#0c0d14 8px,#17101e 8px,#17101e 16px);
+  box-shadow: 6px 6px 0 #171020, 10px 10px 0 #0b0d12, 0 0 16px rgba(179,76,255,.22);
   pointer-events: none;
 }
 
-@media (max-width: 359px) {
-  .cribbit-card--board,
-  .cribbit-card-back--board {
-    width: min(128px, 42vw);
-  }
+.tg-shared-card-back--board {
+  width: min(105px, 28vw);
+}
 
-  .cribbit-card--hand,
-  .cribbit-card-back--hand {
-    width: 78px;
-  }
+.tg-shared-card-back--hand {
+  width: 82px;
+}
+
+.tg-shared-card-back b {
+  color: var(--lime, #a9ff2e);
+  font-size: 14px;
+}
+
+.tg-shared-card-back em {
+  color: var(--magenta, #ff2a84);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+@media (max-width: 359px) {
+  .game-card--tg-board { width: min(132px, 44vw); }
+  .game-card--tg-hand { width: 78px; }
+  .tg-shared-card-back--board { width: min(92px, 28vw); }
 }
 
 @media (min-width: 390px) and (max-width: 430px) {
-  .cribbit-card--board,
-  .cribbit-card-back--board {
-    width: min(154px, 40vw);
-  }
-
-  .cribbit-card--hand,
-  .cribbit-card-back--hand {
-    width: 90px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cribbit-card {
-    transition: none;
-  }
+  .game-card--tg-board { width: min(154px, 40vw); }
+  .game-card--tg-hand { width: 90px; }
 }
