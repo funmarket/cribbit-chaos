@@ -1,16 +1,14 @@
 # Cribbit CHAOS Implementation Plan
 
-## Project control rules
+## Mandatory project-control workflow
 
-This file is a living project-control document. It must describe the current verified project state, not historical assumptions.
+Every implementation slice must follow:
 
-1. GitHub is the canonical source of truth for deployable source and project documentation.
-2. After every implementation slice, update `PLAN.md`, `docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md`, `docs/CARD_SYSTEM_IMPLEMENTATION_PLAN.md`, affected technical/operational docs, and the active PR before starting the next slice.
-3. Remove resolved blockers and obsolete instructions immediately. Never leave a completed task as `Current Next Task`.
-4. Runtime/deployment claims must be based on verified GitHub/platform state.
-5. Do not start the next phase while required blockers for the active phase remain.
-6. Telegram has an approved mobile-specific composition target and is not required to preserve the Web layout.
-7. Never use or mutate the separate Railway project `Cribbit` (`1440dc2c-e7fd-4bee-8ef7-57e663b8c735`) for Cribbit CHAOS.
+**inspect living status → make change → test/verify → remove superseded/stale artifacts → update living docs → merge/publish → verify actual runtime state**
+
+GitHub is the canonical source of truth. `README.md`, `PLAN.md`, `AGENTS.md`, and `docs/LIVING_STATUS.md` must stay synchronized with verified reality.
+
+The no-stale-debt rule in `AGENTS.md` is mandatory: temporary, duplicate, dead, conflicting, recovery, debug, compatibility, or superseded resources must be removed in the same completed migration whenever technically safe.
 
 ## Canonical architecture
 
@@ -18,126 +16,145 @@ This file is a living project-control document. It must describe the current ver
 GitHub = source of truth
     |
     +--> Cloudflare Pages Web
-    |      desktop / large-screen presentation
     |
     +--> Cloudflare Pages Telegram
-           Telegram/mobile presentation
                  |
                  v
               Railway API
                  |
                  v
           Railway PostgreSQL
-
-Vercel = secondary/fallback only
 ```
 
-Primary endpoints:
-- Web: `https://cribbit-chaos-web.pages.dev`
-- Telegram: `https://cribbit-chaos-telegram.pages.dev`
-- API: `https://api-production-2556.up.railway.app`
+Web and Telegram are two clients of one game. They may use different responsive layouts, but may not own separate deck composition, card behavior, rules, commands, or authoritative state.
 
-Both clients use the same Railway API and PostgreSQL database and must resolve the same human to one canonical `users.id`.
+## Locked mechanics direction
 
-## Phase 0 — Repository foundation — COMPLETE
+The mechanics phase takes priority over final art polish.
 
-Private GitHub repo, monorepo, Vite Web/Telegram builds, Railway API scaffold, PostgreSQL schema foundation, CI, and repository cleanup complete.
+The existing Web card appearance is the temporary visual baseline. Final card art can be redesigned later without changing canonical card IDs or behavior.
 
-## Phase 1 — Authoritative core game engine — COMPLETE
+### Canonical playable deck — 112 cards
 
-Canonical state/card/player/command/event models, deterministic setup, legal play, classic actions, wild flow, turn progression, win handling, idempotency, and tests complete.
+- 92 colored engine cards
+  - each color: 0 x1, 1–9 x2, Skip x1, Reverse x1, Draw x2
+- Wild x4
+- Truth x3
+- Dare x3
+- Paranoia x3
+- Chaos x3
+- Duel x2
+- Nope x2
 
-## Phase 2 — Social card engine — COMPLETE
+Pass, Rewind, Flag, Spice Dial, Speak, Type, Choose, and Answered Live are controls/systems, not hand-card inventory.
 
-Truth, Dare, Paranoia, Duel, Chaos, Nope reaction, prompt eligibility, sealed prompt selection, roulette presentation, and authorship modes complete.
+## Completed foundation
 
-## Phase 3 — Safety & answers — COMPLETE
+### Phase 0 — Repository foundation — COMPLETE
 
-Pass, Rewind, Flag, Speak, Type, Choose, Answered Live, timers, and timeout resolution complete.
+Private GitHub monorepo, Vite Web/Telegram apps, Railway API scaffold, PostgreSQL foundation, CI, and repository cleanup established.
 
-## Phase 3.5 — Visual integration + shared staging — IN PROGRESS
+### Phase 1 — Core game engine foundation — COMPLETE
 
-Completed and verified:
-- [x] approved V4 Web visual baseline and deterministic fixtures
-- [x] Telegram platform/safe-area foundation
-- [x] dedicated Railway API + PostgreSQL live
-- [x] Cloudflare Web + Telegram Git-integrated deployments live
-- [x] both clients target the same Railway API/database architecture
-- [x] real-device Telegram smoke test established need for mobile-specific composition
-- [x] detailed Telegram execution plan in `docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md`
-- [x] T1 Telegram presentation boundary
-- [x] T2 Telegram Room Creation screen
-- [x] same-row `CREATE GAME | DEMO GAME`
-- [x] T3 Telegram core mobile Game screen
-- [x] full-width board/discard/draw hierarchy
-- [x] compact room/turn/timer and player strip
-- [x] horizontal hand rail
-- [x] Pass / Rewind / Nope / Flag bar
-- [x] T4 contextual rule UI for Wild, Truth, Dare, Paranoia, Duel, Chaos, Nope, answer modes and safety actions
-- [x] T5 mobile hardening for 320–430 px, Telegram safe areas, keyboard/short-height fallback, overflow containment, long names, 7+ card hands, touch targets and contextual-sheet bounds
-- [x] T5 exact implementation head `df581a56accbf6f128e7e460317508f26cdd366e` passed GitHub CI and Cloudflare Telegram deployment
-- [x] T6 first real-device screenshots received and reviewed
-- [x] T6 verified card-visual defect: Telegram cards were generic placeholders rather than the approved Cribbit card family
-- [x] uploaded 112-card production package audited at package level: exactly 112 fronts, all 1080x1512; exactly 3 backs, all 1080x1512; 112 manifest records; code-driven HTML/CSS design source present
-- [x] shared card-system blueprint created in `docs/CARD_SYSTEM_IMPLEMENTATION_PLAN.md`
-- [x] blueprint locks supplied rendered cards as canonical visual assets; TypeScript is used for runtime registry/resolution/bindings rather than re-creating the deck design
-- [x] blueprint defines one shared card system for Web + Telegram, with separate presentation layers only
-- [x] no backend, database, game-rule, Web-layout, Railway or Phase 4 change made by the blueprint slice
-- [x] C1 complete audit/mapping of all 112 supplied cards in `docs/card-system-c1-mapping-audit.md` and `docs/card-system-c1-mapping-audit.csv`
-- [x] C2 shared `packages/cards` TypeScript foundation with normalized 112-card catalogue, registry/resolver helpers, back definitions, mappings and tests
-- [x] C2 preserved supplied design-generation source and did not ingest/replace runtime card art yet
-- [x] C3 canonical card masters and backs ingested into `packages/cards/assets`
-- [x] C3 preserved supplied design-source files in `packages/cards/design-source`
-- [x] C3 generated deterministic PNG derivatives for `web-medium`, `mobile`, and `thumbnail`
-- [x] C3 added asset integrity tests for counts, dimensions and design-source preservation
+State/card/player/command/event models, deterministic setup, legal play, classic actions, Wild flow, turn progression, win handling, idempotency, and tests exist.
 
-Still required before Phase 3.5 can close:
+### Phase 2 — Social engine foundation — COMPLETE
 
-### Telegram mobile composition
-- [x] T1 presentation boundary
-- [x] T2 room creation
-- [x] T3 core mobile game board
-- [x] T4 contextual rule UI
-- [x] T5 mobile hardening
-- [x] C1 complete audit/mapping of all 112 supplied cards to existing canonical engine/action taxonomy
-- [x] C2 shared `packages/cards` foundation
-- [x] C3 asset ingestion / optimization of canonical masters and deterministic runtime derivatives
-- [ ] C4 Telegram integration: replace temporary CSS-generated Telegram card faces with supplied canonical card assets through shared card registry/resolver
-- [ ] T6 real-device recheck/signoff of canonical cards and remaining layout behavior
+Truth, Dare, Paranoia, Duel, Chaos, Nope reaction, prompt eligibility, roulette presentation, and authorship logic exist.
 
-### Shared staging/auth proof
-- [ ] live Web visual smoke test
-- [ ] regenerated `TELEGRAM_BOT_TOKEN` configured Railway-only
-- [ ] BotFather Main Mini App points to Cloudflare Telegram URL
-- [ ] Mini App live raw-`initData` auth proof
-- [ ] browser Telegram OIDC implementation/live proof
-- [ ] same real Telegram account resolves to same internal UUID on Web and Telegram
-- [ ] shared profile write/read proof through same Railway PostgreSQL
-- [ ] final Phase 3.5 staging signoff
+### Phase 3 — Safety/answer foundation — COMPLETE
 
-Vercel is not a Phase 3.5 blocker.
+Pass, Rewind, Flag, Speak, Type, Choose, Answered Live, timer, timeout, and privacy boundaries exist.
 
-## Phase 4 — Multiplayer server — BLOCKED UNTIL PHASE 3.5 COMPLETES
+## Active mechanics/card migration — IN PROGRESS
 
-- [ ] room creation
-- [ ] room joining
-- [ ] player ready
-- [ ] game start
-- [ ] command endpoint
-- [ ] Socket.IO room sync
-- [ ] snapshots
-- [ ] reconnect
-- [ ] disconnect grace
-- [ ] server event stream
+### M1 — Canonical deck and Web baseline
 
-Do not implement Phase 4 during Telegram visual/staging work.
+- [x] lock canonical production deck at 112 playable cards
+- [x] update shared `packages/game-engine/src/deck.ts` to build 112
+- [x] expose canonical deck count/size constants
+- [x] add dedicated canonical composition regression test file
+- [ ] remove stale 104-card assumptions from the existing large core-engine test without dropping its other coverage
+- [ ] run full shared verification successfully
+- [ ] change the temporary Web legacy runtime's local 128-card builder to the same 112 composition
+- [ ] verify Web game flow with the canonical deck
+- [ ] remove/document any Web-local deck/rule implementation made obsolete by shared ownership
 
-## Later phases
+### M2 — Telegram convergence
 
-Phase 5 auth completion, Phase 6 persistent ecosystem, Phase 7 client migration, Phase 8 deployment hardening, Phase 9 multiplayer QA, and Phase 10 launch readiness remain pending.
+Started early at user direction, but cannot be called complete until M1 verification is green.
+
+- [x] remove Telegram renderer dependency on the PNG card registry/assets in source
+- [x] switch Telegram card rendering toward the Web-style HTML/CSS presentation
+- [x] preserve Telegram `data-action="play-card"` and card identity hooks
+- [ ] verify Telegram typecheck/test/build with the replacement renderer
+- [ ] correct any shared-style/mobile conflicts found by verification
+- [ ] connect Telegram demo/runtime to the same canonical shared card IDs/state rather than a parallel local deck
+- [ ] verify Web and Telegram show equivalent card semantics for the same state
+- [ ] after references reach zero and builds pass, delete obsolete PNG card masters/derivatives, PNG resolver/registry pieces, asset tests, and superseded PNG-specific docs
+
+### M3 — Rules and game feel
+
+After M1/M2 pass:
+
+- [ ] lock draw-after-draw rule
+- [ ] lock Draw 2 skip/penalty rule
+- [ ] lock social-card legality relative to active color/symbol
+- [ ] formalize Nope eligibility matrix
+- [ ] formalize Chaos deterministic effect catalogue
+- [ ] formalize Duel resolver types/reward policy
+- [ ] verify Truth/Dare/Paranoia complete flows
+- [ ] verify Pass/Rewind/Flag privacy and behavior
+- [ ] make every visible button map to one implemented authoritative command
+- [ ] remove duplicate command aliases and stale command variants
+- [ ] add deterministic complete-turn tests for every family
+
+### M4 — Client mechanics UX
+
+- [ ] derive enabled/disabled controls from authoritative legal state
+- [ ] replace preview-only button behavior with real command submission/snapshot updates
+- [ ] align Web and Telegram contextual panels with the same state machine
+- [ ] tune timers, pacing, anti-downtime behavior, and player-count profiles
+- [ ] verify reconnect/timeout UX against authoritative state
+
+### M5 — Audio after stable events
+
+Only after mechanics are stable:
+
+- [ ] define semantic sound-event mapping
+- [ ] create/generate sound effects and optional voice comments
+- [ ] attach audio to semantic game events, not raw button clicks
+- [ ] provide mute/volume/accessibility controls
+
+### M6 — Final visual polish
+
+Only after the game works:
+
+- [ ] decide final card art direction
+- [ ] replace temporary Web-style card visuals if desired
+- [ ] keep canonical card IDs/mechanics unchanged
+- [ ] verify both clients against the same final visual source
+
+## Verification status at latest inspected head
+
+The shared deck now generates 112 cards and TypeScript typecheck passes.
+
+Current CI is **red** because three existing assertions in `packages/game-engine/test/core-engine.test.ts` still expect the previous 104-card core-only deck and two Skip/Reverse copies per color. CI therefore skips Web/Telegram/API build steps after test failure.
+
+This stale-test debt must be removed before the PNG package is deleted. Deleting assets before the replacement build is verified would violate the mandatory workflow.
+
+## Staging/auth work
+
+Existing staging/auth items remain separate from the mechanics migration and must not be silently marked complete:
+
+- live Web smoke proof
+- Telegram raw-`initData` live proof
+- browser Telegram OIDC live proof
+- same Telegram human resolves to same internal UUID across both clients
+- shared profile write/read proof through the same Railway PostgreSQL
 
 ## Current Next Task
 
-**C4 — Telegram integration.**
+**M1.1b — Green the canonical 112-card shared engine.**
 
-Replace the temporary CSS-generated Telegram card faces with actual supplied canonical card assets selected through the shared `packages/cards` registry/resolver. Preserve existing card action hooks, horizontal hand behavior, board layout, contextual rule UI, demo fixture semantics, and Telegram mobile/safe-area constraints. Do not alter game mechanics, API contracts, Railway architecture, PostgreSQL schema, Web rendering, or begin Phase 4 multiplayer work during C4.
+Update the stale 104-card expectations in the existing core-engine test while preserving its full coverage, run the full test/build suite, then correct and verify the Web legacy runtime's 128-card local builder. Once the replacement paths pass, complete Telegram verification and delete the obsolete PNG card assets and PNG-specific support code in the same migration slice.
