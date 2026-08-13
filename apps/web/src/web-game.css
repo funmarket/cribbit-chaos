@@ -1,5 +1,68 @@
-/* Web-only live-game presentation corrections.
-   Keep these overrides scoped to the browser client; Telegram has its own layout layer. */
+/* Web-only presentation corrections. Telegram has its own layout layer. */
+
+/* Keep primary product navigation and utility/status controls on separate rows
+   so the desktop header does not collide at common laptop widths. */
+body:not(.is-game-view) .app-header__inner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "brand nav"
+    "status tools";
+  gap: 8px 16px;
+  align-items: center;
+  padding-block: 10px;
+}
+
+body:not(.is-game-view) .brand-lockup { grid-area: brand; }
+body:not(.is-game-view) .product-nav { grid-area: nav; justify-content: flex-start; margin-left: 0; }
+body:not(.is-game-view) .status-cluster { grid-area: status; }
+body:not(.is-game-view) .header-tools { grid-area: tools; justify-content: flex-end; min-width: 0; }
+
+body:not(.is-game-view) .nav-button {
+  font-size: 13px;
+  padding: 8px 11px;
+}
+
+/* Lobby action area: suppress the oversized decorative wordmark content while
+   keeping the existing room-creation panel and runtime controls untouched. */
+body:not(.is-game-view) .lobby-hero {
+  min-height: 0;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+}
+
+body:not(.is-game-view) .lobby-hero > :not(.web-lobby-actions) {
+  display: none;
+}
+
+.web-lobby-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.web-lobby-actions .button {
+  min-height: 48px;
+  font-size: 13px;
+}
+
+/* All four game modes fit on one desktop row without changing mode behavior. */
+body:not(.is-game-view) .mode-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+body:not(.is-game-view) .mode-card {
+  min-width: 0;
+  min-height: 126px;
+  padding: 14px 12px;
+}
+
+body:not(.is-game-view) .mode-card b { font-size: 18px; }
+body:not(.is-game-view) .mode-card span { font-size: 10px; line-height: 1.25; }
+body:not(.is-game-view) .mode-card small { font-size: 9px; }
 
 /* The active Wild color picker sits in the narrow left state panel. Keep the
    existing component/markup, but make each option self-contained and readable. */
@@ -44,4 +107,8 @@
   font-size: 4.5px;
   line-height: 1;
   white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  body:not(.is-game-view) .mode-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
