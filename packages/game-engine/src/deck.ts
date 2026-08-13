@@ -67,7 +67,7 @@ export function buildCoreDeck(seed: string | number, random: RandomSource = crea
   }
 
   if (deck.length !== CANONICAL_DECK_SIZE) {
-    throw createEngineError('INVALID_DECK_CONFIGURATION', `Canonical deck must contain exactly ${CANONICAL_DECK_SIZE} cards; received ${deck.length}.`);
+    throw new Error(`Canonical deck must contain exactly ${CANONICAL_DECK_SIZE} cards; received ${deck.length}.`);
   }
 
   return shuffle(deck, random);
