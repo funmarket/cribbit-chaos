@@ -1,75 +1,181 @@
 /* Web-only presentation corrections. Telegram has its own layout layer. */
 
-/* Keep primary product navigation and utility/status controls on separate rows
-   so the desktop header does not collide at common laptop widths. */
+/* Desktop header: deliberate two-band hierarchy so product navigation never
+   collides with session/status utilities. */
 body:not(.is-game-view) .app-header__inner {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   grid-template-areas:
     "brand nav"
     "status tools";
-  gap: 8px 16px;
+  gap: 8px 18px;
   align-items: center;
-  padding-block: 10px;
+  padding-block: 9px;
 }
-
 body:not(.is-game-view) .brand-lockup { grid-area: brand; }
-body:not(.is-game-view) .product-nav { grid-area: nav; justify-content: flex-start; margin-left: 0; }
-body:not(.is-game-view) .status-cluster { grid-area: status; }
-body:not(.is-game-view) .header-tools { grid-area: tools; justify-content: flex-end; min-width: 0; }
-
+body:not(.is-game-view) .product-nav {
+  grid-area: nav;
+  justify-content: flex-start;
+  margin-left: 0;
+  min-width: 0;
+}
+body:not(.is-game-view) .status-cluster { grid-area: status; min-width: 0; }
+body:not(.is-game-view) .header-tools {
+  grid-area: tools;
+  justify-content: flex-end;
+  min-width: 0;
+}
 body:not(.is-game-view) .nav-button {
   font-size: 13px;
   padding: 8px 11px;
 }
 
-/* Lobby action area: suppress the oversized decorative wordmark content while
-   keeping the existing room-creation panel and runtime controls untouched. */
+/* Lobby is a visual game landing page, not a SaaS form. The original hero is
+   restored; only the oversized Cribbit CHAOS wordmark is suppressed. */
+body:not(.is-game-view) .lobby-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
 body:not(.is-game-view) .lobby-hero {
   min-height: 0;
-  padding: 18px;
-  display: flex;
-  align-items: center;
-}
-
-body:not(.is-game-view) .lobby-hero > :not(.web-lobby-actions) {
-  display: none;
-}
-
-.web-lobby-actions {
-  width: 100%;
+  padding: clamp(18px, 2.5vw, 30px);
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(var(--purple-rgb), .16), transparent 28rem),
+    radial-gradient(circle at 82% 20%, rgba(var(--orange-rgb), .14), transparent 26rem),
+    radial-gradient(circle at 50% 100%, rgba(var(--magenta-rgb), .12), transparent 34rem),
+    #06070c;
 }
+body:not(.is-game-view) .lobby-hero .hero-wordmark { display: none; }
 
+/* Compact, game-like CTA pair. Keep the existing Start button/id/runtime hook. */
+.web-lobby-actions {
+  order: -20;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 12px;
+  width: min(760px, 100%);
+  margin: 0 auto;
+  position: relative;
+  z-index: 3;
+}
 .web-lobby-actions .button {
-  min-height: 48px;
-  font-size: 13px;
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  min-height: 52px;
+  padding: 11px 20px;
+  border-radius: 14px 4px 14px 4px;
+  border: 1px solid rgba(var(--lime-rgb), .55);
+  color: #f7ffe9;
+  background:
+    linear-gradient(135deg, rgba(var(--lime-rgb), .17), rgba(var(--lime-rgb), .035) 52%, rgba(255,255,255,.02)),
+    #0a0d10;
+  box-shadow: 0 0 0 1px rgba(var(--lime-rgb), .06) inset, 0 12px 34px rgba(0,0,0,.34), 0 0 24px rgba(var(--lime-rgb), .08);
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: .015em;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.web-lobby-actions .button:nth-child(2) {
+  border-color: rgba(var(--magenta-rgb), .56);
+  background:
+    linear-gradient(135deg, rgba(var(--magenta-rgb), .18), rgba(var(--orange-rgb), .05) 58%, rgba(255,255,255,.02)),
+    #0b0910;
+  box-shadow: 0 0 0 1px rgba(var(--magenta-rgb), .05) inset, 0 12px 34px rgba(0,0,0,.34), 0 0 24px rgba(var(--magenta-rgb), .09);
+}
+.web-lobby-actions .button:hover,
+.web-lobby-actions .button:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--lime);
+  box-shadow: 0 16px 38px rgba(0,0,0,.4), 0 0 30px rgba(var(--lime-rgb), .16);
+  outline: none;
+}
+.web-lobby-actions .button:nth-child(2):hover,
+.web-lobby-actions .button:nth-child(2):focus-visible {
+  border-color: var(--magenta);
+  box-shadow: 0 16px 38px rgba(0,0,0,.4), 0 0 30px rgba(var(--magenta-rgb), .18);
 }
 
-/* All four game modes fit on one desktop row without changing mode behavior. */
-body:not(.is-game-view) .mode-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+/* Banner-inspired visual stage using the supplied artwork's messaging and neon
+   language. This is intentionally CSS-only until the binary banner asset is
+   committed to GitHub; no broken image URL is introduced. */
+body:not(.is-game-view) .lobby-hero::before {
+  content: "CRIBBIT  ·  2–10 PLAYERS  ·  20–60 MINUTES  ·  UNLIMITED STORIES";
+  order: -10;
+  display: grid;
+  place-items: center;
+  min-height: clamp(190px, 25vw, 360px);
+  padding: 34px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 22px;
+  color: #f5f5ef;
+  background:
+    radial-gradient(circle at 50% 75%, rgba(var(--lime-rgb), .12), transparent 28%),
+    radial-gradient(circle at 10% 25%, rgba(var(--purple-rgb), .22), transparent 22%),
+    radial-gradient(circle at 90% 25%, rgba(var(--orange-rgb), .20), transparent 22%),
+    linear-gradient(135deg, rgba(5,6,10,.96), rgba(14,8,22,.94));
+  box-shadow: 0 24px 80px rgba(0,0,0,.38), 0 0 48px rgba(var(--purple-rgb), .08) inset;
+  font: 950 clamp(24px, 4.4vw, 70px)/.94 var(--font-display);
+  letter-spacing: -.04em;
+  text-align: center;
+  text-transform: uppercase;
+  text-shadow: 0 0 24px rgba(var(--lime-rgb), .12);
+  animation: webHeroBreathe 8s ease-in-out infinite;
+}
+@keyframes webHeroBreathe {
+  0%, 100% { transform: scale(1); filter: saturate(1); }
+  50% { transform: scale(1.006); filter: saturate(1.08); }
+}
+
+/* Keep the original useful hero copy/pills/pillars visible beneath the visual
+   stage, but make them denser so the page reaches room creation quickly. */
+body:not(.is-game-view) .hero-kicker { margin-top: 2px; }
+body:not(.is-game-view) .hero-copy { max-width: 900px; }
+body:not(.is-game-view) .hero-pillar-grid { gap: 10px; }
+body:not(.is-game-view) .hero-deck { opacity: .7; }
+
+/* Room creation now uses the full page width. All four modes remain on one row
+   at desktop/laptop widths and are intentionally compact. */
+body:not(.is-game-view) .setup-panel {
+  width: 100%;
+}
+body:not(.is-game-view) .setup-panel .mode-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   gap: 8px;
 }
-
-body:not(.is-game-view) .mode-card {
+body:not(.is-game-view) .setup-panel .mode-card {
   min-width: 0;
-  min-height: 126px;
-  padding: 14px 12px;
-}
-
-body:not(.is-game-view) .mode-card b { font-size: 18px; }
-body:not(.is-game-view) .mode-card span { font-size: 10px; line-height: 1.25; }
-body:not(.is-game-view) .mode-card small { font-size: 9px; }
-
-/* The active Wild color picker sits in the narrow left state panel. Keep the
-   existing component/markup, but make each option self-contained and readable. */
-.inline-wild-grid {
+  min-height: 92px;
+  padding: 11px 12px;
+  display: grid;
+  grid-template-rows: auto auto auto;
+  align-content: center;
   gap: 4px;
 }
+body:not(.is-game-view) .setup-panel .mode-card b {
+  font-size: 17px;
+  line-height: 1;
+}
+body:not(.is-game-view) .setup-panel .mode-card span {
+  font-size: 9px;
+  line-height: 1.18;
+}
+body:not(.is-game-view) .setup-panel .mode-card small {
+  font-size: 8px;
+  line-height: 1;
+}
 
+/* Existing Web Wild picker correction. */
+.inline-wild-grid { gap: 4px; }
 .inline-color-choice {
   min-height: 36px;
   grid-template-columns: 7px minmax(0, 1fr);
@@ -79,16 +185,14 @@ body:not(.is-game-view) .mode-card small { font-size: 9px; }
   padding: 4px 5px;
   overflow: hidden;
 }
-
 .inline-color-choice i {
   grid-column: 1;
   grid-row: 1 / span 2;
   width: 6px;
   height: 6px;
   align-self: center;
-  box-shadow: 0 0 7px color-mix(in srgb, var(--choice) 45%, transparent);
+  box-shadow: 0 0 7px color-mix(in srgb,var(--choice) 45%,transparent);
 }
-
 .inline-color-choice b {
   grid-column: 2;
   grid-row: 1;
@@ -98,7 +202,6 @@ body:not(.is-game-view) .mode-card small { font-size: 9px; }
   letter-spacing: -.015em;
   overflow-wrap: anywhere;
 }
-
 .inline-color-choice span {
   grid-column: 2;
   grid-row: 2;
@@ -109,6 +212,13 @@ body:not(.is-game-view) .mode-card small { font-size: 9px; }
   white-space: nowrap;
 }
 
-@media (max-width: 1100px) {
-  body:not(.is-game-view) .mode-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 820px) {
+  .web-lobby-actions { flex-direction: column; width: 100%; }
+  body:not(.is-game-view) .setup-panel .mode-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:not(.is-game-view) .lobby-hero::before { animation: none; }
 }
