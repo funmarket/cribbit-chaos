@@ -5,7 +5,7 @@
 This file is a living project-control document. It must describe the current verified project state, not historical assumptions.
 
 1. GitHub is the canonical source of truth for deployable source and project documentation.
-2. After every implementation slice, update `PLAN.md`, `docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md`, affected technical/operational docs, and the active PR before starting the next slice.
+2. After every implementation slice, update `PLAN.md`, `docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md`, `docs/CARD_SYSTEM_IMPLEMENTATION_PLAN.md`, affected technical/operational docs, and the active PR before starting the next slice.
 3. Remove resolved blockers and obsolete instructions immediately. Never leave a completed task as `Current Next Task`.
 4. Runtime/deployment claims must be based on verified GitHub/platform state.
 5. Do not start the next phase while required blockers for the active phase remain.
@@ -78,13 +78,11 @@ Completed and verified:
 - [x] T5 exact implementation head `df581a56accbf6f128e7e460317508f26cdd366e` passed GitHub CI and Cloudflare Telegram deployment
 - [x] T6 first real-device screenshots received and reviewed
 - [x] T6 verified card-visual defect: Telegram cards were generic placeholders rather than the approved Cribbit card family
-- [x] dedicated Telegram Cribbit card renderer added in `apps/telegram/src/cardRenderer.ts`
-- [x] dedicated card visual system added in `apps/telegram/src/styles/cards.css`
-- [x] game board and hand now render from the shared `Card` contract through the new Cribbit renderer
-- [x] Truth, Dare, Paranoia, Chaos, Duel, Nope, Wild, Number, Skip, Reverse and Draw visual treatments implemented
-- [x] card-correction code head `2094e1464d3a8d0b0ed67e23b275e254341bb0da` passed typecheck, tests, Web build, Telegram build and API build
-- [x] Cloudflare Telegram deployment for card-correction code head `2094e1464d3a8d0b0ed67e23b275e254341bb0da` succeeded
-- [x] T1–T6 corrections have not changed Web presentation, game engine, API routes/contracts, Railway architecture, or PostgreSQL schema
+- [x] uploaded 112-card production package audited at package level: exactly 112 fronts, all 1080x1512; exactly 3 backs, all 1080x1512; 112 manifest records; code-driven HTML/CSS design source present
+- [x] shared card-system blueprint created in `docs/CARD_SYSTEM_IMPLEMENTATION_PLAN.md`
+- [x] blueprint locks supplied rendered cards as canonical visual assets; TypeScript is used for runtime registry/resolution/bindings rather than re-creating the deck design
+- [x] blueprint defines one shared card system for Web + Telegram, with separate presentation layers only
+- [x] no backend, database, game-rule, Web-layout, Railway or Phase 4 change made by the blueprint slice
 
 Still required before Phase 3.5 can close:
 
@@ -94,7 +92,9 @@ Still required before Phase 3.5 can close:
 - [x] T3 core mobile game board
 - [x] T4 contextual rule UI
 - [x] T5 mobile hardening
-- [ ] T6 real-device recheck/signoff of corrected Cribbit cards and remaining layout behavior
+- [ ] C1 complete audit/mapping of all 112 supplied cards to existing canonical engine/action taxonomy
+- [ ] replace temporary CSS-generated Telegram card faces with supplied canonical card assets through shared card registry/resolver
+- [ ] T6 real-device recheck/signoff of canonical cards and remaining layout behavior
 
 ### Shared staging/auth proof
 - [ ] live Web visual smoke test
@@ -129,8 +129,6 @@ Phase 5 auth completion, Phase 6 persistent ecosystem, Phase 7 client migration,
 
 ## Current Next Task
 
-**T6 — Real-device recheck of corrected Cribbit cards.**
+**C1 — Audit all 112 supplied card definitions and map them to the existing canonical game-rule/action taxonomy.**
 
-Open `https://cribbit-chaos-telegram.pages.dev` inside the actual Telegram Mini App/WebView, enter Demo Game, and compare the discard card plus Truth/Dare/Paranoia/Chaos/Duel/Nope/Wild hand cards against the approved Cribbit references. Verify hand scrolling, card tap/selection, contextual-sheet triggers, board layout, safe areas and body overflow. Record screenshots and fix only verified defects.
-
-Do not alter Web appearance, game mechanics, API contracts, Railway architecture, PostgreSQL schema, or begin Phase 4 multiplayer work.
+Produce a complete machine-checkable report for every manifest ID/filename/type/family/variant, proposed runtime role, proposed engine/action mapping where unambiguous, back category, and any ambiguity requiring canonical-rule verification. Do not alter Web appearance, game mechanics, API contracts, Railway architecture, PostgreSQL schema, or begin Phase 4 multiplayer work during C1.
