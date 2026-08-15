@@ -15,14 +15,22 @@ const CARD_VISUALS: Record<Card['kind'], CardVisual> = {
   number: { title: 'Number', glyph: '', ruleLead: 'Match color or value.', ruleDetail: 'Fast hand-management play.' },
   skip: { title: 'Skip', glyph: '⊘', ruleLead: 'Tempo control.', ruleDetail: 'Next player loses a turn.' },
   reverse: { title: 'Reverse', glyph: '⇄', ruleLead: 'Change direction.', ruleDetail: 'Two-player mode returns the turn.' },
-  draw: { title: 'Draw', glyph: '+2', ruleLead: 'Pressure card.', ruleDetail: 'Next player draws the configured penalty.' },
+  draw: { title: 'Draw', glyph: '+2', ruleLead: 'Pressure card.', ruleDetail: 'Resolve the canonical Draw +2 effect.' },
   wild: { title: 'Wild', glyph: '●●●', ruleLead: 'Choose the active color.', ruleDetail: 'Server validates the choice.' },
-  truth: { title: 'Truth', glyph: '?', ruleLead: 'Reveal something real.', ruleDetail: 'Answer honestly.' },
-  dare: { title: 'Dare', glyph: 'ϟ', ruleLead: 'Do something bold.', ruleDetail: 'Complete the challenge.' },
-  paranoia: { title: 'Paranoia', glyph: '◉', ruleLead: 'Trust no one.', ruleDetail: 'Choose, guess or suspect.' },
-  chaos: { title: 'Chaos', glyph: '↻', ruleLead: 'Shake things up.', ruleDetail: 'Resolve the effect.' },
-  duel: { title: 'Duel', glyph: '⚔', ruleLead: 'Challenge another player.', ruleDetail: 'Resolve the Duel.' },
-  nope: { title: 'Nope', glyph: '✋', ruleLead: 'Not today.', ruleDetail: 'Block an eligible effect.' }
+  truth: { title: 'Truth', glyph: '?', ruleLead: 'Truth', ruleDetail: 'Resolve the canonical Truth interaction.' },
+  dare: { title: 'Dare', glyph: 'ϟ', ruleLead: 'Dare', ruleDetail: 'Resolve the canonical Dare interaction.' },
+  paranoia: { title: 'Paranoia', glyph: '◉', ruleLead: 'Paranoia', ruleDetail: 'Resolve the canonical Paranoia interaction.' },
+  chaos: { title: 'Chaos', glyph: '↻', ruleLead: 'Chaos', ruleDetail: 'Resolve one approved server-selected Chaos effect.' },
+  duel: { title: 'Duel', glyph: '⚔', ruleLead: 'Duel', ruleDetail: 'Resolve the canonical Duel interaction.' },
+  nope: { title: 'Nope', glyph: '✋', ruleLead: 'Nope', ruleDetail: 'Reaction card for eligible effects only.' },
+  tag: { title: 'TAG', glyph: 'TAG', ruleLead: 'TAG', ruleDetail: 'Resolve the canonical TAG interaction.' },
+  truth_or_chaos: { title: 'Truth or Chaos', glyph: '?/ϟ', ruleLead: 'Truth or Chaos', ruleDetail: 'Resolve the canonical Truth-or-Dare choice flow.' },
+  hijack: { title: 'Hijack', glyph: '↯', ruleLead: 'Hijack', ruleDetail: 'Resolve the canonical Hijack interaction.' },
+  taboo: { title: 'Taboo', glyph: '!', ruleLead: 'Taboo', ruleDetail: 'Resolve the canonical Taboo interaction.' },
+  machiavelli: { title: 'Machiavelli', glyph: 'M', ruleLead: 'Machiavelli', ruleDetail: 'Choose one of the six fixed server-enforced effects.' },
+  ghost: { title: 'Ghost', glyph: 'G', ruleLead: 'Ghost', ruleDetail: 'Arm the canonical delayed Ghost interaction.' },
+  reverse_confession: { title: 'Reverse Confession', glyph: 'RC', ruleLead: 'Reverse Confession', ruleDetail: 'Resolve the canonical confession interaction.' },
+  dig_me: { title: 'DIG ME', glyph: 'DM', ruleLead: 'DIG ME', ruleDetail: 'Resolve the canonical DIG ME interaction.' }
 };
 
 export function renderCribbitCard(card: Card, size: TelegramCardSize): string {
