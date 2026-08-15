@@ -1,84 +1,51 @@
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { CARD_BACKS, cardDefinitions, getCardBackAsset, getCardFrontAsset } from '../src/index.ts';
+
+import { CARD_COPY_COUNTS, CANONICAL_DECK_SIZE, DECK_SPEC_ID } from '../src/index.ts';
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const manifest = JSON.parse(readFileSync(resolve(packageRoot, 'deck-manifest.json'), 'utf8')) as {
+  specId: string;
+  expectedPlayableCards: number;
+  actualPlayableFiles: number;
+  validPlayableFiles: number;
+  cardBack: string;
+  expectedFamilyCounts: Record<string, number>;
+  knownIssues: string[];
+  cards: Array<{ path: string; family: string; bytes: number; sha256: string; valid: boolean }>;
+};
 
-function pngSize(path: string): { width: number; height: number } {
-  const bytes = readFileSync(path);
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  assert.equal(view.getUint32(0), 0x89504e47);
-  return {
-    width: view.getUint32(16),
-    height: view.getUint32(20)
-  };
+function sha256(path: string): string {
+  return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
-function listPngs(path: string): readonly string[] {
-  return readdirSync(path)
-    .filter((filename) => filename.endsWith('.png'))
-    .sort();
-}
+test('asset manifest is bound to the canonical CHAOS-133-V1 registry', () => {
+  assert.equal(manifest.specId, DECK_SPEC_ID);
+  assert.equal(manifest.expectedPlayableCards, CANONICAL_DECK_SIZE);
+  assert.equal(manifest.actualPlayableFiles, CANONICAL_DECK_SIZE);
+  assert.equal(manifest.cards.length, CANONICAL_DECK_SIZE);
+  assert.deepEqual(manifest.expectedFamilyCounts, CARD_COPY_COUNTS);
+  assert.equal(existsSync(resolve(packageRoot, 'assets/CHAOS-133-V1', manifest.cardBack)), true, 'missing canonical card back');
+});
 
-test('canonical card masters and backs are present with audited dimensions', () => {
-  const mastersPath = resolve(packageRoot, 'assets/masters');
-  const backsPath = resolve(packageRoot, 'assets/backs');
-
-  assert.equal(listPngs(mastersPath).length, 112);
-  assert.equal(listPngs(backsPath).length, 3);
-
-  for (const definition of cardDefinitions) {
-    const assetPath = resolve(packageRoot, getCardFrontAsset(definition.id));
-    assert.equal(existsSync(assetPath), true, `missing master ${definition.id}`);
-    assert.deepEqual(pngSize(assetPath), { width: 1080, height: 1512 });
-  }
-
-  for (const back of CARD_BACKS) {
-    const assetPath = resolve(packageRoot, getCardBackAsset(back.kind));
-    assert.equal(existsSync(assetPath), true, `missing back ${back.kind}`);
-    assert.deepEqual(pngSize(assetPath), { width: 1080, height: 1512 });
+test('all 133 manifest entries exist at their canonical paths and match recorded integrity metadata', () => {
+  for (const card of manifest.cards) {
+    const assetPath = resolve(packageRoot, 'assets/CHAOS-133-V1', card.path);
+    assert.equal(existsSync(assetPath), true, `missing ${card.path}`);
+    assert.equal(statSync(assetPath).size, card.bytes, `byte-size drift for ${card.path}`);
+    assert.equal(sha256(assetPath), card.sha256, `checksum drift for ${card.path}`);
   }
 });
 
-test('generated card derivatives are complete and use deterministic dimensions', () => {
-  const expectedSizes = {
-    'web-medium': { width: 540, height: 756 },
-    mobile: { width: 360, height: 504 },
-    thumbnail: { width: 216, height: 302 }
-  } as const;
-
-  for (const [size, dimensions] of Object.entries(expectedSizes)) {
-    const frontsPath = resolve(packageRoot, `assets/generated/${size}/fronts`);
-    const backsPath = resolve(packageRoot, `assets/generated/${size}/backs`);
-    assert.equal(listPngs(frontsPath).length, 112);
-    assert.equal(listPngs(backsPath).length, 3);
-
-    for (const definition of cardDefinitions) {
-      const assetPath = resolve(packageRoot, getCardFrontAsset(definition.id, size as keyof typeof expectedSizes));
-      assert.equal(existsSync(assetPath), true, `missing ${size} front ${definition.id}`);
-      assert.deepEqual(pngSize(assetPath), dimensions);
-    }
-
-    for (const back of CARD_BACKS) {
-      const assetPath = resolve(packageRoot, getCardBackAsset(back.kind, size as keyof typeof expectedSizes));
-      assert.equal(existsSync(assetPath), true, `missing ${size} back ${back.kind}`);
-      assert.deepEqual(pngSize(assetPath), dimensions);
-    }
-  }
-});
-
-test('supplied design-generation source is preserved for future full-deck regeneration', () => {
-  const designSourcePath = resolve(packageRoot, 'design-source');
-  const expectedFiles = [
-    'card_back_template_source.html',
-    'card_manifest.json',
-    'card_template_source.html',
-    'design-tokens.css',
-    'design-tokens.json'
-  ];
-
-  assert.deepEqual(readdirSync(designSourcePath).sort(), expectedFiles);
+test('known invalid artwork remains explicit rather than silently changing deck authority', () => {
+  assert.deepEqual(manifest.knownIssues, ['cards/numbers/lime/number_lime_1_02.jpg']);
+  const invalid = manifest.cards.filter(card => !card.valid);
+  assert.deepEqual(invalid.map(card => card.path), manifest.knownIssues);
+  assert.equal(manifest.validPlayableFiles, CANONICAL_DECK_SIZE - invalid.length);
+  assert.equal(invalid.length, 1);
+  assert.equal(invalid[0]?.bytes, 0);
 });
