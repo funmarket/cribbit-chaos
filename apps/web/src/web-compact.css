@@ -1,0 +1,233 @@
+/*
+ * Web-only compact layout pass.
+ *
+ * Purpose: tighten the existing Cribbit CHAOS Web presentation without
+ * changing room/game behavior, DOM ids, event bindings, or server authority.
+ * Telegram keeps its own presentation layer.
+ */
+
+:root {
+  --shell: min(1360px, calc(100vw - 32px));
+}
+
+/* Keep the utility/header chrome useful but visually secondary. */
+body:not(.is-game-view) .app-header__inner {
+  min-height: 58px;
+  gap: 6px 14px;
+  padding-block: 6px;
+}
+
+body:not(.is-game-view) .status-cluster {
+  gap: 5px;
+}
+
+body:not(.is-game-view) .status-pill {
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 9px;
+}
+
+body:not(.is-game-view) .header-tools {
+  gap: 5px;
+}
+
+body:not(.is-game-view) .icon-button {
+  width: 34px;
+  height: 34px;
+}
+
+body:not(.is-game-view) main {
+  padding-top: 18px;
+}
+
+/*
+ * ROOM CREATION
+ * Center the existing panel and reduce dashboard-like stretching.
+ */
+body:not(.is-game-view) .setup-panel {
+  width: min(1240px, 100%);
+  min-height: 0;
+  margin-inline: auto;
+  border-radius: 18px;
+}
+
+body:not(.is-game-view) .setup-panel .panel-header {
+  align-items: center;
+  padding: 18px 22px 0;
+}
+
+body:not(.is-game-view) .setup-panel .panel-title {
+  font-size: clamp(22px, 2vw, 30px);
+}
+
+body:not(.is-game-view) .setup-panel .panel-subtitle {
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+body:not(.is-game-view) .setup-panel .panel-body {
+  padding: 18px 22px 22px;
+}
+
+body:not(.is-game-view) .setup-grid {
+  gap: 13px;
+}
+
+body:not(.is-game-view) .setup-row {
+  gap: 14px;
+}
+
+body:not(.is-game-view) .setup-panel .field {
+  gap: 5px;
+}
+
+body:not(.is-game-view) .setup-panel .field label,
+body:not(.is-game-view) .setup-panel .field-label {
+  font-size: 10px;
+}
+
+body:not(.is-game-view) .setup-panel .field-help {
+  font-size: 9px;
+  line-height: 1.25;
+}
+
+body:not(.is-game-view) .setup-panel .input,
+body:not(.is-game-view) .setup-panel .select {
+  min-height: 40px;
+  padding: 8px 11px;
+  border-radius: 9px;
+}
+
+/* Four choices should read as one compact game-mode selector, not four banners. */
+body:not(.is-game-view) .setup-panel .mode-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+body:not(.is-game-view) .setup-panel .mode-card {
+  min-height: 82px;
+  padding: 11px 12px;
+  border-radius: 11px;
+}
+
+body:not(.is-game-view) .setup-panel .mode-card b {
+  font-size: 16px;
+}
+
+body:not(.is-game-view) .setup-panel .mode-card span {
+  margin-top: 4px;
+  font-size: 9px;
+  line-height: 1.3;
+}
+
+body:not(.is-game-view) .setup-panel .mode-card small {
+  margin-top: 6px;
+  font-size: 8px;
+}
+
+/* Keep player count deliberate without using almost the entire viewport. */
+body:not(.is-game-view) .setup-panel .range-row {
+  grid-template-columns: minmax(260px, 720px) 62px;
+  justify-content: start;
+  gap: 10px;
+}
+
+body:not(.is-game-view) .setup-panel .range-value {
+  min-height: 38px;
+}
+
+/* Prompt sources stay colorful, but become compact selectable tiles. */
+body:not(.is-game-view) .setup-panel .source-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+body:not(.is-game-view) .setup-panel .source-toggle {
+  min-height: 58px;
+  padding: 8px 10px;
+  border-radius: 11px;
+}
+
+body:not(.is-game-view) .setup-panel .source-toggle svg {
+  width: 17px;
+  height: 17px;
+  margin-bottom: 4px;
+}
+
+body:not(.is-game-view) .setup-panel .source-toggle b {
+  font-size: 9px;
+}
+
+body:not(.is-game-view) .setup-panel .source-toggle span {
+  margin-top: 2px;
+  font-size: 8px;
+}
+
+/* Make the actual room action visually dominant. */
+body:not(.is-game-view) .setup-panel .start-row {
+  padding-top: 8px;
+  align-items: center;
+}
+
+body:not(.is-game-view) .setup-panel .start-row .button--primary,
+body:not(.is-game-view) .setup-panel #startGameButton {
+  min-width: 190px;
+}
+
+@media (max-width: 1040px) {
+  :root {
+    --shell: min(960px, calc(100vw - 24px));
+  }
+
+  body:not(.is-game-view) .setup-panel .mode-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body:not(.is-game-view) .setup-panel .range-row {
+    grid-template-columns: minmax(0, 1fr) 62px;
+  }
+}
+
+@media (max-width: 720px) {
+  :root {
+    --shell: calc(100vw - 20px);
+  }
+
+  body:not(.is-game-view) .setup-panel .panel-header {
+    align-items: flex-start;
+    padding: 16px 15px 0;
+  }
+
+  body:not(.is-game-view) .setup-panel .panel-body {
+    padding: 15px;
+  }
+
+  body:not(.is-game-view) .setup-row,
+  body:not(.is-game-view) .setup-panel .mode-grid,
+  body:not(.is-game-view) .setup-panel .source-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body:not(.is-game-view) .setup-panel .mode-grid,
+  body:not(.is-game-view) .setup-panel .source-grid {
+    gap: 7px;
+  }
+
+  body:not(.is-game-view) .setup-panel .mode-card {
+    min-height: 72px;
+  }
+
+  body:not(.is-game-view) .setup-panel .source-toggle {
+    min-height: 52px;
+  }
+
+  body:not(.is-game-view) .setup-panel .start-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  body:not(.is-game-view) .setup-panel .start-row .button,
+  body:not(.is-game-view) .setup-panel #startGameButton {
+    width: 100%;
+  }
+}
