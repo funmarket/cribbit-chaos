@@ -190,23 +190,6 @@ import { announce, toast } from './feedback.ts';
       return array;
     }
 
-    function toast(title, message, tone = 'cyan', duration = 3200) {
-      const region = $('#toastRegion');
-      const color = tone === 'lime' ? 'var(--lime)' : tone === 'magenta' ? 'var(--magenta)' : tone === 'orange' ? 'var(--orange)' : tone === 'gold' ? 'var(--gold)' : tone === 'red' ? 'var(--red)' : 'var(--cyan)';
-      const node = document.createElement('div');
-      node.className = 'toast';
-      node.style.setProperty('--toast-color', color);
-      node.innerHTML = `<b>${escapeHTML(title)}</b><p>${escapeHTML(message)}</p>`;
-      region.append(node);
-      setTimeout(() => node.remove(), duration);
-    }
-
-    function announce(message) {
-      const node = $('#liveRegion');
-      node.textContent = '';
-      requestAnimationFrame(() => { node.textContent = message; });
-    }
-
     function addEvent(type, message, tone = 'cyan', data = {}) {
       state.events.unshift({ id: `${Date.now()}-${Math.random()}`, type, message, tone, data, time: nowTime(), revision: state.revision });
       state.events = state.events.slice(0, 60);
