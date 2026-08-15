@@ -44,20 +44,21 @@ body:not(.is-game-view) .brand-lockup {
   display: none;
 }
 
-/* Primary menu: top row, white, sized to the actual bar height. */
+/* Primary menu: top row, right aligned, clean medium-weight typography. */
 body:not(.is-game-view) .product-nav {
   grid-area: nav;
   position: relative;
   inset: auto;
   display: flex;
   align-items: center;
-  gap: 2px;
+  justify-content: flex-end;
+  gap: 3px;
   width: 100%;
   min-width: 0;
   height: 48px;
   max-height: 48px;
   margin: 0;
-  padding: 0;
+  padding: 0 10px 0 72px;
   overflow: visible;
   border: 0;
   opacity: 1;
@@ -65,24 +66,25 @@ body:not(.is-game-view) .product-nav {
 }
 
 body:not(.is-game-view) .product-nav .nav-button {
-  min-height: 38px;
-  padding: 8px 11px;
+  min-height: 36px;
+  padding: 8px 10px;
   color: #ffffff;
-  font-size: clamp(13px, .9vw, 15px);
-  font-weight: 850;
+  font-family: var(--font-body);
+  font-size: clamp(13px, .86vw, 14px);
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: .005em;
+  letter-spacing: 0;
 }
 
 body:not(.is-game-view) .product-nav .nav-button:hover,
 body:not(.is-game-view) .product-nav .nav-button:focus-visible,
 body:not(.is-game-view) .product-nav .nav-button[aria-current="page"] {
   color: #ffffff;
-  background: rgba(255,255,255,.065);
+  background: rgba(255,255,255,.055);
 }
 
 body:not(.is-game-view) .product-nav .nav-button[aria-current="page"] {
-  border-color: rgba(var(--magenta-rgb), .34);
+  border-color: rgba(var(--magenta-rgb), .28);
 }
 
 /* Utility icons remain on the same primary row, aligned to the right. */
@@ -140,7 +142,7 @@ body:not(.is-game-view) .status-pill {
   background: rgba(255,255,255,.018);
   border-color: rgba(255,255,255,.07);
   font-size: 8px;
-  font-weight: 850;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -185,9 +187,9 @@ body:not(.is-game-view) .seg-button {
   min-height: 38px;
   padding: 8px 12px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.2;
-  letter-spacing: .015em;
+  letter-spacing: .01em;
 }
 
 /* Saved / In Room / Details style segmented controls. */
@@ -259,7 +261,7 @@ body:not(.is-game-view) .setup-panel .field label,
 body:not(.is-game-view) .setup-panel .field-label {
   color: #eef2f8;
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 700;
 }
 
 body:not(.is-game-view) .setup-panel .field-help {
@@ -292,7 +294,7 @@ body:not(.is-game-view) .setup-panel .mode-card {
 body:not(.is-game-view) .setup-panel .mode-card b {
   color: #fff;
   font-size: clamp(17px, 1.35vw, 21px);
-  font-weight: 900;
+  font-weight: 750;
   line-height: 1;
 }
 
@@ -309,7 +311,7 @@ body:not(.is-game-view) .setup-panel .mode-card small {
   margin-top: 8px;
   color: #d179ff;
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 750;
   line-height: 1.1;
   letter-spacing: .045em;
 }
@@ -356,7 +358,7 @@ body:not(.is-game-view) .setup-panel .source-toggle svg {
 body:not(.is-game-view) .setup-panel .source-toggle b {
   color: #f1f4f8;
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 750;
   line-height: 1.1;
 }
 
@@ -385,12 +387,16 @@ body:not(.is-game-view) .setup-panel .start-row .button--primary,
 body:not(.is-game-view) .setup-panel #startGameButton {
   min-width: 190px;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 750;
 }
 
 @media (max-width: 1040px) {
   :root {
     --shell: min(960px, calc(100vw - 24px));
+  }
+
+  body:not(.is-game-view) .product-nav {
+    padding-left: 46px;
   }
 
   body:not(.is-game-view) .product-nav .nav-button {
