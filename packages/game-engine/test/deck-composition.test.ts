@@ -2,50 +2,31 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { Card } from '@cribbit/contracts';
-import { CANONICAL_DECK_COUNTS, CANONICAL_DECK_SIZE, buildCoreDeck } from '../src/index.ts';
+import { CARD_COPY_COUNTS } from '../../cards/src/index.ts';
+import { CANONICAL_DECK_COUNTS, CANONICAL_DECK_SIZE, CANONICAL_DECK_SPEC_ID, buildCoreDeck } from '../src/index.ts';
 
 function countKinds(deck: Card[]): Record<Card['kind'], number> {
-  return deck.reduce<Record<Card['kind'], number>>((counts, card) => {
-    counts[card.kind] += 1;
-    return counts;
-  }, {
-    number: 0,
-    skip: 0,
-    reverse: 0,
-    draw: 0,
-    wild: 0,
-    truth: 0,
-    dare: 0,
-    paranoia: 0,
-    chaos: 0,
-    duel: 0,
-    nope: 0
-  });
+  const counts = Object.fromEntries(Object.keys(CARD_COPY_COUNTS).map(kind => [kind, 0])) as Record<Card['kind'], number>;
+  for (const card of deck) counts[card.kind] += 1;
+  return counts;
 }
 
-test('canonical deck contains exactly 112 playable cards with the locked family counts', () => {
+test('engine deck is exactly CHAOS-133-V1', () => {
   const deck = buildCoreDeck('canonical-deck-count-test');
 
+  assert.equal(CANONICAL_DECK_SPEC_ID, 'CHAOS-133-V1');
+  assert.equal(CANONICAL_DECK_SIZE, 133);
   assert.equal(deck.length, CANONICAL_DECK_SIZE);
-  assert.deepEqual(countKinds(deck), CANONICAL_DECK_COUNTS);
+  assert.deepEqual(CANONICAL_DECK_COUNTS, CARD_COPY_COUNTS);
+  assert.deepEqual(countKinds(deck), CARD_COPY_COUNTS);
 });
 
-test('each color contains 19 numbers, one Skip, one Reverse, and two Draw cards', () => {
+test('number-card distribution is one zero and two copies of 1-9 per color', () => {
   const deck = buildCoreDeck('canonical-color-count-test');
 
   for (const color of ['lime', 'orange', 'cyan', 'purple'] as const) {
-    const colored = deck.filter(card => card.color === color);
-    const numbers = colored.filter(card => card.kind === 'number');
-    const skips = colored.filter(card => card.kind === 'skip');
-    const reverses = colored.filter(card => card.kind === 'reverse');
-    const draws = colored.filter(card => card.kind === 'draw');
-
-    assert.equal(colored.length, 23, `${color} should contain 23 engine cards`);
+    const numbers = deck.filter(card => card.kind === 'number' && card.color === color);
     assert.equal(numbers.length, 19, `${color} should contain 19 number cards`);
-    assert.equal(skips.length, 1, `${color} should contain one Skip`);
-    assert.equal(reverses.length, 1, `${color} should contain one Reverse`);
-    assert.equal(draws.length, 2, `${color} should contain two Draw cards`);
-
     assert.equal(numbers.filter(card => card.value === 0).length, 1, `${color} should contain one zero`);
     for (let value = 1; value <= 9; value += 1) {
       assert.equal(numbers.filter(card => card.value === value).length, 2, `${color} should contain two ${value}s`);
@@ -53,12 +34,16 @@ test('each color contains 19 numbers, one Skip, one Reverse, and two Draw cards'
   }
 });
 
-test('Nope remains reaction inventory while Pass/Rewind/Flag/answer controls never enter the deck', () => {
+test('canonical physical inventory includes all approved special families and excludes controls', () => {
   const deck = buildCoreDeck('canonical-control-separation-test');
-  const symbols = new Set(deck.map(card => card.symbol));
+  const kinds = new Set(deck.map(card => card.kind));
 
-  assert.equal(deck.filter(card => card.kind === 'nope').length, 2);
-  for (const forbidden of ['pass', 'rewind', 'flag', 'speak', 'type', 'choose', 'answered-live', 'spice-dial']) {
+  for (const family of Object.keys(CARD_COPY_COUNTS)) {
+    assert.equal(kinds.has(family as Card['kind']), true, `${family} must exist in CHAOS-133-V1`);
+  }
+
+  const symbols = new Set(deck.map(card => card.symbol));
+  for (const forbidden of ['pass', 'rewind', 'flag', 'speak', 'type', 'choose', 'answered-live', 'spice-dial', 'roulette']) {
     assert.equal(symbols.has(forbidden), false, `${forbidden} must remain a control, not hand inventory`);
   }
 });
