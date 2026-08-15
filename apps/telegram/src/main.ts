@@ -8,9 +8,10 @@ const params = new URLSearchParams(location.search);
 const compatibilityFixture = params.get('compat') === '1' && Boolean(params.get('fixture'));
 
 if (compatibilityFixture) {
-  void import('../../../packages/ui/src/bootstrap.ts').then(({ bootstrap }) =>
-    bootstrap(platform, { runtimeMode: 'legacy-compatibility' }),
-  );
+  void import('../../../packages/ui/src/bootstrap.ts').then(({ bootstrap, mountSharedTemplate }) => {
+    mountSharedTemplate();
+    return bootstrap(platform, { runtimeMode: 'legacy-compatibility' });
+  });
 } else {
   document.addEventListener('click', event => {
     const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[data-action="demo-game"]') : null;
