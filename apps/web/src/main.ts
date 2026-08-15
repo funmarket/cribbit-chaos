@@ -2,6 +2,52 @@ import { BrowserPlatform } from '../../../packages/platform/src/browser.ts';
 import { bootstrap, mountSharedTemplate } from '../../../packages/ui/src/bootstrap.ts';
 import './web-game.css';
 import './web-compact.css';
+import './canonical-hero-cards.css';
+
+const CANONICAL_HERO_CARDS = [
+  {
+    className: 'cc-web-card-truth',
+    label: 'Truth',
+    src: new URL(
+      '../../../packages/cards/assets/CHAOS-133-V1/cards/truth/truth_01.jpg',
+      import.meta.url,
+    ).href,
+  },
+  {
+    className: 'cc-web-card-dare',
+    label: 'Dare',
+    src: new URL(
+      '../../../packages/cards/assets/CHAOS-133-V1/cards/dare/dare_01.jpg',
+      import.meta.url,
+    ).href,
+  },
+  {
+    className: 'cc-web-card-duel',
+    label: 'Duel',
+    src: new URL(
+      '../../../packages/cards/assets/CHAOS-133-V1/cards/duel/duel_01.jpg',
+      import.meta.url,
+    ).href,
+  },
+  {
+    className: 'cc-web-card-nope',
+    label: 'Nope',
+    src: new URL(
+      '../../../packages/cards/assets/CHAOS-133-V1/cards/nope/nope_01.jpg',
+      import.meta.url,
+    ).href,
+  },
+] as const;
+
+function canonicalHeroCardMarkup(): string {
+  return CANONICAL_HERO_CARDS.map(
+    card => `
+      <figure class="cc-web-hero-card ${card.className}" aria-label="${card.label} card">
+        <img class="cc-web-hero-card__image" src="${card.src}" alt="${card.label} card artwork" draggable="false">
+      </figure>
+    `,
+  ).join('');
+}
 
 function mountCribbitChaosHero(): void {
   const heroHost =
@@ -24,41 +70,7 @@ function mountCribbitChaosHero(): void {
   heroHost.innerHTML = `
     <div class="cc-web-hero">
       <div class="cc-web-cards-bg" aria-hidden="true">
-        <div class="cc-web-game-card card-truth">
-          <div class="cc-web-icon-wrap">❓</div>
-          <div class="cc-web-card-title">TRUTH</div>
-          <div class="cc-web-divider"></div>
-          <div class="cc-web-desc">Reveal something real.<br>Answer honestly.</div>
-          <div class="cc-web-flavor">In the game of masks,<br>truth is the ultimate chaos.</div>
-          <div class="cc-web-card-frog">🐸</div>
-        </div>
-
-        <div class="cc-web-game-card card-dare">
-          <div class="cc-web-icon-wrap">⚡</div>
-          <div class="cc-web-card-title">DARE</div>
-          <div class="cc-web-divider"></div>
-          <div class="cc-web-desc">Do something bold.<br>No backing out.</div>
-          <div class="cc-web-flavor">Fortune favors the fearless.</div>
-          <div class="cc-web-card-frog">🐸</div>
-        </div>
-
-        <div class="cc-web-game-card card-duel">
-          <div class="cc-web-icon-wrap">⚔️</div>
-          <div class="cc-web-card-title">DUEL</div>
-          <div class="cc-web-divider"></div>
-          <div class="cc-web-desc">Challenge another player.<br>Resolve the Duel.</div>
-          <div class="cc-web-flavor">In the ribbit realm,<br>every duel is a splash of fate.</div>
-          <div class="cc-web-card-frog">🐸</div>
-        </div>
-
-        <div class="cc-web-game-card card-nope">
-          <div class="cc-web-icon-wrap">✋</div>
-          <div class="cc-web-card-title">NOPE</div>
-          <div class="cc-web-divider"></div>
-          <div class="cc-web-desc">Not today.<br>Block an eligible effect.</div>
-          <div class="cc-web-flavor">Chaos favors the unbothered.</div>
-          <div class="cc-web-card-frog">🐸</div>
-        </div>
+        ${canonicalHeroCardMarkup()}
       </div>
 
       <div class="cc-web-content">
