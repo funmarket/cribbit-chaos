@@ -15,10 +15,8 @@
 
 /* =========================================================
    WEB HEADER
-   Main navigation is the primary row.
-   Connection/revision/fixture diagnostics are a secondary slim row.
-   Existing Web JS adds .web-secondary-hidden on downward scroll; that now
-   collapses diagnostics instead of hiding the main menu.
+   Root layout: brand/home + main nav + utility tools on the primary row.
+   Diagnostics live on the slim secondary row and collapse on scroll.
    ========================================================= */
 body:not(.is-game-view) .app-header {
   position: sticky;
@@ -30,21 +28,40 @@ body:not(.is-game-view) .app-header {
 body:not(.is-game-view) .app-header__inner {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   grid-template-areas:
-    "nav tools"
-    "status status";
+    "brand nav tools"
+    "status status status";
   align-items: center;
-  gap: 0 14px;
+  column-gap: 14px;
+  row-gap: 0;
   padding-block: 5px 0;
 }
 
-/* The large Web lobby already carries Cribbit branding in the hero. */
+/* Restore the canonical home/brand control from the shared template. */
 body:not(.is-game-view) .brand-lockup {
-  display: none;
+  grid-area: brand;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: max-content;
+  padding: 0 4px 0 0;
 }
 
-/* Primary menu: top row, right aligned, clean medium-weight typography. */
+body:not(.is-game-view) .brand-lockup .frog-mark {
+  width: 34px;
+  height: 34px;
+}
+
+body:not(.is-game-view) .brand-lockup .brand-type__cribbit {
+  font-size: 13px;
+}
+
+body:not(.is-game-view) .brand-lockup .brand-type__chaos {
+  font-size: 18px;
+}
+
+/* Primary menu: centered in the free space, never under the brand/home icon. */
 body:not(.is-game-view) .product-nav {
   grid-area: nav;
   position: relative;
@@ -58,7 +75,7 @@ body:not(.is-game-view) .product-nav {
   height: 48px;
   max-height: 48px;
   margin: 0;
-  padding: 0 10px 0 72px;
+  padding: 0 6px;
   overflow: visible;
   border: 0;
   opacity: 1;
@@ -87,7 +104,7 @@ body:not(.is-game-view) .product-nav .nav-button[aria-current="page"] {
   border-color: rgba(var(--magenta-rgb), .28);
 }
 
-/* Utility icons remain on the same primary row, aligned to the right. */
+/* Utility icons remain on the same primary row, aligned to the far right. */
 body:not(.is-game-view) .header-tools {
   grid-area: tools;
   min-width: 0;
@@ -103,11 +120,7 @@ body:not(.is-game-view) .header-utility-icon {
   height: 36px;
 }
 
-/*
- * Secondary diagnostics row.
- * Connected stays left; Server rev / Fixture preview sit on the right so they
- * no longer consume the primary menu's visual hierarchy.
- */
+/* Secondary diagnostics row. */
 body:not(.is-game-view) .status-cluster {
   grid-area: status;
   min-width: 0;
@@ -155,7 +168,7 @@ body:not(.is-game-view) #fixtureLabel {
   color: #8793a5;
 }
 
-/* Scroll down: keep the main menu, collapse only diagnostics. */
+/* Scroll down: keep brand + main menu, collapse only diagnostics. */
 body:not(.is-game-view) .app-header.web-secondary-hidden .status-cluster {
   min-height: 0;
   max-height: 0;
@@ -192,7 +205,6 @@ body:not(.is-game-view) .seg-button {
   letter-spacing: .01em;
 }
 
-/* Saved / In Room / Details style segmented controls. */
 body:not(.is-game-view) .seg-button {
   color: #aeb8c8;
   background: rgba(255,255,255,.028);
@@ -216,7 +228,6 @@ body:not(.is-game-view) .seg-button.active {
 
 /* =========================================================
    ROOM CREATION
-   Center the existing panel and reduce dashboard-like stretching.
    ========================================================= */
 body:not(.is-game-view) .setup-panel {
   width: min(1240px, 100%);
@@ -279,7 +290,6 @@ body:not(.is-game-view) .setup-panel .select {
   font-size: 14px;
 }
 
-/* Four choices should read as one compact game-mode selector, not banners. */
 body:not(.is-game-view) .setup-panel .mode-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
@@ -324,7 +334,6 @@ body:not(.is-game-view) .setup-panel .mode-card[aria-pressed="true"] span {
   color: #c6cfdd;
 }
 
-/* Keep player count deliberate without using almost the entire viewport. */
 body:not(.is-game-view) .setup-panel .range-row {
   grid-template-columns: minmax(260px, 720px) 62px;
   justify-content: start;
@@ -337,7 +346,6 @@ body:not(.is-game-view) .setup-panel .range-value {
   font-size: 15px;
 }
 
-/* Prompt sources stay colorful, but use readable text at compact dimensions. */
 body:not(.is-game-view) .setup-panel .source-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
@@ -377,7 +385,6 @@ body:not(.is-game-view) .setup-panel .source-toggle[aria-pressed="true"] span {
   color: #bac4d2;
 }
 
-/* Make the actual room action visually dominant. */
 body:not(.is-game-view) .setup-panel .start-row {
   padding-top: 8px;
   align-items: center;
@@ -395,8 +402,8 @@ body:not(.is-game-view) .setup-panel #startGameButton {
     --shell: min(960px, calc(100vw - 24px));
   }
 
-  body:not(.is-game-view) .product-nav {
-    padding-left: 46px;
+  body:not(.is-game-view) .brand-lockup .brand-type {
+    display: none;
   }
 
   body:not(.is-game-view) .product-nav .nav-button {
@@ -419,12 +426,19 @@ body:not(.is-game-view) .setup-panel #startGameButton {
   }
 
   body:not(.is-game-view) .app-header__inner {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: "status tools";
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "brand status tools";
     padding-block: 6px;
   }
 
-  /* Mobile uses its dedicated navigation trigger instead of desktop menu. */
+  body:not(.is-game-view) .brand-lockup {
+    display: inline-flex;
+  }
+
+  body:not(.is-game-view) .brand-lockup .brand-type {
+    display: none;
+  }
+
   body:not(.is-game-view) .product-nav {
     display: none;
   }
