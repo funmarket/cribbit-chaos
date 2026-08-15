@@ -6,21 +6,30 @@ import { CribbitApiClient, clientConfig } from '../../api-client/src/index.ts';
 import type { AuthSession } from '../../contracts/src/index.ts';
 import { resolveVisualFixture, type VisualFixtureName, VISUAL_FIXTURES } from './fixtures.ts';
 
+export type BootstrapRuntimeMode = 'none' | 'legacy-compatibility';
+
 export interface BootstrapOptions {
   /**
    * Platform-specific DOM composition that must happen immediately after the
-   * shared template is mounted and BEFORE the legacy/runtime module is loaded.
+   * shared template is mounted and before optional compatibility runtime load.
    *
-   * Keep this synchronous. It exists so Web/Telegram can replace presentation
-   * surfaces before the browser gets a chance to paint the shared fallback UI,
-   * while preserving the same canonical DOM ids that the runtime binds to.
+   * This hook is transitional. Migrated production surfaces must move to a
+   * single authoritative composition source rather than accumulating DOM
+   * replacement here.
    */
   beforeRuntime?: () => void;
+
+  /**
+   * The legacy runtime is preview/demo compatibility only and must never load
+   * implicitly. Every caller must opt into it explicitly while that caller is
+   * still being migrated away from compatibility ownership.
+   */
+  runtimeMode: BootstrapRuntimeMode;
 }
 
 export async function bootstrap(
   platform: PlatformAdapter,
-  options: BootstrapOptions = {},
+  options: BootstrapOptions,
 ): Promise<void> {
   const host = document.querySelector<HTMLDivElement>('#app');
   if (!host) throw new Error('Missing #app host');
@@ -28,13 +37,6 @@ export async function bootstrap(
   host.innerHTML = template;
   platform.initialize();
 
-  /*
-   * IMPORTANT PRESENTATION BOUNDARY
-   * --------------------------------
-   * Run platform composition before the first await/dynamic import. This keeps
-   * the shared template as source scaffolding without visibly painting it first
-   * and then replacing it later (the old homepage flicker/duplicate bug).
-   */
   options.beforeRuntime?.();
 
   const config = clientConfig(platform.kind);
@@ -59,7 +61,9 @@ export async function bootstrap(
     }
   }
 
-  await import('../../legacy-runtime/src/runtime.ts');
+  if (options.runtimeMode === 'legacy-compatibility') {
+    await import('../../legacy-runtime/src/runtime.ts');
+  }
 }
 
 function setupWebTelegramLogin(platformKind: PlatformAdapter['kind'], api: CribbitApiClient, apiUrl: string): void {
