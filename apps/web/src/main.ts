@@ -1,6 +1,7 @@
 import { BrowserPlatform } from '../../../packages/platform/src/browser.ts';
 import { bootstrap } from '../../../packages/ui/src/bootstrap.ts';
 import './web-game.css';
+import './web-compact.css';
 
 function mountCribbitChaosHero(): void {
   const heroHost =
@@ -211,7 +212,7 @@ function mountCribbitChaosHero(): void {
 
           <div class="cc-web-stat s3">
             <div class="cc-web-stat-num">
-              112
+              133
             </div>
 
             <div class="cc-web-stat-label">
