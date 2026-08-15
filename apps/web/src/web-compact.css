@@ -8,42 +8,170 @@
 
 :root {
   --shell: min(1360px, calc(100vw - 32px));
+  --cc-readable: #dfe6f1;
+  --cc-readable-muted: #aeb8c8;
+  --cc-readable-faint: #8995a8;
 }
 
-/* Keep the utility/header chrome useful but visually secondary. */
+/* =========================================================
+   WEB HEADER
+   Keep the utility/status row and product navigation physically separate.
+   Existing Web JS adds .web-secondary-hidden on downward scroll.
+   ========================================================= */
+body:not(.is-game-view) .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  overflow: visible;
+}
+
 body:not(.is-game-view) .app-header__inner {
-  min-height: 58px;
-  gap: 6px 14px;
-  padding-block: 6px;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "status tools"
+    "nav nav";
+  align-items: center;
+  gap: 0 14px;
+  padding-block: 6px 0;
+}
+
+/* The large Web lobby already carries Cribbit branding in the hero. */
+body:not(.is-game-view) .brand-lockup {
+  display: none;
 }
 
 body:not(.is-game-view) .status-cluster {
+  grid-area: status;
+  min-width: 0;
   gap: 5px;
+  padding-bottom: 6px;
 }
 
 body:not(.is-game-view) .status-pill {
   min-height: 30px;
   padding: 5px 9px;
-  font-size: 9px;
+  color: var(--cc-readable-muted);
+  font-size: 10px;
+  font-weight: 850;
 }
 
 body:not(.is-game-view) .header-tools {
+  grid-area: tools;
+  min-width: 0;
   gap: 5px;
+  padding-bottom: 6px;
 }
 
-body:not(.is-game-view) .icon-button {
+body:not(.is-game-view) .icon-button,
+body:not(.is-game-view) .header-utility-icon {
   width: 34px;
   height: 34px;
+}
+
+/* Secondary product menu occupies its own row and never overlaps the top bar. */
+body:not(.is-game-view) .product-nav {
+  grid-area: nav;
+  position: relative;
+  inset: auto;
+  width: 100%;
+  min-width: 0;
+  max-height: 46px;
+  margin: 0;
+  padding: 7px 0 8px;
+  overflow: visible;
+  border-top: 1px solid rgba(255,255,255,.055);
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    max-height .2s ease,
+    padding .2s ease,
+    opacity .16s ease,
+    transform .2s ease,
+    border-color .2s ease;
+}
+
+body:not(.is-game-view) .product-nav .nav-button {
+  padding: 5px 9px;
+  color: #b8c2d2;
+  font-size: 11px;
+  font-weight: 820;
+}
+
+body:not(.is-game-view) .product-nav .nav-button:hover,
+body:not(.is-game-view) .product-nav .nav-button:focus-visible,
+body:not(.is-game-view) .product-nav .nav-button[aria-current="page"] {
+  color: #fff;
+}
+
+/* Hide only the secondary product-nav row when scrolling down. */
+body:not(.is-game-view) .app-header.web-secondary-hidden .product-nav {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top-color: transparent;
+  opacity: 0;
+  transform: translateY(-8px);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+body:not(.is-game-view) .app-header:not(.web-secondary-hidden) .product-nav {
+  pointer-events: auto;
 }
 
 body:not(.is-game-view) main {
   padding-top: 18px;
 }
 
-/*
- * ROOM CREATION
- * Center the existing panel and reduce dashboard-like stretching.
- */
+/* =========================================================
+   TYPOGRAPHY / CONTROL LEGIBILITY
+   Buttons should not be giant containers around tiny low-contrast labels.
+   ========================================================= */
+body:not(.is-game-view) .button,
+body:not(.is-game-view) .seg-button,
+body:not(.is-game-view) .source-toggle,
+body:not(.is-game-view) .mode-card {
+  color: var(--cc-readable);
+}
+
+body:not(.is-game-view) .button,
+body:not(.is-game-view) .seg-button {
+  min-height: 38px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: .015em;
+}
+
+/* Saved / In Room / Details style segmented controls. */
+body:not(.is-game-view) .seg-button {
+  color: #aeb8c8;
+  background: rgba(255,255,255,.028);
+  border-color: rgba(255,255,255,.09);
+}
+
+body:not(.is-game-view) .seg-button:hover,
+body:not(.is-game-view) .seg-button:focus-visible {
+  color: #fff;
+  background: rgba(255,255,255,.055);
+  border-color: rgba(255,255,255,.18);
+}
+
+body:not(.is-game-view) .seg-button[aria-pressed="true"],
+body:not(.is-game-view) .seg-button.is-active,
+body:not(.is-game-view) .seg-button.active {
+  color: #fff;
+  background: rgba(255,255,255,.075);
+  border-color: rgba(255,255,255,.20);
+}
+
+/* =========================================================
+   ROOM CREATION
+   Center the existing panel and reduce dashboard-like stretching.
+   ========================================================= */
 body:not(.is-game-view) .setup-panel {
   width: min(1240px, 100%);
   min-height: 0;
@@ -62,7 +190,9 @@ body:not(.is-game-view) .setup-panel .panel-title {
 
 body:not(.is-game-view) .setup-panel .panel-subtitle {
   margin-top: 4px;
-  font-size: 11px;
+  color: var(--cc-readable-muted);
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 body:not(.is-game-view) .setup-panel .panel-body {
@@ -83,12 +213,15 @@ body:not(.is-game-view) .setup-panel .field {
 
 body:not(.is-game-view) .setup-panel .field label,
 body:not(.is-game-view) .setup-panel .field-label {
-  font-size: 10px;
+  color: #eef2f8;
+  font-size: 11px;
+  font-weight: 850;
 }
 
 body:not(.is-game-view) .setup-panel .field-help {
-  font-size: 9px;
-  line-height: 1.25;
+  color: var(--cc-readable-faint);
+  font-size: 10px;
+  line-height: 1.35;
 }
 
 body:not(.is-game-view) .setup-panel .input,
@@ -96,33 +229,53 @@ body:not(.is-game-view) .setup-panel .select {
   min-height: 40px;
   padding: 8px 11px;
   border-radius: 9px;
+  color: #f5f7fb;
+  font-size: 14px;
 }
 
-/* Four choices should read as one compact game-mode selector, not four banners. */
+/* Four choices should read as one compact game-mode selector, not banners. */
 body:not(.is-game-view) .setup-panel .mode-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
 body:not(.is-game-view) .setup-panel .mode-card {
-  min-height: 82px;
-  padding: 11px 12px;
+  min-height: 88px;
+  padding: 12px 14px;
   border-radius: 11px;
 }
 
 body:not(.is-game-view) .setup-panel .mode-card b {
-  font-size: 16px;
+  color: #fff;
+  font-size: clamp(17px, 1.35vw, 21px);
+  font-weight: 900;
+  line-height: 1;
 }
 
 body:not(.is-game-view) .setup-panel .mode-card span {
-  margin-top: 4px;
-  font-size: 9px;
-  line-height: 1.3;
+  display: block;
+  margin-top: 7px;
+  color: #b5bfce;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 body:not(.is-game-view) .setup-panel .mode-card small {
-  margin-top: 6px;
-  font-size: 8px;
+  display: block;
+  margin-top: 8px;
+  color: #d179ff;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: .045em;
+}
+
+body:not(.is-game-view) .setup-panel .mode-card[aria-pressed="true"] b {
+  color: #fff;
+}
+
+body:not(.is-game-view) .setup-panel .mode-card[aria-pressed="true"] span {
+  color: #c6cfdd;
 }
 
 /* Keep player count deliberate without using almost the entire viewport. */
@@ -134,33 +287,48 @@ body:not(.is-game-view) .setup-panel .range-row {
 
 body:not(.is-game-view) .setup-panel .range-value {
   min-height: 38px;
+  color: var(--lime);
+  font-size: 15px;
 }
 
-/* Prompt sources stay colorful, but become compact selectable tiles. */
+/* Prompt sources stay colorful, but use readable text at compact dimensions. */
 body:not(.is-game-view) .setup-panel .source-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
 body:not(.is-game-view) .setup-panel .source-toggle {
-  min-height: 58px;
-  padding: 8px 10px;
+  min-height: 64px;
+  padding: 9px 11px;
   border-radius: 11px;
 }
 
 body:not(.is-game-view) .setup-panel .source-toggle svg {
-  width: 17px;
-  height: 17px;
-  margin-bottom: 4px;
+  width: 18px;
+  height: 18px;
+  margin-bottom: 5px;
 }
 
 body:not(.is-game-view) .setup-panel .source-toggle b {
-  font-size: 9px;
+  color: #f1f4f8;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.1;
 }
 
 body:not(.is-game-view) .setup-panel .source-toggle span {
-  margin-top: 2px;
-  font-size: 8px;
+  margin-top: 4px;
+  color: #98a5b7;
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+body:not(.is-game-view) .setup-panel .source-toggle[aria-pressed="true"] b {
+  color: #fff;
+}
+
+body:not(.is-game-view) .setup-panel .source-toggle[aria-pressed="true"] span {
+  color: #bac4d2;
 }
 
 /* Make the actual room action visually dominant. */
@@ -172,6 +340,8 @@ body:not(.is-game-view) .setup-panel .start-row {
 body:not(.is-game-view) .setup-panel .start-row .button--primary,
 body:not(.is-game-view) .setup-panel #startGameButton {
   min-width: 190px;
+  font-size: 12px;
+  font-weight: 900;
 }
 
 @media (max-width: 1040px) {
@@ -191,6 +361,15 @@ body:not(.is-game-view) .setup-panel #startGameButton {
 @media (max-width: 720px) {
   :root {
     --shell: calc(100vw - 20px);
+  }
+
+  body:not(.is-game-view) .app-header__inner {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  /* Mobile uses its dedicated navigation trigger instead of a second bar. */
+  body:not(.is-game-view) .product-nav {
+    display: none;
   }
 
   body:not(.is-game-view) .setup-panel .panel-header {
@@ -214,11 +393,11 @@ body:not(.is-game-view) .setup-panel #startGameButton {
   }
 
   body:not(.is-game-view) .setup-panel .mode-card {
-    min-height: 72px;
+    min-height: 76px;
   }
 
   body:not(.is-game-view) .setup-panel .source-toggle {
-    min-height: 52px;
+    min-height: 56px;
   }
 
   body:not(.is-game-view) .setup-panel .start-row {
