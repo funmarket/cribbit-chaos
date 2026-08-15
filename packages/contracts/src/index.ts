@@ -20,7 +20,26 @@ export type {
 } from './social.ts';
 
 export type ClientPlatform = 'web' | 'telegram';
-export type CardKind = 'number' | 'skip' | 'reverse' | 'draw' | 'wild' | 'truth' | 'dare' | 'paranoia' | 'chaos' | 'duel' | 'nope';
+export type CardKind =
+  | 'number'
+  | 'skip'
+  | 'reverse'
+  | 'draw'
+  | 'wild'
+  | 'truth'
+  | 'dare'
+  | 'paranoia'
+  | 'chaos'
+  | 'duel'
+  | 'nope'
+  | 'tag'
+  | 'truth_or_chaos'
+  | 'hijack'
+  | 'taboo'
+  | 'machiavelli'
+  | 'ghost'
+  | 'reverse_confession'
+  | 'dig_me';
 export type CardColor = 'lime' | 'orange' | 'cyan' | 'purple';
 export type AuthorshipMode = 'SIGNED' | 'REVEAL_AFTER' | 'TABOO';
 export type AnswerMode = 'SPEAK' | 'TYPE' | 'CHOOSE' | 'ANSWERED_LIVE';
