@@ -36,7 +36,7 @@ export type {
 } from '@cribbit/contracts';
 
 export { createEngineError } from './errors.ts';
-export { CANONICAL_DECK_COUNTS, CANONICAL_DECK_SIZE, buildCoreDeck, drawCards, recycleDiscardPile } from './deck.ts';
+export { CANONICAL_DECK_COUNTS, CANONICAL_DECK_SIZE, CANONICAL_DECK_SPEC_ID, buildCoreDeck, drawCards, recycleDiscardPile } from './deck.ts';
 export { applyCommand } from './reducer.ts';
 export { createGame } from './setup.ts';
 export { advanceTurn, getCurrentPlayer, getNextPlayerIndex, getPlayerIndex } from './turn.ts';
