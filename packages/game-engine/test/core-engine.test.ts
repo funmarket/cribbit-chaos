@@ -6,6 +6,7 @@ import type { GameCommandContext } from '../src/index.ts';
 import {
   applyCommand,
   buildCoreDeck,
+  CANONICAL_DECK_SIZE,
   createGame,
   drawCards,
   projectAuthorship,
@@ -373,7 +374,7 @@ test('buildCoreDeck is deterministic and has the expected core composition', () 
   const deckA = buildCoreDeck('deck-seed');
   const deckB = buildCoreDeck('deck-seed');
 
-  assert.equal(deckA.length, 104);
+  assert.equal(deckA.length, CANONICAL_DECK_SIZE);
   assert.deepEqual(deckA.map(card => card.id), deckB.map(card => card.id));
 
   const colors: Array<'lime' | 'orange' | 'cyan' | 'purple'> = ['lime', 'orange', 'cyan', 'purple'];
@@ -406,7 +407,7 @@ test('createGame deals seven cards per player and starts with a numbered discard
     state.drawPile.length +
     state.discardPile.length +
     state.players.reduce((sum, player) => sum + player.hand.length, 0);
-  assert.equal(totalCards, 104);
+  assert.equal(totalCards, CANONICAL_DECK_SIZE);
 });
 
 test('createGame supports 10 players, rejects 1 and 11, and rejects duplicate ids', () => {
@@ -444,7 +445,7 @@ test('createGame is deterministic for the same seed and respects configurable st
     first.state.drawPile.length +
     first.state.discardPile.length +
     first.state.players.reduce((sum, player) => sum + player.hand.length, 0);
-  assert.equal(totalCards, 104);
+  assert.equal(totalCards, CANONICAL_DECK_SIZE);
 });
 
 test('initial discard selection remains a provisional setup strategy', () => {
