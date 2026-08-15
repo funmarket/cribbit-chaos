@@ -241,6 +241,68 @@ apps/web/index.html
 5. `web-game.css` contains `!important` for the mode grid, proving existing override debt.
 6. Normal Telegram uses `bootstrapTelegram`; shared legacy bootstrap is used by Telegram only for explicit compatibility fixtures.
 
+## Lobby/Room Creation dependency trace
+
+### Shared template ownership
+
+`packages/ui/src/template.html` currently owns both:
+
+```text
+[data-view="lobby"]
+└─ .lobby-grid
+   ├─ .lobby-hero
+   │  ├─ .hero-wordmark
+   │  ├─ .hero-kicker
+   │  ├─ .hero-copy
+   │  ├─ .hero-pills
+   │  ├─ .hero-pillar-grid
+   │  └─ .hero-deck
+   └─ .setup-panel
+      ├─ #profileName
+      ├─ #worldSelect
+      ├─ #ceilingSelect
+      ├─ #roomName
+      ├─ #modeGrid / .mode-card[data-mode]
+      ├─ #playerCount / #playerCountValue
+      ├─ #sourceGrid / .source-toggle[data-source]
+      ├─ #qaHandToggle
+      ├─ #joinCode
+      └─ #startGameButton
+```
+
+### Legacy runtime dependencies
+
+A full runtime-content search found **no references to `.lobby-hero` or any `.hero-*` descendant class**.
+
+The legacy runtime **does** depend directly on Room Creation identities and actions:
+
+- `.mode-card[data-mode]`
+- `[data-source]`
+- `#playerCount`
+- `#playerCountValue`
+- `#worldSelect`
+- `#ceilingSelect`
+- `#roomName`
+- `#joinCode`
+- `#startGameButton`
+- QA/knob state surrounding those controls
+
+`#startGameButton` is therefore the only proven element currently moved across the hero/setup boundary by Web `mountCribbitChaosHero()`.
+
+### Classification
+
+- `.lobby-hero`: **MOVE** to Web-owned composition. No legacy-runtime descendant dependency found.
+- `.setup-panel`: **REWIRE**, not safe to move wholesale yet because legacy runtime binds its production-looking controls directly.
+- shared header: **REWIRE/MOVE** after route/navigation dependencies are traced.
+- game/rooms/board/library/create/call/recap: **LEGACY/REWIRE** until their handlers/state are migrated.
+- QA lab, simulated join, fixture/debug controls: **DEV-ONLY**, but must be isolated by source ownership rather than hidden by another override layer.
+
+### Root cause of homepage duplication/flicker
+
+The shared template contains a complete legacy hero while Web separately owns a second hero definition in `main.ts`; Web replaces the first only after the shared template has already been inserted into the live application DOM.
+
+The correct next source migration is to give the lobby hero **one DOM owner** and remove the second definition rather than adjusting timing, opacity, or CSS.
+
 ---
 
 # 8. DEPLOYMENT TRACE
@@ -260,6 +322,8 @@ Repository inspection found:
 - no root `wrangler.toml`
 - no `.cloudflare/` directory
 
+Vercel fallback inspection additionally proves its current Web deployments are failing **before Vite executes** because the deployment environment reports `vite: command not found`. This is a Vercel configuration/install-path issue, not evidence that the current Web TypeScript change fails to compile. Vercel remains a fallback and is not being used as a substitute for Cloudflare verification.
+
 **Blocked:** current connected Cloudflare tool does not expose Pages project settings, so the external production branch cannot yet be independently proven from the Cloudflare control plane.
 
 ---
@@ -270,6 +334,7 @@ Repository inspection found:
 - [x] CI workflow inspected
 - [x] repo-owned Cloudflare workflow/config absence confirmed
 - [x] documented build command/output identified
+- [x] Vercel fallback failure traced separately from application compile state
 - [ ] Cloudflare production branch independently confirmed
 - [ ] live Pages deployment matched to exact Git SHA
 
@@ -279,13 +344,16 @@ Repository inspection found:
 - [x] implicit legacy runtime load identified
 - [x] shared DOM ownership with legacy runtime identified
 - [x] legacy runtime now requires an explicit bootstrap runtime mode at every known caller
-- [ ] beforeRuntime post-mount composition removed from migrated Web surfaces
-- [ ] migrated Web surfaces have one DOM owner
+- [x] legacy runtime hero dependencies searched: no `.lobby-hero` / `.hero-*` dependency found
+- [x] cross-boundary `#startGameButton` dependency identified
+- [ ] lobby hero moved to one authoritative DOM owner
+- [ ] beforeRuntime hero replacement removed
 - [ ] legacy runtime ownership reduced to explicit compatibility responsibilities
 
 ## N2 — Template decomposition
 - [x] template proven to contain full application surfaces
-- [ ] every section classified KEEP / MOVE / REWIRE / DEV-ONLY / LEGACY / REMOVE
+- [x] first-pass lobby classifications recorded
+- [ ] all remaining sections classified KEEP / MOVE / REWIRE / DEV-ONLY / LEGACY / REMOVE
 - [ ] migrated surfaces receive one owner
 
 ## N3 — Header normalization
@@ -302,6 +370,7 @@ Repository inspection found:
 - [x] shared DOM source identified
 - [x] legacy runtime direct setup bindings identified
 - [x] duplicate CSS authorities identified
+- [x] exact runtime-bound setup identities listed
 - [ ] production state/handlers separated from fixtures/demo
 - [ ] one component owns production Room Creator
 - [ ] no `!important`
@@ -351,7 +420,7 @@ Repository inspection found:
 # 10. LIVE PROGRESS
 
 ## Current phase
-**N1 — Bootstrap ownership / composition boundary**
+**N1 — Bootstrap ownership / lobby hero ownership migration**
 
 ## Implemented but NOT yet marked complete
 
@@ -374,13 +443,11 @@ Repository inspection found:
 **No patch layer added. No duplicate runtime added.**
 
 **Validation evidence:**
-- current head TypeScript typecheck: PASS
-- current CI reaches the same pre-existing game-engine test failures as the previous head
-- previous head `65c6a298...` already failed the exact same 3 tests
-- current failures are `128 !== 104` assertions in `packages/game-engine/test/core-engine.test.ts`
-- current `packages/game-engine/src/deck.ts` declares `CANONICAL_DECK_SIZE = 128`
-- current higher product authority is `CHAOS-133-V1`, so changing the tests from 104 to 128 would be another stale-authority patch and is forbidden
-- build steps are skipped by the current CI because tests run before builds
+- TypeScript typecheck: PASS on the changed branch state before the known test failure
+- CI reaches the same pre-existing game-engine failures as the prior head
+- prior head `65c6a298...` fails the exact same 3 deck-count assertions
+- build steps are skipped by current CI because tests run before build
+- Vercel fallback cannot supply build evidence because its install path currently fails with `vite: command not found`
 
 **Status:** IMPLEMENTED / VALIDATION BLOCKED. Not in Completed Fixes Log yet.
 
@@ -392,41 +459,44 @@ None yet under this protocol.
 
 ### BLOCKER B1 — Canonical deck/test authority conflict
 
-The current validation suite expects 104 cards while the current engine constructs 128. Both are stale relative to the locked physical deck authority `CHAOS-133-V1` at 133 cards.
+The current test suite expects 104 cards while the current engine constructs 128. Both are stale relative to the locked physical deck authority `CHAOS-133-V1` at 133 cards.
 
-Do **not** change `104 → 128` just to make CI green.
-
-This requires its own source-authority trace across contracts, engine card kinds, canonical card package, setup, tests, and current locked gameplay families.
+Do **not** change `104 → 128` merely to make CI green.
 
 ### BLOCKER B2 — CI build steps hidden behind pre-existing test failure
 
-`.github/workflows/ci.yml` runs tests before `build:web`, `build:telegram`, and `build:api`; therefore the existing deck-test failure prevents build validation from executing.
+CI runs tests before builds, so the existing deck conflict prevents `build:web`, `build:telegram`, and `build:api` from executing.
 
-Do not weaken or bypass tests. Build verification must be obtained without concealing B1.
+Do not weaken or bypass the tests.
 
 ### BLOCKER B3 — Cloudflare control-plane branch not independently visible
 
-Repository docs record the intended branch/project/build settings, but connected Cloudflare tooling currently exposes documentation rather than Pages project management.
+Repository docs record intended project/build settings, but connected Cloudflare tooling does not expose Pages project management.
 
 ### BLOCKER B4 — Browser visual verification
 
-A visual fix cannot be called complete until the affected route can be visually inspected after deployment or in supported browser test tooling.
+No visual fix can be marked complete until the affected route is inspected after a real build/deployment or through supported browser testing.
+
+### BLOCKER B5 — Vercel fallback build configuration
+
+Current Vercel Web deployments fail before application compilation with `vite: command not found`. This is recorded separately and must not be misreported as an application-source failure or used to alter Cloudflare-targeted source.
 
 ---
 
 # 11. NEXT AUTHORIZED ACTION
 
-Continue N1 source tracing before the next edit:
+The lobby hero is now proven safe to separate from legacy runtime **except for the existing `#startGameButton` move**.
 
-1. trace the exact `.lobby-hero` and `.setup-panel` blocks in `template.html`
-2. trace every legacy-runtime selector/handler that depends on descendants of those blocks
-3. determine which markup must remain stable for runtime compatibility
-4. move only a proven surface from post-mount mutation to a single authoritative source
-5. remove the corresponding mutation code rather than overriding it
-6. validate against typecheck and available build/browser evidence
-7. update this file only when evidence changes
+Next implementation must therefore:
 
-Do not disable the whole legacy runtime yet; it still owns working surfaces that have not been extracted.
+1. establish one source owner for the hero DOM
+2. preserve the runtime-bound `#startGameButton` identity until Room Creator is rewired
+3. remove the old hero definition and the Web replacement definition as duplicate authorities
+4. remove `mountCribbitChaosHero()` rather than leaving a second mutation path
+5. make no CSS/layout changes during the ownership migration unless required by the moved source itself
+6. verify no duplicate hero DOM, no missing runtime IDs, typecheck/build evidence, and visual behavior before recording completion
+
+Do not disable the whole legacy runtime. Do not migrate Room Creator in the same step.
 
 ---
 
