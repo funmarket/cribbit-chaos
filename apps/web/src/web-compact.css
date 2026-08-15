@@ -15,8 +15,10 @@
 
 /* =========================================================
    WEB HEADER
-   Keep the utility/status row and product navigation physically separate.
-   Existing Web JS adds .web-secondary-hidden on downward scroll.
+   Main navigation is the primary row.
+   Connection/revision/fixture diagnostics are a secondary slim row.
+   Existing Web JS adds .web-secondary-hidden on downward scroll; that now
+   collapses diagnostics instead of hiding the main menu.
    ========================================================= */
 body:not(.is-game-view) .app-header {
   position: sticky;
@@ -30,11 +32,11 @@ body:not(.is-game-view) .app-header__inner {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
-    "status tools"
-    "nav nav";
+    "nav tools"
+    "status status";
   align-items: center;
   gap: 0 14px;
-  padding-block: 6px 0;
+  padding-block: 5px 0;
 }
 
 /* The large Web lobby already carries Cribbit branding in the hero. */
@@ -42,83 +44,125 @@ body:not(.is-game-view) .brand-lockup {
   display: none;
 }
 
-body:not(.is-game-view) .status-cluster {
-  grid-area: status;
-  min-width: 0;
-  gap: 5px;
-  padding-bottom: 6px;
-}
-
-body:not(.is-game-view) .status-pill {
-  min-height: 30px;
-  padding: 5px 9px;
-  color: var(--cc-readable-muted);
-  font-size: 10px;
-  font-weight: 850;
-}
-
-body:not(.is-game-view) .header-tools {
-  grid-area: tools;
-  min-width: 0;
-  gap: 5px;
-  padding-bottom: 6px;
-}
-
-body:not(.is-game-view) .icon-button,
-body:not(.is-game-view) .header-utility-icon {
-  width: 34px;
-  height: 34px;
-}
-
-/* Secondary product menu occupies its own row and never overlaps the top bar. */
+/* Primary menu: top row, white, sized to the actual bar height. */
 body:not(.is-game-view) .product-nav {
   grid-area: nav;
   position: relative;
   inset: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
   width: 100%;
   min-width: 0;
-  max-height: 46px;
+  height: 48px;
+  max-height: 48px;
   margin: 0;
-  padding: 7px 0 8px;
+  padding: 0;
   overflow: visible;
-  border-top: 1px solid rgba(255,255,255,.055);
+  border: 0;
   opacity: 1;
-  transform: translateY(0);
-  transition:
-    max-height .2s ease,
-    padding .2s ease,
-    opacity .16s ease,
-    transform .2s ease,
-    border-color .2s ease;
+  transform: none;
 }
 
 body:not(.is-game-view) .product-nav .nav-button {
-  padding: 5px 9px;
-  color: #b8c2d2;
-  font-size: 11px;
-  font-weight: 820;
+  min-height: 38px;
+  padding: 8px 11px;
+  color: #ffffff;
+  font-size: clamp(13px, .9vw, 15px);
+  font-weight: 850;
+  line-height: 1;
+  letter-spacing: .005em;
 }
 
 body:not(.is-game-view) .product-nav .nav-button:hover,
 body:not(.is-game-view) .product-nav .nav-button:focus-visible,
 body:not(.is-game-view) .product-nav .nav-button[aria-current="page"] {
-  color: #fff;
+  color: #ffffff;
+  background: rgba(255,255,255,.065);
 }
 
-/* Hide only the secondary product-nav row when scrolling down. */
-body:not(.is-game-view) .app-header.web-secondary-hidden .product-nav {
+body:not(.is-game-view) .product-nav .nav-button[aria-current="page"] {
+  border-color: rgba(var(--magenta-rgb), .34);
+}
+
+/* Utility icons remain on the same primary row, aligned to the right. */
+body:not(.is-game-view) .header-tools {
+  grid-area: tools;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+}
+
+body:not(.is-game-view) .icon-button,
+body:not(.is-game-view) .header-utility-icon {
+  width: 36px;
+  height: 36px;
+}
+
+/*
+ * Secondary diagnostics row.
+ * Connected stays left; Server rev / Fixture preview sit on the right so they
+ * no longer consume the primary menu's visual hierarchy.
+ */
+body:not(.is-game-view) .status-cluster {
+  grid-area: status;
+  min-width: 0;
+  width: 100%;
+  min-height: 31px;
+  max-height: 31px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0 5px;
+  border-top: 1px solid rgba(255,255,255,.045);
+  opacity: 1;
+  overflow: hidden;
+  transform: translateY(0);
+  transition:
+    min-height .18s ease,
+    max-height .18s ease,
+    padding .18s ease,
+    opacity .14s ease,
+    transform .18s ease,
+    border-color .18s ease;
+}
+
+body:not(.is-game-view) #connectionPill {
+  margin-right: auto;
+}
+
+body:not(.is-game-view) .status-pill {
+  min-height: 24px;
+  padding: 3px 7px;
+  color: #9aa6b8;
+  background: rgba(255,255,255,.018);
+  border-color: rgba(255,255,255,.07);
+  font-size: 8px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+body:not(.is-game-view) #connectionPill {
+  color: #c6d0df;
+}
+
+body:not(.is-game-view) #revisionLabel,
+body:not(.is-game-view) #fixtureLabel {
+  color: #8793a5;
+}
+
+/* Scroll down: keep the main menu, collapse only diagnostics. */
+body:not(.is-game-view) .app-header.web-secondary-hidden .status-cluster {
+  min-height: 0;
   max-height: 0;
   padding-top: 0;
   padding-bottom: 0;
   border-top-color: transparent;
   opacity: 0;
-  transform: translateY(-8px);
-  overflow: hidden;
+  transform: translateY(-6px);
   pointer-events: none;
-}
-
-body:not(.is-game-view) .app-header:not(.web-secondary-hidden) .product-nav {
-  pointer-events: auto;
 }
 
 body:not(.is-game-view) main {
@@ -349,6 +393,11 @@ body:not(.is-game-view) .setup-panel #startGameButton {
     --shell: min(960px, calc(100vw - 24px));
   }
 
+  body:not(.is-game-view) .product-nav .nav-button {
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+
   body:not(.is-game-view) .setup-panel .mode-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -365,10 +414,24 @@ body:not(.is-game-view) .setup-panel #startGameButton {
 
   body:not(.is-game-view) .app-header__inner {
     grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "status tools";
+    padding-block: 6px;
   }
 
-  /* Mobile uses its dedicated navigation trigger instead of a second bar. */
+  /* Mobile uses its dedicated navigation trigger instead of desktop menu. */
   body:not(.is-game-view) .product-nav {
+    display: none;
+  }
+
+  body:not(.is-game-view) .status-cluster {
+    grid-area: status;
+    min-height: 30px;
+    max-height: 30px;
+    padding: 0;
+    border: 0;
+  }
+
+  body:not(.is-game-view) .status-cluster > :not(#connectionPill) {
     display: none;
   }
 
