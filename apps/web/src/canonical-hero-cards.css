@@ -18,19 +18,19 @@
   -webkit-user-drag: none;
 }
 
-.cc-web-card-truth {
+.cc-web-card-reverse-confession {
   top: 30px;
   right: 220px;
   transform: rotate(-12deg);
 }
 
-.cc-web-card-dare {
+.cc-web-card-paranoia {
   top: 55px;
   right: 45px;
   transform: rotate(10deg);
 }
 
-.cc-web-card-duel {
+.cc-web-card-dig-me {
   right: 205px;
   bottom: 28px;
   transform: rotate(8deg);
@@ -53,11 +53,11 @@
     width: 132px;
   }
 
-  .cc-web-card-truth {
+  .cc-web-card-reverse-confession {
     right: 170px;
   }
 
-  .cc-web-card-duel {
+  .cc-web-card-dig-me {
     right: 155px;
   }
 }
@@ -71,17 +71,17 @@
     width: 112px;
   }
 
-  .cc-web-card-truth {
+  .cc-web-card-reverse-confession {
     top: 34px;
     right: 120px;
   }
 
-  .cc-web-card-dare {
+  .cc-web-card-paranoia {
     top: 64px;
     right: 4px;
   }
 
-  .cc-web-card-duel {
+  .cc-web-card-dig-me {
     right: 110px;
     bottom: 16px;
   }
