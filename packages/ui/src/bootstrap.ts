@@ -6,11 +6,36 @@ import { CribbitApiClient, clientConfig } from '../../api-client/src/index.ts';
 import type { AuthSession } from '../../contracts/src/index.ts';
 import { resolveVisualFixture, type VisualFixtureName, VISUAL_FIXTURES } from './fixtures.ts';
 
-export async function bootstrap(platform: PlatformAdapter): Promise<void> {
+export interface BootstrapOptions {
+  /**
+   * Platform-specific DOM composition that must happen immediately after the
+   * shared template is mounted and BEFORE the legacy/runtime module is loaded.
+   *
+   * Keep this synchronous. It exists so Web/Telegram can replace presentation
+   * surfaces before the browser gets a chance to paint the shared fallback UI,
+   * while preserving the same canonical DOM ids that the runtime binds to.
+   */
+  beforeRuntime?: () => void;
+}
+
+export async function bootstrap(
+  platform: PlatformAdapter,
+  options: BootstrapOptions = {},
+): Promise<void> {
   const host = document.querySelector<HTMLDivElement>('#app');
   if (!host) throw new Error('Missing #app host');
+
   host.innerHTML = template;
   platform.initialize();
+
+  /*
+   * IMPORTANT PRESENTATION BOUNDARY
+   * --------------------------------
+   * Run platform composition before the first await/dynamic import. This keeps
+   * the shared template as source scaffolding without visibly painting it first
+   * and then replacing it later (the old homepage flicker/duplicate bug).
+   */
+  options.beforeRuntime?.();
 
   const config = clientConfig(platform.kind);
   const api = new CribbitApiClient(config);
