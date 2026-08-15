@@ -1,75 +1,34 @@
-import type { Card, CardColor, GameEvent, GameState } from '@cribbit/contracts';
+import type { Card, GameEvent, GameState } from '@cribbit/contracts';
+import {
+  CARD_COPY_COUNTS,
+  CARD_INSTANCES,
+  CANONICAL_DECK_SIZE as CHAOS_133_DECK_SIZE,
+  DECK_SPEC_ID
+} from '../../cards/src/index.ts';
 import type { RandomSource } from './rng.ts';
 import { createDeterministicId, createSeededRandom, shuffle, toSeedString } from './rng.ts';
 import { createEngineError } from './errors.ts';
 import { makeEvent } from './events.ts';
 
-const COLORS: readonly CardColor[] = ['lime', 'orange', 'cyan', 'purple'];
+export const CANONICAL_DECK_COUNTS = CARD_COPY_COUNTS;
+export const CANONICAL_DECK_SIZE = CHAOS_133_DECK_SIZE;
+export const CANONICAL_DECK_SPEC_ID = DECK_SPEC_ID;
 
-export const CANONICAL_DECK_COUNTS = Object.freeze({
-  number: 76,
-  skip: 8,
-  reverse: 8,
-  draw: 8,
-  wild: 4,
-  truth: 5,
-  dare: 5,
-  paranoia: 4,
-  chaos: 4,
-  duel: 3,
-  nope: 3
-} satisfies Record<Card['kind'], number>);
-
-export const CANONICAL_DECK_SIZE = 128;
-
-function createCard(seed: string | number, index: number, kind: Card['kind'], fields: Partial<Card> = {}): Card {
+function toEngineCard(seed: string | number, index: number, instance: (typeof CARD_INSTANCES)[number]): Card {
   return {
     id: createDeterministicId(seed, 'card', index),
-    kind,
-    ...fields
+    kind: instance.family,
+    ...(instance.color ? { color: instance.color } : {}),
+    ...(instance.value !== undefined ? { value: instance.value } : {}),
+    symbol: instance.family === 'number' ? String(instance.value) : instance.family
   };
 }
 
 export function buildCoreDeck(seed: string | number, random: RandomSource = createSeededRandom(`${toSeedString(seed)}:deck`)): Card[] {
-  const deck: Card[] = [];
-  let index = 0;
-
-  for (const color of COLORS) {
-    deck.push(createCard(seed, index += 1, 'number', { color, value: 0, symbol: '0' }));
-    for (let value = 1; value <= 9; value += 1) {
-      deck.push(createCard(seed, index += 1, 'number', { color, value, symbol: String(value) }));
-      deck.push(createCard(seed, index += 1, 'number', { color, value, symbol: String(value) }));
-    }
-
-    deck.push(createCard(seed, index += 1, 'skip', { color, symbol: 'skip' }));
-    deck.push(createCard(seed, index += 1, 'skip', { color, symbol: 'skip' }));
-    deck.push(createCard(seed, index += 1, 'reverse', { color, symbol: 'reverse' }));
-    deck.push(createCard(seed, index += 1, 'reverse', { color, symbol: 'reverse' }));
-    deck.push(createCard(seed, index += 1, 'draw', { color, symbol: 'draw' }));
-    deck.push(createCard(seed, index += 1, 'draw', { color, symbol: 'draw' }));
-  }
-
-  for (let wildIndex = 0; wildIndex < CANONICAL_DECK_COUNTS.wild; wildIndex += 1) {
-    deck.push(createCard(seed, index += 1, 'wild', { symbol: 'wild' }));
-  }
-
-  const socialCounts = {
-    truth: CANONICAL_DECK_COUNTS.truth,
-    dare: CANONICAL_DECK_COUNTS.dare,
-    paranoia: CANONICAL_DECK_COUNTS.paranoia,
-    chaos: CANONICAL_DECK_COUNTS.chaos,
-    duel: CANONICAL_DECK_COUNTS.duel,
-    nope: CANONICAL_DECK_COUNTS.nope
-  } as const;
-
-  for (const [kind, count] of Object.entries(socialCounts) as Array<[keyof typeof socialCounts, number]>) {
-    for (let copy = 0; copy < count; copy += 1) {
-      deck.push(createCard(seed, index += 1, kind, { symbol: kind }));
-    }
-  }
+  const deck = CARD_INSTANCES.map((instance, index) => toEngineCard(seed, index + 1, instance));
 
   if (deck.length !== CANONICAL_DECK_SIZE) {
-    throw new Error(`Canonical deck must contain exactly ${CANONICAL_DECK_SIZE} cards; received ${deck.length}.`);
+    throw new Error(`${CANONICAL_DECK_SPEC_ID} must contain exactly ${CANONICAL_DECK_SIZE} cards; received ${deck.length}.`);
   }
 
   return shuffle(deck, random);
