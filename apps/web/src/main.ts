@@ -1,5 +1,5 @@
 import { BrowserPlatform } from '../../../packages/platform/src/browser.ts';
-import { bootstrap } from '../../../packages/ui/src/bootstrap.ts';
+import { bootstrap, mountSharedTemplate } from '../../../packages/ui/src/bootstrap.ts';
 import './web-game.css';
 import './web-compact.css';
 
@@ -200,9 +200,13 @@ function setupHomepageHeaderScroll(): void {
 async function startWeb(): Promise<void> {
   const platform = new BrowserPlatform();
 
+  // Compatibility composition is explicit while each surface is transferred.
+  // bootstrap() no longer injects the historical application DOM implicitly.
+  mountSharedTemplate();
+  mountCribbitChaosHero();
+
   await bootstrap(platform, {
     runtimeMode: 'legacy-compatibility',
-    beforeRuntime: mountCribbitChaosHero,
   });
 
   setupHomepageHeaderScroll();
