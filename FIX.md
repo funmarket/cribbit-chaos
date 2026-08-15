@@ -4,11 +4,11 @@
 
 **Status:** IN PROGRESS  
 **Branch:** `feature/visual-integration-checkpoint`  
-**Working rule:** Fix every problem at the authoritative source. Do not patch around it.
+**Rule:** Fix every problem at the authoritative source. Never patch around it.
 
 ---
 
-## Non-negotiable rules
+# 1. NON-NEGOTIABLE RULES
 
 Before editing any bug, display issue, interaction issue, or architectural conflict, trace the complete path first:
 
@@ -19,157 +19,172 @@ Before editing any bug, display issue, interaction issue, or architectural confl
 - positioning / portal / stacking-context logic
 - CSS / Tailwind / style definitions
 - responsive / mobile / viewport behavior
-- related states: empty, single, many, long content, loading, error, open/closed, repeated opening, reconnect/refreshed state
-- list / item rendering
-- imports and usages recursively, including shared components, hooks, stores, contexts, providers, design tokens, layout primitives, utilities, and legacy runtime participation
+- empty / single / many / long-content / loading / error / active / inactive / open / closed / repeated-open / reconnect states
+- list and item rendering
+- imports and usages recursively
+- shared components, hooks, stores, contexts, providers, design tokens, layout primitives and utilities
+- legacy runtime involvement
+- deployment branch/version whenever live behavior is involved
 
-If any relevant source is unknown, stop and record a blocker. Do not guess.
+If any relevant source is unknown, the task is **BLOCKED** until it is found.
 
-### Never do this
+## Never do this
 
 - no patching / workaround layers
 - no arbitrary z-index escalation
-- no hardcoded offsets or dimensions solely to make one screenshot look correct
-- no duplicate components, handlers, stores, route logic, IDs, `data-action`, or `data-nav`
+- no hardcoded offsets or dimensions solely to match one screenshot
+- no duplicate components, handlers, state, route logic, IDs, `data-action`, or `data-nav`
 - no second CSS rule whose purpose is to override a broken first rule
 - no `!important`
-- no fake or mocked production data
-- no hiding overflow or broken content to conceal a layout problem
+- no fake/mocked production data
+- no hiding/clipping broken overflow to conceal a layout problem
 - no unrelated redesign
-- no inline style compensation for a broken layout source
-- no post-render replacement as a permanent ownership model
+- no inline-style compensation for a broken source layout
+- no post-render DOM replacement as permanent ownership
 
 If a shared source is wrong, fix the shared source and remove the downstream conflict.
 
-### Preserve working behavior
+## Preserve correct behavior
 
-Do not change unrelated colors, typography, icons, radius, shadows, navigation, scrolling, containment, focus, keyboard behavior, animation, or interaction patterns unless the root bug requires it.
+Do not change unrelated colors, typography, icons, radius, shadows, navigation, scrolling, containment, focus, keyboard behavior, animation, responsive behavior, or interaction patterns unless the root bug specifically requires it.
 
-Long or overflowing content must remain contained and scroll in the correct container.
+Long content must remain contained and scroll inside the intended container.
 
 ---
 
-## Required Fix Trace before every source edit
+# 2. REQUIRED FIX TRACE BEFORE EVERY EDIT
 
-### Issue
-Describe exactly what is wrong.
+Every source edit requires this trace first.
 
-### Acceptance reference
-Screenshot, live URL, user description, accepted prior UI, design reference, or explicit criteria.
+## Issue
+Exact observed problem.
 
-### Reproduction
+## Acceptance reference
+Screenshot, URL, user description, accepted prior UI, design reference, or explicit criteria.
+
+## Reproduction
 Exact steps.
 
-### Render source
-Exact component/template/route/panel/list/item renderer.
+## Render source
+Exact template/component/route/panel/list/item renderer.
 
-### State source
-Exact local state/store/context/server snapshot/API response/derived state/fixture state.
+## State source
+Exact local state/store/context/server snapshot/API response/derived/fixture state.
 
-### Trigger and lifecycle
+## Trigger/lifecycle
 Exact click/event/open/close/mount/unmount/effect/subscription/router/reconnect path.
 
-### Parent hierarchy
-Trace the component/DOM path up to the app shell.
+## Parent hierarchy
+Trace the DOM/component path to the app shell.
 
-### Layout and positioning
-Identify flex/grid, width/height constraints, sticky/fixed/absolute, overflow, transforms, stacking contexts, and portal target where applicable.
+## Layout/positioning
+Trace flex/grid, width/height, sticky/fixed/absolute, overflow, transform, stacking context, and portals.
 
-### Styling sources
-List every selector/style/token/media query affecting the surface and flag conflicts.
+## Styling
+List every selector, stylesheet, token, inline style, and media query affecting the surface. Flag duplicates/conflicts.
 
-### Responsive sources
-List every breakpoint and alternate layout affecting it.
+## Responsive behavior
+List all breakpoints and alternate layouts.
 
-### Related states
-Check default, empty, one item, many items, long text, loading, error, open, closed, repeated open/close, desktop, narrow desktop/tablet, mobile, browser zoom, and reconnect/refresh where relevant.
+## Related states
+Default, empty, one item, many items, long text, loading, error, open, closed, repeated open, desktop, tablet/narrow, mobile, zoom, refresh/reconnect as applicable.
 
-### Import/use graph
-Trace recursively until the authoritative owner is proven.
+## Import/use graph
+Trace imports recursively until the authoritative owner is proven.
 
-### Root cause
+## Root cause
 One precise sentence.
 
-### Authoritative fix location
-Exact files and why they are correct.
+## Authoritative fix location
+Exact files and why they own the behavior.
 
-### Files that must NOT change
-Downstream files that would only create another patch.
+## Files that must NOT change
+Downstream files that would only introduce another patch.
 
-No product source edit is allowed until this trace is complete.
+No edit is allowed until the trace is complete.
 
 ---
 
-## Source-of-truth order
+# 3. SOURCE-OF-TRUTH ORDER
 
 1. canonical game/product specification
-2. authoritative engine / server state
-3. contracts / domain model
-4. shared controller / hook / store / provider
-5. shared component / layout primitive
+2. authoritative engine/server state
+3. contracts/domain model
+4. shared controller/hook/store/provider
+5. shared component/layout primitive
 6. platform composition layer
-7. platform-specific component styling
+7. platform-specific component style
 8. route presentation
 9. legacy compatibility code
 10. one-off override files
 
-A lower layer must never be used to hide a defect in a higher layer.
+A lower layer must never conceal a defect in a higher layer.
 
 ---
 
-## Root-fix workflow
+# 4. ROOT-FIX EXECUTION CYCLE
 
-### A — Inspect
-No code changes. Reproduce, trace DOM/component hierarchy, state, lifecycle, styling, responsive rules, shared dependencies, legacy involvement, and deployment version.
+## A — Inspect
+No code changes. Reproduce and trace state, lifecycle, rendering, hierarchy, styles, responsive behavior, dependencies, legacy involvement, and deployment identity.
 
-### B — Diagnose
-Record root cause, authoritative owner, conflicting sources, obsolete sources, and intended ownership after the fix.
+## B — Diagnose
+Record the root cause, authoritative owner, conflicting sources, obsolete sources, and intended ownership after the fix.
 
-### C — Plan
-List the minimum authoritative files to change and the obsolete conflict that will be removed.
+## C — Plan
+List only the minimum authoritative files required.
 
-### D — Implement
-Edit the broken source in place. Remove obsolete conflicting code. Do not create parallel ownership.
+## D — Implement
+Edit the broken source. Remove obsolete conflicting code. Do not create parallel ownership.
 
-### E — Validate
-Run available typecheck, build, lint, tests, integration/browser checks, responsive checks, and inspect the final source for duplicate/conflicting definitions.
+## E — Validate
+Run all available relevant checks:
 
-### F — Record
-Only after successful validation update the Completed Fixes Log below.
+- typecheck
+- build
+- lint
+- unit tests
+- integration tests
+- browser/visual checks
+- responsive checks
+- edge states
+- duplicate DOM/source inspection
 
-If validation fails, revert the failed change. Do not stack another correction on top of it.
+## F — Record
+Only a successfully validated root fix enters **Completed Fixes Log**.
+
+If a regression occurs, revert the failed change. Do not stack another correction on top.
 
 ---
 
-## Required validation matrix
+# 5. VALIDATION RULE
+
+A fix cannot be called complete without truthful evidence.
 
 | Check | Requirement |
 |---|---|
-| TypeScript typecheck | required when TS affected |
+| Typecheck | required when TS affected |
 | Build | required |
-| Lint | required if configured |
+| Lint | required if configured/relevant |
 | Unit tests | required when relevant |
 | Integration tests | required when relevant |
-| Browser render | required for visual fixes when browser tooling is available |
-| Desktop viewport | required for visual fixes |
-| Narrow/tablet viewport | required for visual fixes |
-| Mobile viewport | required for visual fixes |
-| Long content | required where text/content can grow |
-| Empty/single/many states | required where applicable |
-| Open/close/outside-click/repeated-open | required for overlays/popovers/dialogs |
+| Browser render | required for visual fixes when tooling exists |
+| Desktop/narrow/mobile | required for visual fixes |
+| Long content / containment | required where content can grow |
+| Empty/single/many | required where applicable |
+| Open/close/repeated-open/outside-click | required for overlays |
 | Loading/error/reconnect | required for async/stateful surfaces |
-| Duplicate DOM check | required |
+| Duplicate DOM/source check | required |
 | No new override layer | required |
 
-A fix cannot be called complete if a required check was not performed. Unavailable visual tooling must be recorded as a blocker/pending verification, not silently treated as a pass.
+A pre-existing failing check must be proven against a known earlier commit and recorded as a blocker. It must never be silently treated as a pass.
 
 ---
 
-# Architectural normalization target
+# 6. ARCHITECTURAL TARGET
 
-Current known problem:
+Current problem:
 
-> An old complete prototype still participates in the Web render/runtime path beneath the newer Web frontend, creating duplicate DOM ownership, duplicate style authority, compatibility runtime authority, and downstream override layers.
+> An old complete prototype still participates in the Web render/runtime path beneath the newer Web frontend, creating duplicate DOM ownership, compatibility-runtime ownership, duplicate CSS authority, and downstream override layers.
 
 Target:
 
@@ -203,150 +218,219 @@ corrective stylesheet overrides
 
 ---
 
-# Current verified source trace
+# 7. VERIFIED CURRENT SOURCE TRACE
 
-## Web bootstrap/render chain
+## Web startup
 
 ```text
 apps/web/index.html
 → apps/web/src/main.ts
 → packages/ui/src/bootstrap.ts
 → packages/ui/src/template.html
-→ main.ts `beforeRuntime` Web DOM mutation
+→ main.ts beforeRuntime DOM mutation
 → packages/legacy-runtime/src/runtime.ts
-→ shared + Web CSS cascade
+→ styles.css + web-game.css + web-compact.css
 ```
 
-### Verified ownership conflicts
+## Proven conflicts
 
-1. `packages/ui/src/bootstrap.ts` injects the full shared template into `#app` and then unconditionally imports the legacy runtime.
-2. `apps/web/src/main.ts` mutates that mounted template by replacing `.lobby-hero`, assigning `#roomCreation`, moving `#startGameButton`, and adding Web-only header scroll state.
-3. `packages/legacy-runtime/src/runtime.ts` still owns setup state, navigation, render functions, event delegation, direct form bindings, simulated game state, prompts, and compatibility gameplay behavior.
-4. `packages/ui/src/styles.css`, `apps/web/src/web-game.css`, and `apps/web/src/web-compact.css` all define overlapping header and Room Creation layout responsibilities.
-5. `web-game.css` contains at least one `!important` on `.mode-grid`; this is confirmed override debt and must be removed through source normalization, not counter-overridden.
-6. Normal Telegram uses its own composition path. It enters the shared legacy bootstrap only in explicit compatibility-fixture mode.
-
-## Deployment evidence
-
-Repository documentation currently states:
-
-- Cloudflare Pages Web project: `cribbit-chaos-web`
-- build: `npm run build:web`
-- output: `apps/web/dist`
-- current staging branch evidence: `feature/visual-integration-checkpoint`
-- API: Railway
-
-Repository workflow audit found only `.github/workflows/ci.yml`; no repo-owned Cloudflare deployment workflow, `wrangler.toml`, or `.cloudflare/` configuration was found.
-
-**Deployment blocker:** external Cloudflare Pages project settings are not directly inspectable with the currently connected Cloudflare tool, so branch/project Git settings must not be claimed as independently verified unless external evidence becomes available.
+1. `packages/ui/src/bootstrap.ts` injects the full shared application template into `#app`.
+2. Web `main.ts` replaces `.lobby-hero`, assigns `#roomCreation`, moves the existing `#startGameButton`, and adds header scroll behavior.
+3. `packages/legacy-runtime/src/runtime.ts` owns setup state, navigation, rendering, event delegation, direct form bindings, demo prompts, fixture state, and compatibility gameplay behavior.
+4. `packages/ui/src/styles.css`, `apps/web/src/web-game.css`, and `apps/web/src/web-compact.css` all own overlapping header and Room Creation layout.
+5. `web-game.css` contains `!important` for the mode grid, proving existing override debt.
+6. Normal Telegram uses `bootstrapTelegram`; shared legacy bootstrap is used by Telegram only for explicit compatibility fixtures.
 
 ---
 
-# Normalization workstreams
+# 8. DEPLOYMENT TRACE
+
+Repository evidence currently says:
+
+- Web: Cloudflare Pages project `cribbit-chaos-web`
+- Web build: `npm run build:web`
+- Web output: `apps/web/dist`
+- staging branch evidence: `feature/visual-integration-checkpoint`
+- API: Railway
+
+Repository inspection found:
+
+- only `.github/workflows/ci.yml`
+- no repository Cloudflare deploy workflow
+- no root `wrangler.toml`
+- no `.cloudflare/` directory
+
+**Blocked:** current connected Cloudflare tool does not expose Pages project settings, so the external production branch cannot yet be independently proven from the Cloudflare control plane.
+
+---
+
+# 9. NORMALIZATION WORKSTREAMS
 
 ## N0 — Deployment authority
-- [x] repository CI workflow inspected
-- [x] repository Cloudflare workflow/config absence confirmed
-- [x] documented Web build command/output found
-- [ ] external Cloudflare production branch independently verified
-- [ ] exact live Pages build matched to a Git commit
+- [x] CI workflow inspected
+- [x] repo-owned Cloudflare workflow/config absence confirmed
+- [x] documented build command/output identified
+- [ ] Cloudflare production branch independently confirmed
+- [ ] live Pages deployment matched to exact Git SHA
 
 ## N1 — Bootstrap ownership
-- [x] current Web bootstrap chain traced
-- [x] Web post-mount hero mutation identified
-- [x] unconditional legacy runtime import identified
+- [x] startup chain traced
+- [x] post-template Web hero mutation identified
+- [x] implicit legacy runtime load identified
 - [x] shared DOM ownership with legacy runtime identified
-- [ ] authoritative Web composition boundary implemented
-- [ ] post-mount replacement removed from migrated surfaces
-- [ ] legacy runtime ownership explicitly bounded
+- [x] legacy runtime now requires an explicit bootstrap runtime mode at every known caller
+- [ ] beforeRuntime post-mount composition removed from migrated Web surfaces
+- [ ] migrated Web surfaces have one DOM owner
+- [ ] legacy runtime ownership reduced to explicit compatibility responsibilities
 
 ## N2 — Template decomposition
-- [x] template confirmed to contain full application surfaces, not primitives only
-- [ ] sections classified KEEP / MOVE / REWIRE / DEV-ONLY / LEGACY / REMOVE
+- [x] template proven to contain full application surfaces
+- [ ] every section classified KEEP / MOVE / REWIRE / DEV-ONLY / LEGACY / REMOVE
 - [ ] migrated surfaces receive one owner
 
 ## N3 — Header normalization
-- [x] shared header source identified
-- [x] duplicate Web header style authorities identified
-- [x] home/brand disappearance traced to downstream override history
+- [x] shared header DOM source identified
+- [x] duplicate CSS authorities identified
+- [x] prior home/brand disappearance traced to downstream override history
 - [ ] one header DOM owner
 - [ ] one header layout authority
-- [ ] duplicate rules removed at source
-- [ ] diagnostics separated from primary player navigation without patch layer
+- [ ] duplicate rules removed
+- [ ] diagnostics separated without patch layer
 - [ ] visual/regression verification complete
 
 ## N4 — Room Creator normalization
-- [x] shared template Room Creator identified
+- [x] shared DOM source identified
 - [x] legacy runtime direct setup bindings identified
-- [x] duplicate Web Room Creator CSS authorities identified
-- [ ] production state/handlers separated from fixture/demo behavior
-- [ ] one component/source owns production Room Creator
-- [ ] source grid/mode grid normalized without `!important`
+- [x] duplicate CSS authorities identified
+- [ ] production state/handlers separated from fixtures/demo
+- [ ] one component owns production Room Creator
+- [ ] no `!important`
 - [ ] responsive verification complete
 
 ## N5 — CSS normalization
-- [x] `styles.css`, `web-game.css`, `web-compact.css` conflict confirmed
-- [ ] every rule in `web-compact.css` triaged
-- [ ] wrong authoritative rules fixed in place
+- [x] `styles.css` / `web-game.css` / `web-compact.css` conflict confirmed
+- [ ] every `web-compact.css` rule triaged
+- [ ] wrong authoritative rules corrected in place
 - [ ] valid component rules moved to owning source
-- [ ] redundant overrides removed
-- [ ] `web-compact.css` deleted and import removed
+- [ ] redundant rules removed
+- [ ] `web-compact.css` deleted
+- [ ] import removed
 
 ## N6 — Legacy runtime isolation
-- [x] runtime confirmed as Phase-1 compatibility runtime
-- [x] runtime confirmed to own current Web event/render/setup behavior
+- [x] compatibility purpose confirmed
+- [x] runtime current ownership confirmed
 - [x] stale gameplay/fixture authority identified
+- [x] bootstrap can no longer load legacy runtime implicitly
 - [ ] useful UI utilities classified for extraction
-- [ ] production game authority replaced by real feature/API path
-- [ ] compatibility runtime available only where explicitly requested
+- [ ] production game authority replaced by server feature/API path
+- [ ] compatibility runtime restricted to explicit compatibility mode only
 
 ## N7 — Action wiring
-- [ ] Button → component handler → semantic controller → API → engine audit completed
+- [ ] visible control → handler → controller → API → engine audit
 - [ ] duplicate/local gameplay mutation removed
 - [ ] dead actions removed
 
 ## N8 — Roulette
 - [ ] frontend prompt authority traced
-- [ ] Write Your Own path traced
-- [ ] server Roulette commit path traced
+- [ ] Write Your Own traced
+- [ ] server Roulette commit traced
 - [ ] frontend result-selection authority removed
 
 ## N9 — Responsive/containment
 - [ ] desktop
-- [ ] narrow desktop/tablet
+- [ ] narrow/tablet
 - [ ] mobile
-- [ ] browser zoom
+- [ ] zoom
 - [ ] long content
 - [ ] many items
 - [ ] empty states
-- [ ] modal/panel repeated-open and scrolling
+- [ ] modal/panel repeated-open and scroll containment
 
 ---
 
-# Live progress
-
-## Overall status
-IN PROGRESS
+# 10. LIVE PROGRESS
 
 ## Current phase
 **N1 — Bootstrap ownership / composition boundary**
 
+## Implemented but NOT yet marked complete
+
+### N1-A — Explicit legacy compatibility runtime boundary
+
+**Root cause:** shared `bootstrap()` imported `packages/legacy-runtime/src/runtime.ts` unconditionally, so callers could enter legacy compatibility ownership without explicitly declaring that dependency.
+
+**Changed:**
+- `packages/ui/src/bootstrap.ts`
+- `apps/web/src/main.ts`
+- `apps/telegram/src/main.ts`
+
+**Source-level change:**
+- added required `runtimeMode: 'none' | 'legacy-compatibility'`
+- legacy runtime imports only when the caller explicitly selects `legacy-compatibility`
+- Web explicitly declares its current temporary compatibility dependency
+- Telegram compatibility-fixture path explicitly declares it
+- normal Telegram path remains on `bootstrapTelegram`
+
+**No patch layer added. No duplicate runtime added.**
+
+**Validation evidence:**
+- current head TypeScript typecheck: PASS
+- current CI reaches the same pre-existing game-engine test failures as the previous head
+- previous head `65c6a298...` already failed the exact same 3 tests
+- current failures are `128 !== 104` assertions in `packages/game-engine/test/core-engine.test.ts`
+- current `packages/game-engine/src/deck.ts` declares `CANONICAL_DECK_SIZE = 128`
+- current higher product authority is `CHAOS-133-V1`, so changing the tests from 104 to 128 would be another stale-authority patch and is forbidden
+- build steps are skipped by the current CI because tests run before builds
+
+**Status:** IMPLEMENTED / VALIDATION BLOCKED. Not in Completed Fixes Log yet.
+
 ## Completed Fixes Log
 
-No product fix is recorded as complete yet under this protocol. Earlier commits must be re-audited and re-validated before they can be accepted as normalized source fixes.
+None yet under this protocol.
 
 ## Active blockers
 
-1. External Cloudflare production branch/project configuration has not been independently inspected through a Pages management connector.
-2. Browser-level visual verification is required before a visual fix can be marked complete. If unavailable in the active environment, it remains pending rather than being guessed.
+### BLOCKER B1 — Canonical deck/test authority conflict
 
-## Current next action
+The current validation suite expects 104 cards while the current engine constructs 128. Both are stale relative to the locked physical deck authority `CHAOS-133-V1` at 133 cards.
 
-Trace the exact ownership boundary required to stop Web from permanently relying on `beforeRuntime` post-template mutation while preserving all still-working runtime bindings. Implement only after the migration boundary is proven safe.
+Do **not** change `104 → 128` just to make CI green.
+
+This requires its own source-authority trace across contracts, engine card kinds, canonical card package, setup, tests, and current locked gameplay families.
+
+### BLOCKER B2 — CI build steps hidden behind pre-existing test failure
+
+`.github/workflows/ci.yml` runs tests before `build:web`, `build:telegram`, and `build:api`; therefore the existing deck-test failure prevents build validation from executing.
+
+Do not weaken or bypass tests. Build verification must be obtained without concealing B1.
+
+### BLOCKER B3 — Cloudflare control-plane branch not independently visible
+
+Repository docs record the intended branch/project/build settings, but connected Cloudflare tooling currently exposes documentation rather than Pages project management.
+
+### BLOCKER B4 — Browser visual verification
+
+A visual fix cannot be called complete until the affected route can be visually inspected after deployment or in supported browser test tooling.
 
 ---
 
-# Completion report required for every fix
+# 11. NEXT AUTHORIZED ACTION
+
+Continue N1 source tracing before the next edit:
+
+1. trace the exact `.lobby-hero` and `.setup-panel` blocks in `template.html`
+2. trace every legacy-runtime selector/handler that depends on descendants of those blocks
+3. determine which markup must remain stable for runtime compatibility
+4. move only a proven surface from post-mount mutation to a single authoritative source
+5. remove the corresponding mutation code rather than overriding it
+6. validate against typecheck and available build/browser evidence
+7. update this file only when evidence changes
+
+Do not disable the whole legacy runtime yet; it still owns working surfaces that have not been extracted.
+
+---
+
+# 12. REQUIRED COMPLETION REPORT
 
 ```text
 FIX COMPLETE — [issue]
@@ -367,9 +451,9 @@ Validation:
 - typecheck: PASS
 - build: PASS
 - lint: PASS / N/A
-- tests: PASS / N/A
-- visual/browser: PASS / PENDING WITH BLOCKER
-- responsive: PASS / PENDING WITH BLOCKER
+- tests: PASS / known pre-existing blocker proven separately
+- visual/browser: PASS
+- responsive: PASS
 - edge states: PASS / N/A
 
 Patch/workaround introduced: NO
