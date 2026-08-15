@@ -1,3 +1,27 @@
+# DEPLOYMENT AUTHORITY — READ FIRST
+
+This note is intentionally first so future recovery work does not waste time on the wrong host.
+
+- **GitHub is the source of truth.** Fixes are committed to the controlled GitHub branch/PR first.
+- **Cloudflare Pages is the authoritative frontend host** for both Web and Telegram builds.
+- **Railway is authoritative for backend services only**: API and PostgreSQL. Frontend-only commits may correctly appear as `SKIPPED` in Railway and that is not a frontend deployment failure.
+- **Vercel is NOT part of the current authoritative Cribbit CHAOS deployment path.** It is an old/fallback integration that may still auto-trigger when GitHub commits are pushed. Its build failures must NOT block fixes, validation, merging, or resuming work unless Vercel itself is explicitly being audited or removed.
+- Do **not** modify product source merely to make Vercel green.
+- Before claiming a frontend fix is live, verify the exact Git SHA on Cloudflare Pages. Before claiming a backend fix is live, verify the corresponding Railway API deployment.
+
+Authoritative deployment shape:
+
+```text
+GitHub
+  ├─ Cloudflare Pages → Web
+  ├─ Cloudflare Pages → Telegram frontend
+  └─ Railway
+       ├─ API
+       └─ PostgreSQL
+```
+
+---
+
 # Cribbit CHAOS — FIX.md
 
 ## Source-Level Frontend Recovery & Legacy-Runtime Elimination Protocol
