@@ -12,8 +12,34 @@ export interface ValidationResult {
 function activeCardMatches(state: GameState, card: Card): boolean {
   if (card.kind === 'wild') return true;
   if (card.color && card.color === state.activeColor) return true;
-  if (card.kind === 'number') return String(card.value) === state.activeSymbol;
-  return card.kind === state.activeSymbol;
+
+  switch (card.kind) {
+    case 'number':
+      return String(card.value) === state.activeSymbol;
+    case 'skip':
+    case 'reverse':
+    case 'draw':
+    case 'truth':
+    case 'dare':
+    case 'paranoia':
+    case 'chaos':
+    case 'duel':
+      return card.kind === state.activeSymbol;
+    case 'nope':
+      // Nope is reaction-only inventory and is never a normal PLAY_CARD match.
+      return false;
+    case 'tag':
+    case 'truth_or_chaos':
+    case 'hijack':
+    case 'taboo':
+    case 'machiavelli':
+    case 'ghost':
+    case 'reverse_confession':
+    case 'dig_me':
+      // Their effects are canonical, but their normal-play matching semantics are not yet locked.
+      // Fail closed rather than inventing a same-family rule from the old generic fallback.
+      return false;
+  }
 }
 
 export function isLegalPlay(state: GameState, playerId: string, cardId: string): boolean {
