@@ -10,21 +10,26 @@ export type BootstrapRuntimeMode = 'none' | 'legacy-compatibility';
 
 export interface BootstrapOptions {
   /**
-   * Platform-specific DOM composition that must happen immediately after the
-   * shared template is mounted and before optional compatibility runtime load.
-   *
-   * This hook is transitional. Migrated production surfaces must move to a
-   * single authoritative composition source rather than accumulating DOM
-   * replacement here.
-   */
-  beforeRuntime?: () => void;
-
-  /**
    * The legacy runtime is preview/demo compatibility only and must never load
    * implicitly. Every caller must opt into it explicitly while that caller is
    * still being migrated away from compatibility ownership.
    */
   runtimeMode: BootstrapRuntimeMode;
+}
+
+/**
+ * Mount the historical shared application template explicitly.
+ *
+ * This is compatibility composition, not a production Web ownership model.
+ * Callers that still depend on the shared template must opt into mounting it
+ * before bootstrap services are initialized. Web can now remove this call
+ * surface-by-surface without hidden DOM injection inside bootstrap().
+ */
+export function mountSharedTemplate(): HTMLDivElement {
+  const host = document.querySelector<HTMLDivElement>('#app');
+  if (!host) throw new Error('Missing #app host');
+  host.innerHTML = template;
+  return host;
 }
 
 export async function bootstrap(
@@ -34,10 +39,7 @@ export async function bootstrap(
   const host = document.querySelector<HTMLDivElement>('#app');
   if (!host) throw new Error('Missing #app host');
 
-  host.innerHTML = template;
   platform.initialize();
-
-  options.beforeRuntime?.();
 
   const config = clientConfig(platform.kind);
   const api = new CribbitApiClient(config);
