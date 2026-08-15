@@ -1,5 +1,6 @@
 import { BrowserPlatform } from '../../../packages/platform/src/browser.ts';
 import { bootstrap, mountSharedTemplate } from '../../../packages/ui/src/bootstrap.ts';
+import { startCanonicalBoardCardHydration } from './canonical-board-cards.ts';
 import './web-game.css';
 import './web-compact.css';
 import './canonical-hero-cards.css';
@@ -221,6 +222,7 @@ async function startWeb(): Promise<void> {
     runtimeMode: 'legacy-compatibility',
   });
 
+  startCanonicalBoardCardHydration();
   setupHomepageHeaderScroll();
 }
 
