@@ -16,7 +16,7 @@
     "build:api": "tsc -p tsconfig.api.json --noEmit",
     "build": "npm run build:web && npm run build:telegram && npm run build:api",
     "typecheck": "tsc -p tsconfig.check.json --noEmit",
-    "test": "tsx --test packages/cards/test/card-assets.test.ts packages/cards/test/card-registry.test.ts packages/game-engine/test/core-engine.test.ts apps/api/test/auth.test.ts apps/api/test/guest-auth.test.ts",
+    "test": "tsx --test packages/cards/test/card-assets.test.ts packages/cards/test/card-registry.test.ts packages/game-engine/test/deck-composition.test.ts packages/game-engine/test/validation-matching.test.ts packages/game-engine/test/core-engine.test.ts apps/api/test/auth.test.ts apps/api/test/guest-auth.test.ts",
     "lint": "node --check scripts/audit-ui.mjs",
     "audit:ui": "node scripts/audit-ui.mjs"
   },
