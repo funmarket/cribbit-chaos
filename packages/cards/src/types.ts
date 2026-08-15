@@ -1,68 +1,74 @@
-import type { AuthorshipMode, CardKind, GameCommandType, AnswerMode } from '@cribbit/contracts';
+/**
+ * Cribbit CHAOS — Canonical Digital Card Types
+ * Deck specification: CHAOS-133-V1
+ */
+
+export type CardColor = "lime" | "orange" | "cyan" | "purple";
 
 export type CardFamily =
-  | 'truth'
-  | 'dare'
-  | 'paranoia'
-  | 'chaos'
-  | 'duel'
-  | 'nope'
-  | 'wild'
-  | 'pass'
-  | 'rewind'
-  | 'roulette'
-  | 'spice'
-  | 'flag'
-  | 'keyrule'
-  | 'answer'
-  | 'voice'
-  | 'authorship'
-  | 'stage'
-  | 'intensity';
+  | "number"
+  | "skip"
+  | "reverse"
+  | "draw"
+  | "wild"
+  | "truth"
+  | "dare"
+  | "paranoia"
+  | "chaos"
+  | "duel"
+  | "nope"
+  | "tag"
+  | "truth_or_chaos"
+  | "hijack"
+  | "taboo"
+  | "machiavelli"
+  | "ghost"
+  | "reverse_confession"
+  | "dig_me";
 
-export type CardBackKind = 'classic' | 'chaos_tier' | 'house_deck';
-
-export type CardAssetSize = 'master' | 'web-medium' | 'mobile' | 'thumbnail';
-
-export type RuntimeCardRole =
-  | 'playable-social-card'
-  | 'playable-core-card'
-  | 'reaction-card'
-  | 'safety-action'
-  | 'answer-mode'
-  | 'answer-constraint'
-  | 'authorship-mode'
-  | 'presentation-metadata'
-  | 'rules-reference'
-  | 'stage-card'
-  | 'intensity-card';
-
-export interface GameCardMapping {
-  readonly engineKind?: Extract<CardKind, 'wild' | 'truth' | 'dare' | 'paranoia' | 'chaos' | 'duel' | 'nope'>;
-  readonly actionId?: GameCommandType;
-  readonly secondaryActionId?: GameCommandType;
-  readonly responseMode?: AnswerMode;
-  readonly authorshipMode?: AuthorshipMode;
-  readonly runtimeRole: RuntimeCardRole;
-  readonly ambiguity?: string;
-}
+export type CardLifecycle =
+  | "reusable"
+  | "exhausted_after_resolution"
+  | "persistent_until_resolution";
 
 export interface CardDefinition {
-  readonly id: string;
-  readonly type: string;
-  readonly family: CardFamily;
-  readonly title: string;
-  readonly instruction: string;
-  readonly variant: number;
-  readonly filename: string;
-  readonly frontAsset: string;
-  readonly defaultBack: CardBackKind;
-  readonly gameMapping: GameCardMapping;
+  /** Stable family/master ID. */
+  id: string;
+  family: CardFamily;
+  name: string;
+  color?: CardColor;
+  value?: number;
+
+  /**
+   * Asset path relative to the shared card package asset root.
+   * The UI/build layer resolves this path.
+   */
+  image: string;
+
+  /** Short role label only. Dynamic Truth/Dare content does not live here. */
+  description: string;
+
+  /** Physical copies in canonical CHAOS-133-V1. */
+  copies: number;
+
+  /** Where the card goes after normal resolution. */
+  lifecycle: CardLifecycle;
 }
 
-export interface CardBackDefinition {
-  readonly kind: CardBackKind;
-  readonly filename: string;
-  readonly asset: string;
-  readonly label: string;
+export interface PhysicalCardInstance {
+  /** Unique physical/digital instance ID. */
+  instanceId: string;
+  masterId: string;
+  family: CardFamily;
+  image: string;
+  color?: CardColor;
+  value?: number;
+}
+
+export interface DeckDefinition {
+  specId: "CHAOS-133-V1";
+  totalCards: 133;
+  cardBack: string;
+  masters: readonly CardDefinition[];
+  instances: readonly PhysicalCardInstance[];
 }
