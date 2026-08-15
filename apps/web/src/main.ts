@@ -200,15 +200,8 @@ function setupHomepageHeaderScroll(): void {
 async function startWeb(): Promise<void> {
   const platform = new BrowserPlatform();
 
-  /*
-   * Root fix for the old/new homepage flicker:
-   * shared template mounts -> Web composition replaces fallback hero synchronously
-   * -> only then may async setup/runtime loading continue.
-   *
-   * This removes the previous sequence where bootstrap awaited runtime loading
-   * before mountCribbitChaosHero(), allowing the old shared hero to paint first.
-   */
   await bootstrap(platform, {
+    runtimeMode: 'legacy-compatibility',
     beforeRuntime: mountCribbitChaosHero,
   });
 
