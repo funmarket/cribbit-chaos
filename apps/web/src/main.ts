@@ -7,26 +7,26 @@ import './canonical-hero-cards.css';
 
 const CANONICAL_HERO_CARDS = [
   {
-    className: 'cc-web-card-truth',
-    label: 'Truth',
+    className: 'cc-web-card-reverse-confession',
+    label: 'Reverse Confession',
     src: new URL(
-      '../../../packages/cards/assets/CHAOS-133-V1/cards/truth/truth_01.jpg',
+      '../../../packages/cards/assets/CHAOS-133-V1/cards/reverse_confession/fIYGR_01.jpg',
       import.meta.url,
     ).href,
   },
   {
-    className: 'cc-web-card-dare',
-    label: 'Dare',
+    className: 'cc-web-card-paranoia',
+    label: 'Paranoia',
     src: new URL(
-      '../../../packages/cards/assets/CHAOS-133-V1/cards/dare/dare_01.jpg',
+      '../../../packages/cards/assets/CHAOS-133-V1/cards/paranoia/paranoia_01.jpg',
       import.meta.url,
     ).href,
   },
   {
-    className: 'cc-web-card-duel',
-    label: 'Duel',
+    className: 'cc-web-card-dig-me',
+    label: 'Dig Me',
     src: new URL(
-      '../../../packages/cards/assets/CHAOS-133-V1/cards/duel/duel_01.jpg',
+      '../../../packages/cards/assets/CHAOS-133-V1/cards/Dig_Me/digme.jpg',
       import.meta.url,
     ).href,
   },
