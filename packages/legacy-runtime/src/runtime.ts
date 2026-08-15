@@ -1,6 +1,7 @@
 // @ts-nocheck
 // Phase-1 compatibility runtime extracted verbatim from the approved V4 prototype.
 // Migrate command/state logic into packages/game-engine incrementally without changing UX behavior.
+import { announce, toast } from './feedback.ts';
 (() => {
     'use strict';
 
