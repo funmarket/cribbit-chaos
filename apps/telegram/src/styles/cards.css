@@ -1,17 +1,20 @@
 /* Telegram reuses the shared Web card visual grammar from packages/ui/styles.css.
-   This file contains Telegram-only sizing and interaction overrides. */
+   This file contains Telegram-only sizing and interaction ownership. */
 
 .game-card--tg-board {
-  width: min(154px, 45vw);
+  width: min(174px, 47vw);
   min-width: 0;
+  border-radius: 13px;
+  box-shadow: 0 0 20px color-mix(in srgb, currentColor 22%, transparent), 0 12px 24px rgba(0,0,0,.3);
 }
 
 .game-card--tg-hand {
-  width: clamp(84px, 24vw, 96px);
+  width: clamp(96px, 27vw, 112px);
   min-width: 0;
-  padding: 10px 7px 7px;
-  border-radius: 9px;
+  padding: 11px 8px 8px;
+  border-radius: 10px;
   scroll-snap-align: start;
+  box-shadow: 0 0 13px rgba(179,76,255,.09), 0 8px 16px rgba(0,0,0,.22);
 }
 
 /* Compact Telegram hand cards prioritize readable content over the decorative corner tab. */
@@ -19,39 +22,39 @@
   display: none;
 }
 
-/* Compact hand typography must scale with the compact card rather than inheriting
-   the full-size board-card measurements from the shared card grammar. */
 .game-card--tg-hand .game-card__title {
   max-width: 100%;
-  font-size: 9px;
+  font-family: var(--tg-display-font, sans-serif);
+  font-size: 11px;
+  font-weight: 950;
   line-height: 1;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   white-space: nowrap;
 }
 
 .game-card--tg-hand .game-card__icon {
-  width: 44px;
-  height: 44px;
-  margin: 10px auto 5px;
+  width: 50px;
+  height: 50px;
+  margin: 11px auto 6px;
 }
 
 .game-card--tg-hand .game-card__icon.is-number {
   width: auto;
   height: auto;
-  margin: 9px 0 4px;
-  font-size: 46px;
+  margin: 10px 0 5px;
+  font-size: 52px;
 }
 
 .game-card--tg-hand .game-card__rule {
-  padding-top: 5px;
-  font-size: 6px;
-  line-height: 1.2;
+  padding-top: 6px;
+  font-size: 6.5px;
+  line-height: 1.25;
 }
 
 .game-card--tg-hand .frog-seal {
-  width: 12px;
-  height: 12px;
-  margin-top: 4px;
+  width: 14px;
+  height: 14px;
+  margin-top: 5px;
 }
 
 .game-card--tg-board,
@@ -66,6 +69,14 @@
   transform: translateY(-8px);
 }
 
+.game-card--tg-hand[data-legal="true"] {
+  box-shadow: 0 0 18px rgba(156,255,22,.16), 0 8px 16px rgba(0,0,0,.22);
+}
+
+.game-card--tg-hand:disabled {
+  opacity: .6;
+}
+
 .tg-shared-card-back {
   display: flex;
   flex-direction: column;
@@ -74,43 +85,47 @@
   flex: 0 0 auto;
   aspect-ratio: 5 / 7;
   border: 2px solid var(--purple, #b34cff);
-  border-radius: 12px;
+  border-radius: 14px;
   background:
-    radial-gradient(circle at center, rgba(179,76,255,.30), transparent 45%),
-    repeating-linear-gradient(45deg,#0c0d14,#0c0d14 8px,#17101e 8px,#17101e 16px);
-  box-shadow: 6px 6px 0 #171020, 10px 10px 0 #0b0d12, 0 0 16px rgba(179,76,255,.22);
+    radial-gradient(circle at center, rgba(179,76,255,.32), transparent 46%),
+    repeating-linear-gradient(45deg,#090b12,#090b12 8px,#17101e 8px,#17101e 16px);
+  box-shadow: 7px 7px 0 #171020, 11px 11px 0 #0b0d12, 0 0 20px rgba(179,76,255,.3);
   pointer-events: none;
 }
 
 .tg-shared-card-back--board {
-  width: min(105px, 28vw);
+  width: min(118px, 31vw);
 }
 
 .tg-shared-card-back--hand {
-  width: 82px;
+  width: 90px;
 }
 
 .tg-shared-card-back b {
   color: var(--lime, #a9ff2e);
-  font-size: 14px;
+  font-family: var(--tg-display-font, sans-serif);
+  font-size: 15px;
+  font-weight: 950;
+  letter-spacing: -.02em;
 }
 
 .tg-shared-card-back em {
+  margin-top: 2px;
   color: var(--magenta, #ff2a84);
   font-size: 11px;
   font-style: normal;
-  font-weight: 900;
+  font-weight: 950;
 }
 
 @media (max-width: 359px) {
-  .game-card--tg-board { width: min(132px, 44vw); }
-  .game-card--tg-hand { width: 78px; }
-  .game-card--tg-hand .game-card__title { font-size: 8px; }
+  .game-card--tg-board { width: min(148px, 45vw); }
+  .game-card--tg-hand { width: 88px; }
+  .game-card--tg-hand .game-card__title { font-size: 9px; }
   .game-card--tg-hand .game-card__rule { font-size: 5.5px; }
-  .tg-shared-card-back--board { width: min(92px, 28vw); }
+  .tg-shared-card-back--board { width: min(102px, 29vw); }
 }
 
 @media (min-width: 390px) and (max-width: 430px) {
-  .game-card--tg-board { width: min(154px, 40vw); }
-  .game-card--tg-hand { width: 90px; }
+  .game-card--tg-board { width: min(174px, 43vw); }
+  .game-card--tg-hand { width: 102px; }
 }
