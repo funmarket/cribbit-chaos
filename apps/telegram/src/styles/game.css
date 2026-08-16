@@ -278,12 +278,6 @@
 .tg-active-state small { color: #a8afba; font-size: 9px; font-weight: 950; letter-spacing: .12em; }
 .tg-active-state strong { margin-top: 3px; color: #d890ff; font-family: var(--tg-display-font); font-size: 20px; font-weight: 950; }
 .tg-active-state span { margin-top: 5px; color: #a6adb8; font-size: 10px; line-height: 1.4; }
-.tg-active-state.is-compact {
-  display: grid;
-  place-items: center;
-  padding-block: 8px;
-}
-.tg-active-state.is-compact strong { margin-top: 0; }
 
 .tg-hand .tg-section-label { margin-bottom: 3px; }
 .tg-hand-rail { padding: 8px 2px 14px; scroll-snap-type: x proximity; touch-action: pan-x; }
