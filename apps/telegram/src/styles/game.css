@@ -148,7 +148,7 @@
 .tg-board__piles {
   display: grid;
   grid-template-columns: minmax(0, 1.28fr) minmax(110px, .82fr);
-  min-height: 290px;
+  align-items: start;
 }
 
 .tg-board-zone {
@@ -156,7 +156,7 @@
   min-width: 0;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 10px;
   padding: 8px;
 }
@@ -223,12 +223,13 @@
   gap: 8px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
+  scroll-padding-inline: 2px;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
 .tg-player-rail::-webkit-scrollbar,
 .tg-hand-rail::-webkit-scrollbar { display: none; }
-.tg-player-rail { padding: 2px 0 4px; scroll-snap-type: x proximity; }
+.tg-player-rail { padding: 2px 2px 4px; scroll-snap-type: x proximity; }
 
 .tg-player-chip {
   display: flex;
@@ -317,14 +318,10 @@
 
 @media (max-width: 359px) {
   .tg-board { padding: 10px; }
-  .tg-board__piles { grid-template-columns: minmax(0, 1.38fr) minmax(92px, .72fr); min-height: 252px; }
+  .tg-board__piles { grid-template-columns: minmax(0, 1.38fr) minmax(92px, .72fr); }
   .tg-board-zone { padding-inline: 4px; }
   .tg-game-meta__turn strong { font-size: 18px; }
   .tg-timer-ring { width: 58px; height: 58px; }
   .tg-timer-ring span { font-size: 20px; }
   .tg-wild-picker > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-@media (min-width: 390px) and (max-width: 430px) {
-  .tg-board__piles { min-height: 300px; }
 }
