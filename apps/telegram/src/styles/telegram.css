@@ -163,7 +163,14 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
   font-weight: 780;
 }
 .tg-input { padding: 10px 42px 10px 13px; }
-.tg-select { padding: 9px 34px 9px 12px; }
+.tg-select {
+  padding: 9px 34px 9px 12px;
+  color-scheme: dark;
+}
+.tg-select option {
+  background: #070a10;
+  color: #f7f8fb;
+}
 .tg-input::placeholder { color: #686f7b; font-weight: 650; }
 .tg-input:focus, .tg-select:focus { border-color: var(--tg-purple); box-shadow: 0 0 0 1px rgba(179,76,255,.3), 0 0 18px rgba(179,76,255,.1); }
 
