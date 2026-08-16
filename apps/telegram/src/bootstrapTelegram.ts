@@ -2,6 +2,7 @@ import type { AuthSession, AuthUser } from '../../../packages/contracts/src/inde
 import { CribbitApiClient, clientConfig } from '../../../packages/api-client/src/index.ts';
 import type { PlatformAdapter } from '../../../packages/platform/src/types.ts';
 import { resolveVisualFixture, VISUAL_FIXTURES, type VisualFixtureName } from '../../../packages/ui/src/fixtures.ts';
+import { renderTelegramGame } from './gameView.ts';
 import {
   CEILINGS,
   CONTENT_WORLDS,
@@ -39,20 +40,30 @@ export async function bootstrapTelegram(platform: PlatformAdapter): Promise<void
   document.documentElement.dataset.fixture = fixture || '';
   document.documentElement.dataset.telegramComposition = 'mobile';
 
-  host.innerHTML = renderRoomCreation(draft);
-  bindRoomCreation(host, platform, api, draft);
+  const showRoomCreation = (): void => {
+    host.innerHTML = renderRoomCreation(draft);
+    bindRoomCreation(host, platform, api, draft, () => {
+      renderTelegramGame(host, platform, draft, showRoomCreation);
+    });
+
+    if (window.__CRIBBIT_AUTH__) {
+      setAuthState(host, 'Connected', 'success');
+    }
+  };
+
+  showRoomCreation();
 
   const apiState = host.querySelector<HTMLElement>('[data-api-state]');
   if (!config.apiUrl || !config.wsUrl) {
     if (apiState) apiState.textContent = 'API not configured';
-    setStatus(host, 'Demo UI available. Railway API is not configured in this build.', 'warning');
+    setStatus(host, 'Local simulation is available. Railway API is not configured in this build.', 'warning');
     return;
   }
 
   const initData = platform.getRawAuthPayload();
   if (!initData) {
     setAuthState(host, 'Auth pending', 'warning');
-    setStatus(host, 'Room setup is available. Telegram identity will be trusted only after Railway validates raw initData.', 'neutral');
+    setStatus(host, 'Room setup and local simulation are available. Telegram identity will be trusted only after Railway validates raw initData.', 'neutral');
     return;
   }
 
@@ -143,10 +154,10 @@ function renderRoomCreation(draft: TelegramRoomDraft): string {
         <section class="tg-setup-card tg-toggle-row">
           <div>
             <span class="tg-field-label"><span aria-hidden="true">⚗</span> QA Test Hand</span>
-            <small>Demo/visual QA only — never authoritative multiplayer state.</small>
+            <small>Show the canonical engine simulation entry point for visual and interaction QA.</small>
           </div>
           <label class="tg-switch">
-            <input type="checkbox" data-qa-hand${draft.qaHand ? ' checked' : ''} aria-label="Enable QA test hand" />
+            <input type="checkbox" data-qa-hand${draft.qaHand ? ' checked' : ''} aria-label="Enable QA simulation" />
             <span></span>
           </label>
         </section>
@@ -163,7 +174,7 @@ function renderRoomCreation(draft: TelegramRoomDraft): string {
 
         <div class="tg-primary-actions">
           <button class="tg-button tg-button--create" data-action="create-game" type="button">Create Game</button>
-          <button class="tg-button tg-button--demo" data-action="demo-game" type="button">Demo Game</button>
+          <button class="tg-button tg-button--demo" data-action="demo-game" type="button">Start Simulation</button>
         </div>
       </form>
     </main>
@@ -198,7 +209,13 @@ function renderSourceButton(id: PromptSource, label: string, detail: string, act
   `;
 }
 
-function bindRoomCreation(host: HTMLElement, platform: PlatformAdapter, api: CribbitApiClient, draft: TelegramRoomDraft): void {
+function bindRoomCreation(
+  host: HTMLElement,
+  platform: PlatformAdapter,
+  api: CribbitApiClient,
+  draft: TelegramRoomDraft,
+  onSimulation: () => void,
+): void {
   const profileInput = host.querySelector<HTMLInputElement>('[data-profile-input]');
   const roomNameInput = host.querySelector<HTMLInputElement>('[data-room-name]');
   const worldSelect = host.querySelector<HTMLSelectElement>('[data-world]');
@@ -267,16 +284,12 @@ function bindRoomCreation(host: HTMLElement, platform: PlatformAdapter, api: Cri
 
   host.querySelector<HTMLButtonElement>('[data-action="create-game"]')?.addEventListener('click', () => {
     platform.haptic('medium');
-    setStatus(host, 'Create Game is ready in the Telegram UI, but real room persistence is intentionally blocked until Phase 4. No fake room was created.', 'warning');
+    setStatus(host, 'Create Game is blocked until the shared room/session backend migration is complete. No fake room was created.', 'warning');
   });
 
   host.querySelector<HTMLButtonElement>('[data-action="demo-game"]')?.addEventListener('click', () => {
     platform.haptic('medium');
-    const url = new URL(location.href);
-    url.search = '';
-    url.searchParams.set('fixture', 'mobile');
-    url.searchParams.set('compat', '1');
-    location.assign(url.toString());
+    onSimulation();
   });
 }
 
@@ -330,13 +343,14 @@ async function joinRoom(host: HTMLElement, api: CribbitApiClient, rawCode: strin
   }
   setStatus(host, 'Checking room code…', 'neutral');
   try {
-    const result = await api.joinRoom(code) as unknown as JoinRoomResult;
-    if (!result.roomId) {
-      const message = result.message || (result.error === 'ROOMS_NOT_MIGRATED' ? 'Real room joining is not active until Phase 4.' : 'Room joining is not available yet.');
+    const result = api.joinRoom(code) as unknown as Promise<JoinRoomResult>;
+    const joined = await result;
+    if (!joined.roomId) {
+      const message = joined.message || (joined.error === 'ROOMS_NOT_MIGRATED' ? 'Real room joining is not active until the room/session backend migration is complete.' : 'Room joining is not available yet.');
       setStatus(host, `${message} No fake room was created.`, 'warning');
       return;
     }
-    setStatus(host, `Joined room ${result.roomId}.`, 'success');
+    setStatus(host, `Joined room ${joined.roomId}.`, 'success');
   } catch (error) {
     console.warn('[Cribbit] Room join request failed.', error);
     setStatus(host, 'Room joining is currently unavailable. No fake room was created.', 'warning');
