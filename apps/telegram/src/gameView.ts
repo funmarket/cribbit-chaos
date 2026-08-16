@@ -6,6 +6,13 @@ import type { TelegramRoomDraft } from './roomSetup.ts';
 import { createTelegramSimulation, type TelegramSimulation } from './simulation.ts';
 import './styles/game.css';
 
+type ActiveStateCopy = {
+  kicker?: string;
+  title: string;
+  detail?: string;
+  compact?: boolean;
+};
+
 export function renderTelegramGame(
   host: HTMLElement,
   platform: PlatformAdapter,
@@ -121,10 +128,10 @@ function gameTemplate(
         </div>
       </section>
 
-      <section class="tg-active-state" aria-live="polite" data-active-state>
-        <small>${escapeHTML(activeState.kicker)}</small>
+      <section class="tg-active-state${activeState.compact ? ' is-compact' : ''}" aria-live="polite" data-active-state>
+        ${activeState.kicker ? `<small>${escapeHTML(activeState.kicker)}</small>` : ''}
         <strong>${escapeHTML(activeState.title)}</strong>
-        <span>${escapeHTML(activeState.detail)}</span>
+        ${activeState.detail ? `<span>${escapeHTML(activeState.detail)}</span>` : ''}
       </section>
 
       ${state.pendingEffect?.type === 'WILD_COLOR' && state.pendingEffect.playerId === simulation.humanPlayerId
@@ -168,23 +175,8 @@ function bindGame(
     render();
   });
 
-  host.querySelector<HTMLButtonElement>('[data-action="draw-card"]')?.addEventListener('click', () => {
-    const result = simulation.drawCard();
-    platform.haptic(result.ok ? 'medium' : 'light');
-    setStatus(transitionMessage(result.ok, result.error?.message, result.ok ? 'Card drawn. Turn advanced through the canonical engine.' : undefined));
-    render();
-  });
-
-  host.querySelectorAll<HTMLButtonElement>('[data-action="play-card"]').forEach(button => {
-    button.addEventListener('click', () => {
-      const cardId = button.dataset.cardId;
-      if (!cardId) return;
-      const result = simulation.playCard(cardId);
-      platform.haptic(result.ok ? 'medium' : 'light');
-      setStatus(transitionMessage(result.ok, result.error?.message, result.ok ? 'Card played through the canonical engine.' : undefined));
-      render();
-    });
-  });
+  bindDrawAction(host, platform, simulation, render, setStatus);
+  bindPlayActions(host, platform, simulation, render, setStatus);
 
   host.querySelectorAll<HTMLButtonElement>('[data-wild-color]').forEach(button => {
     button.addEventListener('click', () => {
@@ -225,13 +217,47 @@ function bindGame(
   });
 }
 
+function bindDrawAction(
+  host: HTMLElement,
+  platform: PlatformAdapter,
+  simulation: TelegramSimulation,
+  render: () => void,
+  setStatus: (message: { text: string; tone: 'neutral' | 'success' | 'warning' }) => void,
+): void {
+  host.querySelector<HTMLButtonElement>('[data-action="draw-card"]')?.addEventListener('click', () => {
+    const result = simulation.drawCard();
+    platform.haptic(result.ok ? 'medium' : 'light');
+    setStatus(transitionMessage(result.ok, result.error?.message, result.ok ? 'Card drawn through the canonical engine.' : undefined));
+    render();
+  });
+}
+
+function bindPlayActions(
+  host: HTMLElement,
+  platform: PlatformAdapter,
+  simulation: TelegramSimulation,
+  render: () => void,
+  setStatus: (message: { text: string; tone: 'neutral' | 'success' | 'warning' }) => void,
+): void {
+  host.querySelectorAll<HTMLButtonElement>('[data-action="play-card"]').forEach(button => {
+    button.addEventListener('click', () => {
+      const cardId = button.dataset.cardId;
+      if (!cardId) return;
+      const result = simulation.playCard(cardId);
+      platform.haptic(result.ok ? 'medium' : 'light');
+      setStatus(transitionMessage(result.ok, result.error?.message, result.ok ? 'Card played through the canonical engine.' : undefined));
+      render();
+    });
+  });
+}
+
 function transitionMessage(ok: boolean, error?: string, success?: string): { text: string; tone: 'neutral' | 'success' | 'warning' } {
   return ok
     ? { text: success ?? 'Simulation state updated.', tone: 'success' }
     : { text: error ?? 'The canonical engine rejected that action.', tone: 'warning' };
 }
 
-function describeActiveState(state: GameState, simulation: TelegramSimulation): { kicker: string; title: string; detail: string } {
+function describeActiveState(state: GameState, simulation: TelegramSimulation): ActiveStateCopy {
   if (state.status === 'FINISHED') {
     return {
       kicker: 'GAME COMPLETE',
@@ -255,9 +281,8 @@ function describeActiveState(state: GameState, simulation: TelegramSimulation): 
   }
   if (state.currentPlayerId === simulation.humanPlayerId) {
     return {
-      kicker: 'YOUR TURN',
       title: 'PLAY OR DRAW',
-      detail: 'Play a legal card, or draw one card from the pile. Invalid taps are rejected by the engine with a reason.',
+      compact: true,
     };
   }
   return {
