@@ -102,16 +102,16 @@ function gameTemplate(
       <section class="tg-board" aria-label="Card board">
         <div class="tg-board__piles">
           <article class="tg-board-zone tg-board-zone--discard">
+            <span class="tg-board-zone__label">DISCARD</span>
             <div class="tg-discard-stack" aria-label="Discard pile">
               ${discard ? renderCribbitCard(discard, 'board', { interactive: false }) : '<span class="tg-empty-pile">No discard</span>'}
             </div>
-            <span class="tg-board-zone__label">DISCARD</span>
           </article>
           <article class="tg-board-zone tg-board-zone--draw">
+            <span class="tg-board-zone__label">DRAW PILE<br><small>${state.drawPile.length} cards left</small></span>
             <button class="tg-deck" type="button" data-action="draw-card" aria-label="Draw a card" aria-disabled="${String(!humanTurn)}">
               ${renderCribbitCardBack('board')}
             </button>
-            <span class="tg-board-zone__label">DRAW PILE<br><small>${state.drawPile.length} cards left</small></span>
           </article>
         </div>
       </section>
