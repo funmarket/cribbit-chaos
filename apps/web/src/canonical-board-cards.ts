@@ -1,5 +1,9 @@
-import type { CardFamily } from '../../../packages/cards/src/types.ts';
-import { CARD_BACK, CARD_INSTANCES } from '../../../packages/cards/src/index.ts';
+import type { CardColor, CardFamily } from '../../../packages/cards/src/types.ts';
+import {
+  isCanonicalCardFamily,
+  resolveCanonicalCardBackPath,
+  resolveCanonicalCardFacePath,
+} from '../../../packages/cards/src/index.ts';
 import './canonical-board-cards.css';
 
 const ASSET_URLS = import.meta.glob(
@@ -12,11 +16,9 @@ const assetByPath = new Map<string, string>(
   Object.entries(ASSET_URLS).map(([key, url]) => [key.replace(ASSET_PREFIX, ''), url]),
 );
 
-const knownFamilies = new Set<CardFamily>(CARD_INSTANCES.map(card => card.family));
-
 function familyFromCardElement(card: HTMLElement): CardFamily | null {
-  const explicit = card.dataset.kind as CardFamily | undefined;
-  if (explicit && knownFamilies.has(explicit)) return explicit;
+  const explicit = card.dataset.kind;
+  if (explicit && isCanonicalCardFamily(explicit)) return explicit;
 
   if (card.querySelector('.game-card__icon.is-number')) return 'number';
 
@@ -24,29 +26,23 @@ function familyFromCardElement(card: HTMLElement): CardFamily | null {
   if (!title) return null;
 
   const normalized = title.replace(/\s+/g, '_');
-  if (knownFamilies.has(normalized as CardFamily)) return normalized as CardFamily;
-
-  return null;
+  return isCanonicalCardFamily(normalized) ? normalized : null;
 }
 
 function canonicalFaceFor(card: HTMLElement): string | null {
   const family = familyFromCardElement(card);
   if (!family) return null;
 
-  let instance = CARD_INSTANCES.find(candidate => candidate.family === family);
+  const color = card.dataset.color as CardColor | undefined;
+  const valueText = card.querySelector<HTMLElement>('.game-card__icon.is-number')?.textContent?.trim();
+  const value = valueText === undefined ? undefined : Number(valueText);
+  const path = resolveCanonicalCardFacePath({
+    family,
+    color,
+    value: Number.isFinite(value) ? value : undefined,
+  });
 
-  if (family === 'number') {
-    const color = card.dataset.color;
-    const valueText = card.querySelector<HTMLElement>('.game-card__icon.is-number')?.textContent?.trim();
-    const value = valueText === undefined ? Number.NaN : Number(valueText);
-    instance = CARD_INSTANCES.find(candidate =>
-      candidate.family === 'number' &&
-      candidate.color === color &&
-      candidate.value === value,
-    );
-  }
-
-  return instance ? assetByPath.get(instance.image) ?? null : null;
+  return path ? assetByPath.get(path) ?? null : null;
 }
 
 function hydrateFace(card: HTMLElement): void {
@@ -68,7 +64,7 @@ function hydrateFace(card: HTMLElement): void {
 }
 
 function hydrateBacks(root: ParentNode): void {
-  const backSource = assetByPath.get(CARD_BACK);
+  const backSource = assetByPath.get(resolveCanonicalCardBackPath());
   if (!backSource) return;
 
   root.querySelectorAll<HTMLElement>('.deck-stack, .deck-card, [data-role="draw-pile"], [aria-label*="draw pile" i]')
