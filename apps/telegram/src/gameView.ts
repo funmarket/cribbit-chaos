@@ -132,6 +132,7 @@ function gameTemplate(
           ${activeState.kicker ? `<small>${escapeHTML(activeState.kicker)}</small>` : ''}
           <strong>${escapeHTML(activeState.title)}</strong>
           ${activeState.detail ? `<span>${escapeHTML(activeState.detail)}</span>` : ''}
+          ${state.social?.prompt ? '<button class="tg-active-state__flag" type="button" data-action="safety-flag">⚑ Flag prompt</button>' : ''}
         </section>
       ` : ''}
 
@@ -149,11 +150,11 @@ function gameTemplate(
         </div>
       </section>
 
-      <nav class="tg-safety-bar" aria-label="Safety actions">
+      <nav class="tg-safety-bar" aria-label="Game actions">
         <button type="button" data-action="safety-pass" aria-disabled="${String(!state.social)}"><span>↪</span><b>Pass</b></button>
         <button type="button" data-action="safety-rewind" aria-disabled="${String(!state.social)}"><span>↶</span><b>Rewind</b></button>
         <button type="button" data-action="safety-nope" aria-disabled="true" title="Nope is available only during an eligible reaction window"><span>✋</span><b>Nope</b></button>
-        <button type="button" data-action="safety-flag" aria-disabled="${String(!state.social?.prompt)}"><span>⚑</span><b>Flag</b></button>
+        <button type="button" data-action="draw-card" aria-disabled="${String(!humanTurn)}"><span>▱</span><b>Draw</b></button>
       </nav>
 
       <div class="tg-action-status" data-game-status data-tone="${statusTone}" role="status" aria-live="polite">${escapeHTML(statusMessage)}</div>
@@ -176,7 +177,7 @@ function bindGame(
     render();
   });
 
-  bindDrawAction(host, platform, simulation, render, setStatus);
+  bindDrawActions(host, platform, simulation, render, setStatus);
   bindPlayActions(host, platform, simulation, render, setStatus);
 
   host.querySelectorAll<HTMLButtonElement>('[data-wild-color]').forEach(button => {
@@ -218,18 +219,20 @@ function bindGame(
   });
 }
 
-function bindDrawAction(
+function bindDrawActions(
   host: HTMLElement,
   platform: PlatformAdapter,
   simulation: TelegramSimulation,
   render: () => void,
   setStatus: (message: { text: string; tone: 'neutral' | 'success' | 'warning' }) => void,
 ): void {
-  host.querySelector<HTMLButtonElement>('[data-action="draw-card"]')?.addEventListener('click', () => {
-    const result = simulation.drawCard();
-    platform.haptic(result.ok ? 'medium' : 'light');
-    setStatus(transitionMessage(result.ok, result.error?.message, result.ok ? 'Card drawn through the canonical engine.' : undefined));
-    render();
+  host.querySelectorAll<HTMLButtonElement>('[data-action="draw-card"]').forEach(button => {
+    button.addEventListener('click', () => {
+      const result = simulation.drawCard();
+      platform.haptic(result.ok ? 'medium' : 'light');
+      setStatus(transitionMessage(result.ok, result.error?.message, result.ok ? 'Card drawn through the canonical engine.' : undefined));
+      render();
+    });
   });
 }
 
