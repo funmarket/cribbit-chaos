@@ -51,8 +51,8 @@ export function renderCribbitCard(card: Card, size: TelegramCardSize, options: T
     : '';
   const interactive = options.interactive !== false;
   const legal = options.legal !== false;
-  const disabled = interactive && !legal ? ' disabled' : '';
   const actionAttr = interactive ? ' data-action="play-card"' : '';
+  const legalityAttr = interactive ? ` aria-disabled="${String(!legal)}"` : '';
 
   return `
     <button
@@ -64,8 +64,8 @@ export function renderCribbitCard(card: Card, size: TelegramCardSize, options: T
       ${actionAttr}
       ${kindAttr}
       ${colorAttr}
+      ${legalityAttr}
       aria-label="${escapeHTML(`${title} card`)}"
-      ${disabled}
     >
       ${tabMarkup}
       <strong class="game-card__title">${escapeHTML(title)}</strong>
