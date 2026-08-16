@@ -6,6 +6,7 @@ import type { GameCommandContext } from '../src/index.ts';
 import {
   applyCommand,
   buildCoreDeck,
+  CANONICAL_DECK_COUNTS,
   CANONICAL_DECK_SIZE,
   createGame,
   drawCards,
@@ -377,16 +378,29 @@ test('buildCoreDeck is deterministic and has the expected core composition', () 
   assert.equal(deckA.length, CANONICAL_DECK_SIZE);
   assert.deepEqual(deckA.map(card => card.id), deckB.map(card => card.id));
 
+  for (const [family, expectedCount] of Object.entries(CANONICAL_DECK_COUNTS)) {
+    assert.equal(
+      deckA.filter(card => card.kind === family).length,
+      expectedCount,
+      `${family} card count`
+    );
+  }
+
   const colors: Array<'lime' | 'orange' | 'cyan' | 'purple'> = ['lime', 'orange', 'cyan', 'purple'];
   for (const color of colors) {
     const colorCards = deckA.filter(card => card.color === color);
     assert.equal(colorCards.filter(card => card.kind === 'number').length, 19, `${color} number card count`);
-    assert.equal(colorCards.filter(card => card.kind === 'skip').length, 2, `${color} skip card count`);
-    assert.equal(colorCards.filter(card => card.kind === 'reverse').length, 2, `${color} reverse card count`);
-    assert.equal(colorCards.filter(card => card.kind === 'draw').length, 2, `${color} draw card count`);
   }
 
-  assert.equal(deckA.filter(card => card.kind === 'wild').length, 4);
+  const colorlessFamilies = ['skip', 'reverse', 'draw'] as const;
+  for (const family of colorlessFamilies) {
+    const familyCards = deckA.filter(card => card.kind === family);
+    assert.equal(
+      familyCards.some(card => card.color !== undefined),
+      false,
+      `${family} cards must not define gameplay colors`
+    );
+  }
 });
 
 test('createGame deals seven cards per player and starts with a numbered discard', () => {
