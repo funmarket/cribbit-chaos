@@ -1,6 +1,7 @@
 import type { Card } from '../../../packages/contracts/src/index.ts';
 import '../../../packages/ui/src/styles.css';
 import '../../../packages/ui/src/compact-cards.css';
+import './styles/cards.css';
 
 type TelegramCardSize = 'board' | 'hand';
 
@@ -10,6 +11,11 @@ type CardVisual = {
   ruleLead: string;
   ruleDetail: string;
 };
+
+export interface TelegramCardRenderOptions {
+  readonly legal?: boolean;
+  readonly interactive?: boolean;
+}
 
 const CARD_VISUALS: Record<Card['kind'], CardVisual> = {
   number: { title: 'Number', glyph: '', ruleLead: 'Match color or value.', ruleDetail: 'Fast hand-management play.' },
@@ -33,18 +39,20 @@ const CARD_VISUALS: Record<Card['kind'], CardVisual> = {
   dig_me: { title: 'DIG ME', glyph: 'DM', ruleLead: 'DIG ME', ruleDetail: 'Resolve the canonical DIG ME interaction.' }
 };
 
-export function renderCribbitCard(card: Card, size: TelegramCardSize): string {
+export function renderCribbitCard(card: Card, size: TelegramCardSize, options: TelegramCardRenderOptions = {}): string {
   const visual = CARD_VISUALS[card.kind];
   const title = card.kind === 'number' ? String(card.value ?? card.symbol ?? '') : visual.title;
   const glyph = card.kind === 'number' ? String(card.value ?? card.symbol ?? '') : visual.glyph;
-  const kindAttr = card.kind === 'number' || ['skip', 'reverse', 'draw'].includes(card.kind)
-    ? ''
-    : ` data-kind="${escapeHTML(card.kind)}"`;
+  const kindAttr = ` data-kind="${escapeHTML(card.kind)}"`;
   const colorAttr = card.color ? ` data-color="${escapeHTML(card.color)}"` : '';
   const modifier = size === 'board' ? 'game-card--tg-board' : 'game-card--tg-hand';
   const tabMarkup = size === 'board'
     ? `<span class="game-card__tab" aria-hidden="true">${escapeHTML(glyph || title.slice(0, 1))}</span>`
     : '';
+  const interactive = options.interactive !== false;
+  const legal = options.legal !== false;
+  const disabled = interactive && !legal ? ' disabled' : '';
+  const actionAttr = interactive ? ' data-action="play-card"' : '';
 
   return `
     <button
@@ -52,11 +60,12 @@ export function renderCribbitCard(card: Card, size: TelegramCardSize): string {
       type="button"
       data-card-id="${escapeHTML(card.id)}"
       data-card-kind="${escapeHTML(card.kind)}"
-      data-action="play-card"
-      data-legal="true"
+      data-legal="${String(legal)}"
+      ${actionAttr}
       ${kindAttr}
       ${colorAttr}
       aria-label="${escapeHTML(`${title} card`)}"
+      ${disabled}
     >
       ${tabMarkup}
       <strong class="game-card__title">${escapeHTML(title)}</strong>
