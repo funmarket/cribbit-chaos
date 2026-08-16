@@ -10,7 +10,6 @@ type ActiveStateCopy = {
   kicker?: string;
   title: string;
   detail?: string;
-  compact?: boolean;
 };
 
 export function renderTelegramGame(
@@ -128,11 +127,13 @@ function gameTemplate(
         </div>
       </section>
 
-      <section class="tg-active-state${activeState.compact ? ' is-compact' : ''}" aria-live="polite" data-active-state>
-        ${activeState.kicker ? `<small>${escapeHTML(activeState.kicker)}</small>` : ''}
-        <strong>${escapeHTML(activeState.title)}</strong>
-        ${activeState.detail ? `<span>${escapeHTML(activeState.detail)}</span>` : ''}
-      </section>
+      ${activeState ? `
+        <section class="tg-active-state" aria-live="polite" data-active-state>
+          ${activeState.kicker ? `<small>${escapeHTML(activeState.kicker)}</small>` : ''}
+          <strong>${escapeHTML(activeState.title)}</strong>
+          ${activeState.detail ? `<span>${escapeHTML(activeState.detail)}</span>` : ''}
+        </section>
+      ` : ''}
 
       ${state.pendingEffect?.type === 'WILD_COLOR' && state.pendingEffect.playerId === simulation.humanPlayerId
         ? wildColorPicker()
@@ -257,7 +258,7 @@ function transitionMessage(ok: boolean, error?: string, success?: string): { tex
     : { text: error ?? 'The canonical engine rejected that action.', tone: 'warning' };
 }
 
-function describeActiveState(state: GameState, simulation: TelegramSimulation): ActiveStateCopy {
+function describeActiveState(state: GameState, simulation: TelegramSimulation): ActiveStateCopy | null {
   if (state.status === 'FINISHED') {
     return {
       kicker: 'GAME COMPLETE',
@@ -280,10 +281,7 @@ function describeActiveState(state: GameState, simulation: TelegramSimulation): 
     };
   }
   if (state.currentPlayerId === simulation.humanPlayerId) {
-    return {
-      title: 'PLAY OR DRAW',
-      compact: true,
-    };
+    return null;
   }
   return {
     kicker: 'TURN IN PROGRESS',
