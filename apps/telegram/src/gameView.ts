@@ -1,5 +1,5 @@
 import type { CardColor, GameState } from '../../../packages/contracts/src/index.ts';
-import { isLegalPlay, validateDraw } from '../../../packages/game-engine/src/index.ts';
+import { isLegalPlay } from '../../../packages/game-engine/src/index.ts';
 import type { PlatformAdapter } from '../../../packages/platform/src/types.ts';
 import { renderCribbitCard, renderCribbitCardBack } from './cardRenderer.ts';
 import type { TelegramRoomDraft } from './roomSetup.ts';
@@ -53,7 +53,6 @@ function gameTemplate(
   const current = state.players.find(player => player.id === state.currentPlayerId);
   const discard = state.discardPile[state.discardPile.length - 1];
   const humanTurn = state.currentPlayerId === simulation.humanPlayerId;
-  const canDraw = humanTurn && validateDraw(state, simulation.humanPlayerId).ok;
   const activeState = describeActiveState(state, simulation);
 
   return `
@@ -103,7 +102,7 @@ function gameTemplate(
             <span class="tg-board-zone__label">DISCARD</span>
           </article>
           <article class="tg-board-zone tg-board-zone--draw">
-            <button class="tg-deck" type="button" data-action="draw-card" aria-label="Draw a card"${canDraw ? '' : ' disabled'}>
+            <button class="tg-deck" type="button" data-action="draw-card" aria-label="Draw a card" aria-disabled="${String(!humanTurn)}">
               ${renderCribbitCardBack('board')}
             </button>
             <span class="tg-board-zone__label">DRAW PILE<br><small>${state.drawPile.length} cards left</small></span>
@@ -143,10 +142,10 @@ function gameTemplate(
       </section>
 
       <nav class="tg-safety-bar" aria-label="Safety actions">
-        <button type="button" data-action="safety-pass"${state.social ? '' : ' disabled'}><span>↪</span><b>Pass</b></button>
-        <button type="button" data-action="safety-rewind"${state.social ? '' : ' disabled'}><span>↶</span><b>Rewind</b></button>
-        <button type="button" disabled aria-disabled="true" title="Nope is enabled only by an eligible server/engine reaction window"><span>✋</span><b>Nope</b></button>
-        <button type="button" data-action="safety-flag"${state.social?.prompt ? '' : ' disabled'}><span>⚑</span><b>Flag</b></button>
+        <button type="button" data-action="safety-pass" aria-disabled="${String(!state.social)}"><span>↪</span><b>Pass</b></button>
+        <button type="button" data-action="safety-rewind" aria-disabled="${String(!state.social)}"><span>↶</span><b>Rewind</b></button>
+        <button type="button" data-action="safety-nope" aria-disabled="true" title="Nope is available only during an eligible reaction window"><span>✋</span><b>Nope</b></button>
+        <button type="button" data-action="safety-flag" aria-disabled="${String(!state.social?.prompt)}"><span>⚑</span><b>Flag</b></button>
       </nav>
 
       <div class="tg-action-status" data-game-status data-tone="${statusTone}" role="status" aria-live="polite">${escapeHTML(statusMessage)}</div>
@@ -200,18 +199,27 @@ function bindGame(
 
   host.querySelector<HTMLButtonElement>('[data-action="safety-pass"]')?.addEventListener('click', () => {
     const result = simulation.passPrompt();
+    platform.haptic(result.ok ? 'medium' : 'light');
     setStatus(transitionMessage(result.ok, result.error?.message, result.ok ? 'Prompt passed through the canonical engine.' : undefined));
     render();
   });
 
   host.querySelector<HTMLButtonElement>('[data-action="safety-rewind"]')?.addEventListener('click', () => {
     const result = simulation.rewindPrompt();
+    platform.haptic(result.ok ? 'medium' : 'light');
     setStatus(transitionMessage(result.ok, result.error?.message, result.ok ? 'Prompt rewind requested through the canonical engine.' : undefined));
+    render();
+  });
+
+  host.querySelector<HTMLButtonElement>('[data-action="safety-nope"]')?.addEventListener('click', () => {
+    platform.haptic('light');
+    setStatus({ text: 'Nope becomes available only when the canonical engine opens an eligible reaction window.', tone: 'warning' });
     render();
   });
 
   host.querySelector<HTMLButtonElement>('[data-action="safety-flag"]')?.addEventListener('click', () => {
     const result = simulation.flagPrompt('telegram-simulation');
+    platform.haptic(result.ok ? 'medium' : 'light');
     setStatus(transitionMessage(result.ok, result.error?.message, result.ok ? 'Prompt flagged through the canonical engine.' : undefined));
     render();
   });
@@ -249,7 +257,7 @@ function describeActiveState(state: GameState, simulation: TelegramSimulation): 
     return {
       kicker: 'YOUR TURN',
       title: 'PLAY OR DRAW',
-      detail: 'Play any highlighted legal card, or draw one card from the pile.',
+      detail: 'Play a legal card, or draw one card from the pile. Invalid taps are rejected by the engine with a reason.',
     };
   }
   return {
