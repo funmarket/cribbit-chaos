@@ -7,6 +7,8 @@ export type {
   DeckDefinition
 } from './types.ts';
 
+export type { CanonicalCardIdentity } from './presentation.ts';
+
 export {
   DECK_SPEC_ID,
   CANONICAL_DECK_SIZE,
@@ -19,3 +21,9 @@ export {
   getCardsByFamily,
   buildDeck
 } from './cards.ts';
+
+export {
+  isCanonicalCardFamily,
+  resolveCanonicalCardFacePath,
+  resolveCanonicalCardBackPath
+} from './presentation.ts';
