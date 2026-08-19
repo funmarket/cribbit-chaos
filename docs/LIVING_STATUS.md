@@ -171,11 +171,34 @@ Machiavelli opens a private six-option server-enforced chooser only:
 
 Effects are the canonical definitions recorded in `PLAN.md`. Machiavelli is one-use and moves to Exhausted after resolution.
 
-## Locked game-feel rule — interaction cards fire on draw
+## Locked draw rule — opening hand optional, later interaction draws immediate
 
-Any card whose primary purpose is immediate social/player interaction must activate as soon as it is drawn from the authoritative draw pile. It must not sit dormant in hand waiting for a later voluntary play.
+This is now a canonical gameplay rule.
 
-This rule applies to normal draws and penalty/forced draws, including Draw 2 penalties. Generated/direct-to-hand cards are not treated as draws unless their effect explicitly says they are drawn.
+### Initial starting hand
+
+Interaction cards received during the opening deal remain ordinary hand cards. They do **not** auto-play during setup.
+
+A player may voluntarily play those opening-hand interaction cards later whenever normal play legality allows.
+
+### After the game starts
+
+Any immediate-interaction card drawn from the authoritative draw pile after the opening deal must auto-play immediately. It cannot be saved in hand for a later turn.
+
+This applies to:
+
+- voluntary draws
+- Draw penalties
+- Truth/Dare refusal Draw 2
+- Paranoia penalties
+- any future effect that explicitly draws from the authoritative draw pile
+
+Canonical distinction:
+
+```text
+INITIAL DEAL -> interaction card stays in hand -> optional later play
+POST-START DRAW -> interaction card auto-plays immediately
+```
 
 Current immediate-interaction families:
 
@@ -192,7 +215,7 @@ Current immediate-interaction families:
 - Chaos
 - Machiavelli
 
-Current hand-resident / non-immediate families:
+Current hand-resident families when drawn:
 
 - Number
 - Skip
@@ -204,7 +227,11 @@ Current hand-resident / non-immediate families:
 
 Ghost remains a delayed/persistent card and does not auto-resolve simply because it was drawn.
 
-If a draw produces multiple interaction cards, they resolve one at a time in draw order. There must never be overlapping social flows or multiple active interaction modals.
+Generated/direct-to-hand cards are not treated as post-start draws unless the generating effect explicitly defines them as drawn.
+
+## Chained post-start draws
+
+If one draw action produces multiple interaction cards, they resolve sequentially in physical draw order.
 
 Example:
 
@@ -213,23 +240,29 @@ Truth refusal
 -> Draw 2
 -> Number stays in hand
 -> Taboo is queued
--> Truth refusal finishes
--> queued Taboo starts immediately
+-> current Truth refusal boundary completes
+-> Taboo starts immediately
 -> Taboo resolves
--> only then may the original turn continue
+-> original turn may continue only after the queue is empty
 ```
 
-## Active task — authoritative interaction-on-draw dispatcher/queue
+If two interaction cards are drawn, the first resolves completely before the second begins. No overlapping modals or simultaneous social flows.
 
-One authoritative mechanism must handle **every draw source**:
+## Active task — post-start interaction-on-draw dispatcher/queue
+
+One authoritative mechanism must distinguish initial dealing from later draws:
 
 ```text
-ANY AUTHORITATIVE DRAW
+INITIAL DEAL
+-> cards enter starting hands directly
+-> no interaction auto-play
+
+POST-START AUTHORITATIVE DRAW
 -> remove physical card from draw pile
 -> inspect family
 -> hand-resident card: keep/add to hand
--> interaction card: enqueue immediate family flow
--> resolve interaction queue FIFO
+-> interaction card: commit/enqueue immediate play
+-> resolve queue FIFO
 -> resume original effect/turn only when queue is empty
 ```
 
@@ -237,16 +270,19 @@ Implementation constraints:
 
 - one central family classification
 - one dispatcher/queue only
+- initial deal explicitly bypasses auto-play
 - no family-specific draw hacks
 - no duplicate Truth/Dare/Paranoia/Duel flows
-- physical drawn-card identity stays authoritative
+- real physical card identity stays authoritative
 - no fake replacement cards
+- post-start drawn interaction cannot remain dormant in hand
+- opening-hand interaction remains voluntarily playable later
 - queued interactions resolve FIFO in draw order
 - unresolved queue blocks normal play/draw
-- original turn advancement and win check wait for the queue to empty
+- turn advancement and win check wait for the queue to empty
 - replay/idempotency cannot fire the same drawn interaction twice
 - bots use the same path
-- generated/direct-to-hand cards do not auto-trigger unless explicitly defined as draws
+- generated/direct-to-hand cards follow their generating effect rather than being silently treated as draws
 
 First implementation set:
 
@@ -255,7 +291,7 @@ First implementation set:
 - Paranoia
 - Duel
 
-Then connect the remaining interaction families as their authoritative normal flows are completed/verified:
+Then connect the remaining interaction families as their normal authoritative flows are completed/verified:
 
 - Taboo
 - Reverse Confession
@@ -266,16 +302,18 @@ Then connect the remaining interaction families as their authoritative normal fl
 - Chaos
 - Machiavelli
 
-Required tests include:
+Required tests:
 
-- voluntary draw of interaction card -> immediate flow
-- penalty Draw 2 containing interaction card -> immediate flow
-- two interaction cards in same draw -> sequential FIFO flows
-- basic/tactical draw -> stays in hand
-- replay safety -> no duplicate flow
-- bot draw -> same behavior
-- turn cannot advance until queue empties
-- win check cannot bypass unresolved queued interaction
+- [ ] opening deal interaction card -> remains in starting hand
+- [ ] opening-hand interaction card -> can be voluntarily played later
+- [ ] post-start voluntary draw interaction -> immediate family flow
+- [ ] penalty Draw 2 interaction -> immediate family flow
+- [ ] two interaction cards in one draw -> FIFO sequential flows
+- [ ] hand-resident draw -> stays in hand
+- [ ] replay -> no duplicate forced flow
+- [ ] bot draw -> same behavior
+- [ ] turn does not advance until forced queue empties
+- [ ] win check cannot bypass unresolved queued interaction
 
 ## Following mechanics work
 
@@ -310,4 +348,4 @@ Runtime-affecting work is not accepted until browser/live-Web verification confi
 
 ## Current next task
 
-**Audit all authoritative draw paths in the shared reducer and legacy Web runtime, then implement the single FIFO interaction-on-draw dispatcher/queue beginning with Truth, Dare, Paranoia, and Duel.**
+**Audit initial dealing separately from every post-start authoritative draw path, then implement the single FIFO interaction-on-draw dispatcher/queue beginning with Truth, Dare, Paranoia, and Duel while preserving opening-hand optional play.**
