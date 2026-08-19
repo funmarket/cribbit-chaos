@@ -2,69 +2,255 @@
 
 Last verified source branch: `feature/visual-integration-checkpoint`
 
-This file is the concise runtime/project status companion to `README.md`, `PLAN.md`, and `AGENTS.md`. All four must remain synchronized with verified reality.
+This file is the concise operational status companion to `PLAN.md`. It records what is accepted, what is source-complete but still needs browser proof, and what we do next.
 
 ## Source of truth
 
 GitHub is canonical for deployable source, game rules, documentation, and implementation status.
 
-## Current product state
+Current development mode: **Web-first**. Telegram remains contract/state compatible but is not the active UI priority until Web gameplay is stable.
 
-- Web and Telegram are two clients of one Cribbit CHAOS game.
-- Railway API/PostgreSQL remain the authoritative backend/data boundary.
-- Web contains the most complete playable visual/mechanical prototype and remains the temporary card-visual baseline while mechanics are stabilized.
-- Final card-art polish is intentionally deferred until the mechanics are coherent and verified.
-- Telegram's PNG-based card renderer has been replaced in source with the Web-style HTML/CSS card presentation. Telegram no longer needs the PNG card assets for its card renderer.
-- The PNG asset package has not yet been deleted because the replacement must pass CI/build verification first under the mandatory workflow.
-- Duel now uses one shared Duel question for both participants. Current subjective/manual/team/app text Duel questions resolve through eligible non-participant group vote; automatic objective Duel judging remains deferred until structured answer/evaluation content exists.
+## Canonical deck
 
-## Canonical playable deck
+Physical game-start deck: **CHAOS-133-V1 = 133 playable physical card instances**.
 
-The production target is exactly 112 playable cards:
+Family counts:
 
-- 92 colored engine cards
-  - per color: 0 x1, 1-9 x2, Skip x1, Reverse x1, Draw x2
-- Wild x4
-- Truth x3
-- Dare x3
-- Paranoia x3
-- Chaos x3
-- Duel x2
-- Nope x2
+- Number 76
+- Skip 6
+- Reverse 6
+- Draw 6
+- Wild 3
+- Truth 3
+- Dare 3
+- Paranoia 3
+- Chaos 3
+- Duel 3
+- Nope 3
+- TAG 3
+- Truth or Chaos 3
+- Hijack 3
+- Taboo 3
+- Machiavelli 1
+- Ghost 1
+- Reverse Confession 3
+- DIG ME 1
 
-Pass, Rewind, Flag, Spice Dial, Speak, Type, Choose, and Answered Live are controls/systems, not hand-card inventory.
+Machiavelli may generate approved runtime card instances after game start, so active game card count can exceed 133 without changing the physical starting-deck authority.
 
-The shared `packages/game-engine/src/deck.ts` now builds this 112-card composition and exposes canonical count constants.
+Reverse Confession canonical assets are JPEG:
 
-## Verification state
+- `cards/reverse_confession/fIYGR_01.jpg`
+- `cards/reverse_confession/fIYGR_02.jpg`
+- `cards/reverse_confession/fIYGR_03.jpg`
 
-Latest inspected CI result after the shared-deck change and Telegram renderer change:
+Do not keep duplicate PNG/JPEG versions of the same canonical physical card.
 
-- TypeScript typecheck: PASS
-- Test suite: FAIL because three pre-existing assertions in `packages/game-engine/test/core-engine.test.ts` still expect the previous 104-card core deck and two Skip/Reverse copies per color
-- Web/Telegram/API builds: skipped by CI after the failing test step
+Known separate asset QA issue: `cards/numbers/lime/number_lime_1_02.jpg` is zero-byte. This is not a gameplay-rule change.
 
-The failure is stale-test debt, not evidence that the new deck generated the wrong size: CI reports actual deck size 112 against old expected 104.
+## Accepted runtime behavior
 
-## Active migration order
+### Roulette — ACCEPTED
 
-1. Repair stale core-engine deck assertions to the canonical 112 composition while preserving the rest of the engine test coverage.
-2. Run full typecheck/tests/build:web/build:telegram/build:api.
-3. Correct the temporary Web legacy runtime's local 128-card builder so the Web runtime uses the same canonical 112 distribution.
-4. Verify Web gameplay with the canonical deck.
-5. Verify Telegram's Web-style card presentation and shared mechanics boundary.
-6. Remove obsolete PNG card assets, PNG resolver/registry pieces, asset integrity tests, and superseded card-system documentation only after reference checks prove nothing live depends on them.
-7. Remove any remaining duplicate client-local deck/rule implementations.
-8. Tune gameplay rules, buttons, contextual display, pacing, timers, Chaos/Duel/Nope behavior.
-9. Add audio comments/effects after stable semantic game events exist.
-10. Polish/finalize card art after mechanics are proven.
+- authoritative prompt selected before spin
+- Roulette is presentation only
+- prompt survives spin
+- stable SVG wheel removed old flicker
+
+### Fixture Preview close — ACCEPTED
+
+Visual-only preview can close and clears fixture-preview state.
+
+### Active gameplay close guard — ACCEPTED
+
+Unresolved gameplay effects cannot be dismissed. Close attempts keep the modal open and instruct the player to finish the action.
+
+### Hybrid Paranoia — ACCEPTED
+
+Prompt source first, then target, then Classic/Stranger.
+
+Classic:
+
+- phase selection does not resolve
+- initial target names answer player
+- named answer player chooses Reveal / Keep Secret
+- Continue runs the normal win boundary
+
+Stranger:
+
+- target answers
+- eligible voters are everyone except target
+- tie = no penalty
+- strict `LYING` / `HOLDING_BACK` majority -> target Draw 2
+
+Manual browser checks passed for Classic no-winner, Stranger no-winner, last-card Paranoia winner, and Truth/Dare Continue regression.
+
+## Source-complete / browser acceptance pending
+
+### Truth / Dare Manual + Roulette
+
+Implemented source flow:
+
+```text
+Play Truth/Dare
+-> choose Manual or Roulette
+-> establish prompt
+-> preview/reveal/answer
+```
+
+Manual prompt validation: 10-280 characters. Manual prompts are one-off runtime prompts, not automatically saved permanently.
+
+### Truth / Dare refusal rule
+
+Locked canonical rule:
+
+```text
+Pass / Not for Me
+-> draw exactly 2 real cards
+-> authoritative hand updates
+-> effect resolves
+-> win/turn resolution occurs afterward
+```
+
+Applies to Truth and Dare, Manual and Roulette.
+
+Last-card ordering is locked: playing the last Truth/Dare and then passing cannot win because Draw 2 occurs first.
+
+Automated source tests exist. Browser verification is still required before marking Truth/Dare accepted.
+
+### Duel
+
+Implemented source model:
+
+```text
+Play Duel
+-> opponent
+-> Manual or Duel Roulette
+-> ONE shared Duel question
+-> challenger-selected timer
+-> challenger response
+-> opponent response to same question
+-> winner resolution
+-> Continue / win check
+```
+
+Current subjective/manual/team/app text Duel prompts use `GROUP_VOTE`.
+
+Group-vote authority:
+
+- candidates = challenger and opponent only
+- eligible voters = all session players except those two participants
+- participants cannot vote
+- each eligible voter votes once
+- unique top wins
+- tie = no winner
+- no eligible submitted votes = no winner
+- two-player Duel resolves no-winner and must not hang
+
+Duel cannot be Noped.
+
+Human vote identity is derived from the local human player. Internal/bot votes may use explicit voter identity only on the non-human path.
+
+Bot-vote lifecycle source fix is present: entering Duel voting wakes the existing bot social resolver.
+
+Browser verification is still required before marking Duel accepted.
+
+## Machiavelli locked rule
+
+Machiavelli opens a private six-option server-enforced chooser only:
+
+1. Convert the Weak
+2. Taboo for All
+3. No Mercy
+4. Paranoia Spreads
+5. Double the Pressure
+6. Reverse Confession
+
+Effects are the canonical definitions recorded in `PLAN.md`. Machiavelli is one-use and moves to Exhausted after resolution.
+
+## Current runtime acceptance checklist
+
+Truth/Dare:
+
+- [ ] Truth Manual -> Pass / Not for Me -> exactly Draw 2
+- [ ] Truth Roulette -> Pass / Not for Me -> exactly Draw 2
+- [ ] Dare Manual -> Pass / Not for Me -> exactly Draw 2
+- [ ] Dare Roulette -> Pass / Not for Me -> exactly Draw 2
+- [ ] normal Truth completion -> no refusal Draw 2
+- [ ] normal Dare completion -> no refusal Draw 2
+- [ ] last-card Truth pass -> no win
+- [ ] last-card Dare pass -> no win
+- [ ] Continue / turn resolution runs once
+
+Duel:
+
+- [ ] human challenger + bot opponent + eligible bot voter -> bot auto-votes and resolves
+- [ ] mixed human + bot eligible voters -> bot votes automatically; waits only for eligible human
+- [ ] all-bot eligible voters -> each votes once and resolves
+- [ ] two-player Duel -> no eligible voters -> no-winner resolution without frozen vote UI
+
+## Next implementation after acceptance
+
+**Single authoritative forced-on-draw dispatcher.**
+
+Forced on draw:
+
+- Truth
+- Dare
+- Paranoia
+- Chaos
+- Duel
+- TAG
+- Truth or Chaos
+- Hijack
+- Taboo
+- Machiavelli
+- Reverse Confession
+- DIG ME
+
+Not forced on draw:
+
+- Number
+- Skip
+- Reverse
+- Draw
+- Wild
+- Nope
+- Ghost
+
+The dispatcher must reuse the existing authoritative family entry flows. Do not create duplicate family implementations for forced draws.
+
+## Following mechanics work
+
+After forced-on-draw, complete and verify the remaining special-card families:
+
+- Chaos deterministic effect catalogue
+- TAG
+- Truth or Chaos
+- Hijack
+- Taboo
+- Machiavelli six-option runtime implementation
+- Reverse Confession
+- DIG ME
+- Ghost lifecycle
+- final Nope eligibility matrix for any future eligible effects
+
+Then clean duplicate commands/client-local rule ownership, add complete-turn regression tests for every family, and tune pacing/UX only after mechanics are stable.
+
+## Repository guardrails
+
+Never commit temporary artifacts such as:
+
+- `FIX.md`
+- scratch files
+- recovery notes
+- generated diffs
+- diagnostics
+- debug logs
+- temporary planning files
+
+Runtime-affecting work is not accepted until browser/live-Web verification confirms it.
 
 ## Current next task
 
-**M1.1b — Remove stale 104-card test assumptions and green the canonical 112 shared engine.**
-
-Do not delete the PNG package until the replacement path has passed the relevant builds. The no-stale-debt rule requires deletion in the same completed migration slice, but only after verified replacement rather than before it.
-
-## No-stale-debt reminder
-
-Each completed slice must remove temporary, duplicate, dead, conflicting, recovery, debug, or superseded resources whenever technically possible. Anything intentionally retained must have a live dependency or documented removal path.
+**Perform the Truth/Dare + Duel runtime acceptance checklist against the Web app, record each result here immediately, then begin forced-on-draw only after the accepted paths are green or a reproducible blocker is documented.**
