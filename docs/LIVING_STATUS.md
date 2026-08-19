@@ -158,6 +158,29 @@ Browser acceptance confirmed:
 
 Objective automatic judging remains future work and requires structured objective evaluation metadata.
 
+## Visual fix in source — draw pile canonical card back
+
+The board previously rendered the draw pile as a CSS placeholder shell even though `packages/cards/src/cards.ts` already defines the canonical back as `backs/card_back.jpg` and the asset exists in `CHAOS-133-V1`.
+
+Source fix now present:
+
+- `packages/ui/src/draw-pile-card-back.css` renders `packages/cards/assets/CHAOS-133-V1/backs/card_back.jpg` on the draw pile.
+- `packages/ui/src/bootstrap.ts` imports that stylesheet.
+- the old internal placeholder stack is hidden so it no longer covers the artwork.
+- the remaining-card count stays visible as a compact overlay.
+- the draw pile keeps a stacked-card silhouette using the same canonical back artwork.
+- disabling the Draw control no longer visually erases the card back.
+
+Status: **SOURCE FIXED — browser verification pending**.
+
+Required visual check:
+
+- [ ] draw pile shows the real canonical card back
+- [ ] remaining-card count is readable
+- [ ] disabled draw state still shows the back art
+- [ ] stack edges remain visually clear
+- [ ] clicking the pile still calls the existing Draw action when legal
+
 ## Machiavelli locked rule
 
 Machiavelli opens a private six-option server-enforced chooser only:
@@ -348,4 +371,4 @@ Runtime-affecting work is not accepted until browser/live-Web verification confi
 
 ## Current next task
 
-**Audit initial dealing separately from every post-start authoritative draw path, then implement the single FIFO interaction-on-draw dispatcher/queue beginning with Truth, Dare, Paranoia, and Duel while preserving opening-hand optional play.**
+**Browser-check the draw-pile back-art fix, then audit initial dealing separately from every post-start authoritative draw path and implement the single FIFO interaction-on-draw dispatcher/queue beginning with Truth, Dare, Paranoia, and Duel while preserving opening-hand optional play.**
