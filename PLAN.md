@@ -142,11 +142,9 @@ paranoia-choice
 
 Manual browser checks passed for Classic no-winner, Stranger no-winner, last-card Paranoia winner, and Truth/Dare Continue regression.
 
-## Implemented but still requiring browser acceptance
+### Truth / Dare Manual + Roulette — ACCEPTED
 
-### Truth / Dare prompt source
-
-Implemented flow:
+Canonical flow:
 
 ```text
 Play Truth/Dare
@@ -158,7 +156,9 @@ Play Truth/Dare
 
 Manual prompt validation: 10-280 characters. Manual prompts are one-off runtime prompts and are not automatically saved permanently.
 
-### Truth / Dare Pass / Not for Me — LOCKED RULE
+### Truth / Dare Pass / Not for Me — ACCEPTED
+
+Locked rule:
 
 ```text
 Pass / Not for Me
@@ -181,9 +181,9 @@ play last Truth/Dare
 -> player cannot win from that play
 ```
 
-Source implementation and reducer tests exist. Manual Web verification is still required before the full Truth/Dare slice is marked accepted.
+Browser acceptance confirmed Truth Manual, Truth Roulette, Dare Manual, Dare Roulette, normal no-penalty completion, last-card non-win behavior, and normal Continue/turn resolution.
 
-### Duel — SOURCE IMPLEMENTED, RUNTIME ACCEPTANCE PENDING
+### Duel — ACCEPTED
 
 Canonical model:
 
@@ -215,16 +215,11 @@ Group-vote rules:
 
 Duel cannot be Noped.
 
-Bot-vote lifecycle source fix is implemented: entering `duel-vote` wakes the existing bot social resolver so eligible bot voters can submit their votes. Human voter identity is derived from the actual local human player; bot/internal votes can pass explicit voter identity only through the internal non-human path.
+Human voter identity is derived from the actual local human player. Bot/internal votes can pass explicit voter identity only through the internal non-human path.
+
+Bot-vote lifecycle is accepted in the browser: entering `duel-vote` wakes the existing bot social resolver, mixed human/bot voter groups wait only for eligible humans, all-bot eligible voter groups complete, and two-player no-voter Duels resolve without a frozen voting screen.
 
 Objective automatic judging remains future work and must require structured objective evaluation metadata. Do not infer Roulette = automatic judging and do not use AI free-text judging as a substitute.
-
-Required browser acceptance checks:
-
-- human challenger + bot opponent + eligible bot voter -> bot vote resolves
-- mixed human + bot eligible voters -> bots auto-vote; runtime waits only for eligible human
-- all-bot eligible voters -> each votes once and resolves
-- two-player Duel -> no-voter/no-winner resolution without frozen voting UI
 
 ## Machiavelli — LOCKED PRODUCT RULE
 
@@ -250,9 +245,9 @@ Effects:
 
 Machiavelli is one-use and moves to Exhausted after resolution.
 
-## Next gameplay slice — forced-on-draw dispatcher
+## Active gameplay slice — forced-on-draw dispatcher
 
-Do not start this until Truth/Dare and Duel browser acceptance is completed or a reproducible blocker is recorded.
+Truth/Dare and Duel runtime acceptance are complete. Forced-on-draw is now the active mechanics task.
 
 One authoritative forced-draw dispatcher must decide whether a newly drawn card stays in hand or immediately enters its existing family flow.
 
@@ -293,7 +288,32 @@ DRAW_CARD
 
 Do not build a second Truth/Dare/Paranoia/Duel implementation for forced draws.
 
-## Remaining special-card mechanics after forced-on-draw
+### Forced-on-draw implementation requirements
+
+- one dispatcher only
+- family classification is explicit and testable
+- drawn physical card identity remains authoritative
+- no fake replacement card is created
+- the forced card must enter the same family flow as a normally played card wherever that family flow already exists
+- unresolved forced effects block normal play/draw until resolution
+- final win checks happen only after the forced effect and any required penalties complete
+- command replay/idempotency must not trigger the same forced effect twice
+- bot turns must traverse the same forced resolution path
+- no UI-only forced resolution state
+
+### Forced-on-draw first verification set
+
+Start with already-accepted families before unfinished special cards:
+
+1. Truth
+2. Dare
+3. Paranoia
+4. Duel
+5. Chaos if its current entry flow is safe to reuse without inventing unfinished effect semantics
+
+Then connect remaining forced families only as their authoritative family mechanics become complete.
+
+## Remaining special-card mechanics after forced-on-draw foundation
 
 Complete and verify the still-incomplete families using one authoritative implementation per mechanic:
 
@@ -345,11 +365,11 @@ Do not silently mark these complete while working on gameplay:
 
 ## Current Next Task
 
-**Runtime acceptance checkpoint for the synchronized Truth/Dare and Duel source changes.**
+**Implement the single authoritative forced-on-draw dispatcher, beginning with the already-accepted Truth, Dare, Paranoia, and Duel family flows.**
 
-1. Verify Truth Manual, Truth Roulette, Dare Manual, and Dare Roulette `Pass / Not for Me -> Draw 2` behavior in the Web app.
-2. Verify last-card Truth/Dare pass cannot win.
-3. Verify normal Truth/Dare completion draws no refusal penalty.
-4. Verify Duel bot-voter lifecycle, mixed voters, all-bot voters, and two-player no-voter resolution.
-5. Update `docs/LIVING_STATUS.md` immediately with pass/fail findings.
-6. Once those checks pass, mark Truth/Dare and Duel accepted and begin the single authoritative forced-on-draw dispatcher.
+1. Audit current `DRAW_CARD` behavior in the shared reducer and legacy Web runtime.
+2. Add one forced-family classification/dispatcher rather than per-family draw hacks.
+3. Route forced Truth/Dare/Paranoia/Duel draws into their existing entry flows without creating duplicate systems.
+4. Preserve normal hand behavior for Number, Skip, Reverse, Draw, Wild, Nope, and Ghost.
+5. Add deterministic tests for forced vs non-forced drawn families, idempotency, bot traversal, and last-card/win ordering.
+6. Validate source, then browser-test the Web runtime before marking forced-on-draw accepted.
