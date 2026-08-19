@@ -1,6 +1,7 @@
 import template from './template.html?raw';
 import './styles.css';
 import './compact-cards.css';
+import './draw-pile-card-back.css';
 import type { PlatformAdapter } from '../../platform/src/types.ts';
 import { CribbitApiClient, clientConfig } from '../../api-client/src/index.ts';
 import type { AuthSession } from '../../contracts/src/index.ts';
