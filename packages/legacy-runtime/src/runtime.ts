@@ -15,7 +15,7 @@ import { announce, toast } from './feedback.ts';
     const FAMILY_META = {
       truth: { title: 'Truth', icon: 'i-truth', accent: 'lime', rule: '<strong>Reveal something real.</strong><br>Answer honestly.', role: 'Social card', resolution: 'Select an eligible Truth prompt, collect an explicit answer, resolve authorship and continue.' },
       dare: { title: 'Dare', icon: 'i-lightning', accent: 'orange', rule: '<strong>Do something bold.</strong><br>Complete the challenge.', role: 'Social card', resolution: 'Select an eligible Dare, run the timer or completion path, register an explicit completion and continue.' },
-      paranoia: { title: 'Paranoia', icon: 'i-paranoia', accent: 'purple', rule: '<strong>Trust no one.</strong><br>Choose, guess or suspect.', role: 'Social card', resolution: 'Collect a private explicit choice and reveal only what the prompt contract permits.' },
+      paranoia: { title: 'Paranoia', icon: 'i-paranoia', accent: 'purple', rule: '<strong>Trust no one.</strong><br>Choose, guess or suspect.', role: 'Social card', resolution: 'Choose a target privately, then continue through the Classic or Stranger branch.' },
       chaos: { title: 'Chaos', icon: 'i-spiral', accent: 'magenta', rule: '<strong>Shake things up.</strong><br>Resolve the effect.', role: 'Special card', resolution: 'Resolve one deterministic tested Chaos effect exactly once.' },
       duel: { title: 'Duel', icon: 'i-swords', accent: 'cyan', rule: '<strong>Challenge another player.</strong><br>Resolve the Duel.', role: 'Special card', resolution: 'Run two sequential single-player windows, compare results, log the outcome and resume normal play.' },
       nope: { title: 'Nope', icon: 'i-hand', accent: 'gold', rule: '<strong>Not today.</strong><br>Block an eligible effect.', role: 'Tactical hand card', resolution: 'Consume Nope during a permitted reaction window and block or redirect the eligible effect.' }
@@ -74,7 +74,7 @@ import { announce, toast } from './feedback.ts';
       { id: 'clean-dare-movie', type: 'dare', text: 'Describe a famous movie without character names. The first correct guess ends the Dare.', world: 'clean', stage: 2, source: 'community', author: 'Arjun', authorship: 'reveal', targeting: 'current', options: [] },
       { id: 'clean-dare-pose', type: 'dare', text: 'Hold the weirdest heroic pose you can invent until the next player begins.', world: 'clean', stage: 1, source: 'house', author: 'House Deck', authorship: 'taboo', targeting: 'current', options: [] },
       { id: 'clean-paranoia-detective', type: 'paranoia', text: 'Who here would make the best cartoon detective?', world: 'clean', stage: 1, source: 'original', author: 'Cribbit', authorship: 'signed', targeting: 'specific', options: [] },
-      { id: 'clean-duel-countries', type: 'duel', text: 'You each have 15 seconds to name as many African countries as possible.', world: 'clean', stage: 2, source: 'original', author: 'Cribbit', authorship: 'signed', targeting: 'specific', options: [] },
+      { id: 'clean-duel-countries', type: 'duel', text: 'You each have 15 seconds to name as many African countries as possible.', world: 'clean', stage: 2, source: 'original', author: 'Cribbit', authorship: 'signed', targeting: 'specific', options: [], duelJudgingMode:'GROUP_VOTE' },
       { id: 'clean-chaos-animal', type: 'chaos', text: 'Everyone has 10 seconds to draw an animal. The active player chooses the funniest.', world: 'clean', stage: 3, source: 'original', author: 'Cribbit', authorship: 'signed', targeting: 'all', options: [] },
       { id: 'adult-truth-assumption', type: 'truth', text: 'What assumption does this group have about you that is completely wrong?', world: 'adult', stage: 1, source: 'original', author: 'Cribbit', authorship: 'signed', targeting: 'current', options: [] },
       { id: 'adult-truth-draft', type: 'truth', text: 'What is a message you drafted and never sent?', world: 'adult', stage: 1, source: 'live', author: 'Mia', authorship: 'reveal', targeting: 'current', options: [] },
@@ -84,7 +84,7 @@ import { announce, toast } from './feedback.ts';
       { id: 'adult-dare-story', type: 'dare', text: 'Tell a dramatic ten-second story using only three words chosen by the group.', world: 'adult', stage: 2, source: 'house', author: 'House Deck', authorship: 'taboo', targeting: 'current', options: [] },
       { id: 'adult-paranoia-lie', type: 'paranoia', text: 'Choose privately: who here would be hardest to fool in a lie?', world: 'adult', stage: 1, source: 'original', author: 'Cribbit', authorship: 'signed', targeting: 'specific', options: [] },
       { id: 'adult-paranoia-plan', type: 'paranoia', text: 'Who here is most likely to have a secret backup plan?', world: 'adult', stage: 1, source: 'community', author: 'Jordan', authorship: 'reveal', targeting: 'specific', options: [] },
-      { id: 'adult-duel-liar', type: 'duel', text: 'You each get 15 seconds to convince the room you are the better liar. The room votes.', world: 'adult', stage: 2, source: 'original', author: 'Cribbit', authorship: 'signed', targeting: 'specific', options: [] },
+      { id: 'adult-duel-liar', type: 'duel', text: 'You each get 15 seconds to convince the room you are the better liar. The room votes.', world: 'adult', stage: 2, source: 'original', author: 'Cribbit', authorship: 'signed', targeting: 'specific', options: [], duelJudgingMode:'GROUP_VOTE' },
       { id: 'adult-chaos-reverse', type: 'chaos', text: 'Everyone answers the next eligible question in reverse turn order.', world: 'adult', stage: 3, source: 'original', author: 'Cribbit', authorship: 'signed', targeting: 'all', options: [] }
     ].map((prompt,index) => ({
       ...prompt,
@@ -103,6 +103,7 @@ import { announce, toast } from './feedback.ts';
     const BOT_NAMES = ['Maya', 'Leo', 'Nina', 'Jordan', 'Sam', 'Alex', 'Zoe', 'Arjun', 'Dev'];
     const AVATAR_COLORS = ['var(--magenta)','var(--orange)','var(--cyan)','var(--purple)','var(--gold)','var(--lime)','var(--teal)'];
     const PHASES = ['TURN_START','PLAY_DRAW','TRIGGER','ANSWER_RESOLVE','WIN_CHECK','NEXT_TURN'];
+    const TRUTH_DARE_PASS_PENALTY_CARDS = 2;
 
     const state = {
       view: 'lobby',
@@ -507,7 +508,7 @@ import { announce, toast } from './feedback.ts';
     }
 
     function auditInteractiveControls() {
-      const knownActions = new Set(['toggle-left-rail','toggle-right-rail','toggle-focus-mode','toggle-fullscreen','close-rail-drawers','simulate-disconnect','reset-demo','reconnect-now','join-room','open-mobile-nav','open-global-search','open-notifications','open-profile','save-profile','toggle-activity','apply-room-config','add-to-room','remove-from-room','advance-submission','prompt-detail','draw-card','play-card','card-detail','choose-wild','spin-roulette','publish-prompt','answer-mode','finish-speak','review-typed-answer','review-choice-answer','review-live-answer','submit-answer','edit-answer','complete-flow','safety-pass','safety-rewind','safety-flag','use-nope','nope-reaction','paranoia-choice','duel-target','duel-vote','chaos-target','resolve-chaos','save-prompt','focus-create-prompt','lab-add-card','lab-one-card','lab-human-turn','lab-trigger-draw','lab-queue-chaos','retry-last-command','force-recap','clear-log','flow-close-request','play-again','share-recap','cycle-fixture']);
+      const knownActions = new Set(['toggle-left-rail','toggle-right-rail','toggle-focus-mode','toggle-fullscreen','close-rail-drawers','simulate-disconnect','reset-demo','reconnect-now','join-room','open-mobile-nav','open-global-search','open-notifications','open-profile','save-profile','toggle-activity','apply-room-config','add-to-room','remove-from-room','advance-submission','prompt-detail','draw-card','play-card','card-detail','choose-wild','prompt-source','submit-manual-prompt','spin-roulette','publish-prompt','answer-mode','finish-speak','review-typed-answer','review-choice-answer','review-live-answer','submit-answer','edit-answer','complete-flow','safety-pass','safety-rewind','safety-flag','use-nope','nope-reaction','paranoia-choice','paranoia-phase','paranoia-classic-answer','paranoia-classic-decision','paranoia-vote','duel-target','duel-timer','duel-vote','chaos-target','resolve-chaos','save-prompt','focus-create-prompt','lab-add-card','lab-one-card','lab-human-turn','lab-trigger-draw','lab-queue-chaos','retry-last-command','force-recap','clear-log','flow-close-request','play-again','share-recap','cycle-fixture']);
       const missing = [...document.querySelectorAll('[data-action]')].map(node => node.dataset.action).filter(action => action && !knownActions.has(action));
       if (missing.length) console.error('Unregistered data-action controls:', [...new Set(missing)]);
       return missing;
@@ -617,7 +618,7 @@ import { announce, toast } from './feedback.ts';
 
       let result;
       try {
-        result = executeCommand(type, payload, key);
+        result = executeCommand(type, payload, key, options);
       } catch (error) {
         result = { ok: false, error: error.message, key, revision: state.revision };
         addEvent('COMMAND_REJECTED', `${type}: ${error.message}`, 'red', { key });
@@ -633,12 +634,14 @@ import { announce, toast } from './feedback.ts';
       return finalResult;
     }
 
-    function executeCommand(type, payload, key) {
+    function executeCommand(type, payload, key, options = {}) {
       switch (type) {
         case 'START_GAME': return commandStartGame(payload, key);
         case 'PLAY_CARD': return commandPlayCard(payload, key);
         case 'DRAW_CARD': return commandDrawCard(payload, key);
         case 'CHOOSE_WILD': return commandChooseWild(payload, key);
+        case 'SELECT_PROMPT_SOURCE': return commandSelectPromptSource(payload, key);
+        case 'SUBMIT_MANUAL_PROMPT': return commandSubmitManualPrompt(payload, key);
         case 'REVEAL_PROMPT': return commandRevealPrompt(payload, key);
         case 'PUBLISH_PROMPT': return commandPublishPrompt(payload, key);
         case 'REWIND_PROMPT': return commandRewindPrompt(payload, key);
@@ -648,8 +651,13 @@ import { announce, toast } from './feedback.ts';
         case 'REVIEW_ANSWER': return commandReviewAnswer(payload, key);
         case 'SUBMIT_ANSWER': return commandSubmitAnswer(payload, key);
         case 'PARANOIA_CHOICE': return commandParanoiaChoice(payload, key);
+        case 'SELECT_PARANOIA_PHASE': return commandSelectParanoiaPhase(payload, key);
+        case 'SELECT_PARANOIA_CLASSIC_ANSWER': return commandSelectParanoiaClassicAnswer(payload, key);
+        case 'SUBMIT_PARANOIA_CLASSIC_DECISION': return commandSubmitParanoiaClassicDecision(payload, key);
+        case 'SUBMIT_PARANOIA_VOTE': return commandSubmitParanoiaVote(payload, key);
         case 'DUEL_TARGET': return commandDuelTarget(payload, key);
-        case 'DUEL_VOTE': return commandDuelVote(payload, key);
+        case 'SELECT_DUEL_TIMER': return commandSelectDuelTimer(payload, key);
+        case 'DUEL_VOTE': return commandDuelVote(payload, key, options);
         case 'CHAOS_TARGET': return commandChaosTarget(payload, key);
         case 'NOPE_REACTION': return commandNopeReaction(payload, key);
         case 'TIMEOUT_TURN': return commandTimeoutTurn(payload, key);
@@ -851,10 +859,10 @@ import { announce, toast } from './feedback.ts';
         { id:'demo-adult-dare', type:'dare', text:'Let the group choose a harmless nickname you answer to until your next turn.', world:'adult', stage:0, source:'original', author:'Cribbit', authorship:'signed', targeting:'current', options:[] },
         { id:'demo-adult-dare-alt', type:'dare', text:'Deliver a dramatic acceptance speech for an award the group invents.', world:'adult', stage:0, source:'community', author:'Community QA', authorship:'reveal', targeting:'current', options:[] },
         { id:'demo-clean-paranoia', type:'paranoia', text:'Who here would make the best cartoon detective?', world:'clean', stage:0, source:'original', author:'Cribbit', authorship:'signed', targeting:'specific', options:[] },
-        { id:'demo-clean-duel', type:'duel', text:'You each have 15 seconds to name as many African countries as possible.', world:'clean', stage:0, source:'original', author:'Cribbit', authorship:'signed', targeting:'specific', options:[] },
+        { id:'demo-clean-duel', type:'duel', text:'You each have 15 seconds to name as many African countries as possible.', world:'clean', stage:0, source:'original', author:'Cribbit', authorship:'signed', targeting:'specific', options:[], duelJudgingMode:'GROUP_VOTE' },
         { id:'demo-clean-chaos', type:'chaos', text:'Everyone has 10 seconds to draw an animal. The active player chooses the funniest.', world:'clean', stage:0, source:'original', author:'Cribbit', authorship:'signed', targeting:'all', options:[] },
         { id:'demo-adult-paranoia', type:'paranoia', text:'Choose privately: who here would be hardest to fool in a lie?', world:'adult', stage:0, source:'original', author:'Cribbit', authorship:'signed', targeting:'specific', options:[] },
-        { id:'demo-adult-duel', type:'duel', text:'You each get 15 seconds to convince the room you are the better liar. The room votes.', world:'adult', stage:0, source:'original', author:'Cribbit', authorship:'signed', targeting:'specific', options:[] },
+        { id:'demo-adult-duel', type:'duel', text:'You each get 15 seconds to convince the room you are the better liar. The room votes.', world:'adult', stage:0, source:'original', author:'Cribbit', authorship:'signed', targeting:'specific', options:[], duelJudgingMode:'GROUP_VOTE' },
         { id:'demo-adult-chaos', type:'chaos', text:'Everyone answers the next eligible question in reverse turn order.', world:'adult', stage:0, source:'original', author:'Cribbit', authorship:'signed', targeting:'all', options:[] }
       ];
       coverage.forEach(prompt => {
@@ -999,6 +1007,10 @@ import { announce, toast } from './feedback.ts';
       if (!session || session.winnerId) return;
       session.phase = 'WIN_CHECK';
       if (checkWin(player, { afterSocial })) return;
+      if (afterSocial && player?.isHuman) {
+        addEvent('NO_WINNER_YET', 'Card resolved. No winner yet. Game resumes.', 'cyan');
+        toast('No winner yet', 'Card resolved. No winner yet.', 'cyan');
+      }
       advanceTurn(steps);
     }
 
@@ -1123,7 +1135,7 @@ import { announce, toast } from './feedback.ts';
 
     function promptEligible(prompt, family, targetId, { exclude = [], excludeTexts = [] } = {}) {
       const session = state.session;
-      const target = findPlayer(targetId) || currentPlayer();
+      const target = targetId == null ? null : (findPlayer(targetId) || currentPlayer());
       if (!session || !prompt?.approved) return false;
       if (prompt.type !== family || prompt.world !== session.world) return false;
       if (!sourceEnabled(prompt.source)) return false;
@@ -1131,7 +1143,7 @@ import { announce, toast } from './feedback.ts';
       const normalizedText = String(prompt.text || '').trim().toLowerCase().replace(/\s+/g,' ');
       if (excludeTexts.some(text => String(text || '').trim().toLowerCase().replace(/\s+/g,' ') === normalizedText)) return false;
       if (prompt.stage > session.stage) return false;
-      if (prompt.stage > Number(target?.ceiling ?? 0)) return false;
+      if (target && prompt.stage > Number(target.ceiling ?? 0)) return false;
       if (session.usedPromptIds.slice(-5).includes(prompt.id)) return false;
       return true;
     }
@@ -1143,10 +1155,18 @@ import { announce, toast } from './feedback.ts';
     function selectEligiblePrompt(family, targetId, options = {}) {
       const session = state.session;
       const pool = state.prompts.filter(prompt => promptEligible(prompt, family, targetId, options));
-      if (!pool.length) throw new Error(`No approved ${family} prompt fits the active room profile, stage, ceiling and enabled sources.`);
+      if (!pool.length) {
+        throw new Error(
+          targetId == null
+            ? `No approved ${family} prompt fits the active room profile, stage and enabled sources.`
+            : `No approved ${family} prompt fits the active room profile, stage, ceiling and enabled sources.`
+        );
+      }
       const random = seededRandom((state.revision + 1) * 9301 + session.completedTurns * 49297 + family.length * 233);
       const prompt = pool[Math.floor(random() * pool.length)];
-      return structuredClone(prompt);
+      const selected = structuredClone(prompt);
+      if (family === 'duel' && !selected.duelJudgingMode) selected.duelJudgingMode = 'GROUP_VOTE';
+      return selected;
     }
 
     function promptAuthorLabel(prompt, resolved = false) {
@@ -1162,20 +1182,53 @@ import { announce, toast } from './feedback.ts';
       const family = card.kind;
       const targetId = actor.id;
       if (family === 'truth' || family === 'dare') {
-        const prompt = selectEligiblePrompt(family, targetId);
         state.flow = {
-          type:'social', family, originFamily:family, actorId:actor.id, targetId,
-          cardId:card.id, prompt, step:'roulette-ready', serverSelectedAt:Date.now(),
-          answerState:'WAITING_FOR_PLAYER', deadline:Date.now() + 45000,
-          rouletteRotation:0, flags:[]
+          type:'social',
+          family,
+          originFamily:family,
+          actorId:actor.id,
+          targetId,
+          cardId:card.id,
+          prompt:null,
+          promptSource:null,
+          step:'prompt-source',
+          serverSelectedAt:null,
+          answerState:'WAITING_FOR_PLAYER',
+          deadline:Date.now() + 45000,
+          rouletteRotation:0,
+          flags:[]
         };
-        addEvent('PROMPT_PRESELECTED', `Server selected a sealed eligible ${family} prompt before the wheel animation.`, family === 'truth' ? 'lime' : 'orange');
+
+
+        addEvent(
+          'PROMPT_SOURCE_REQUIRED',
+          `${actor.name} must choose whether to write the ${
+            family === 'dare' ? 'challenge' : 'question'
+          } or use Roulette.`,
+          family === 'truth' ? 'lime' : 'orange'
+        );
       } else if (family === 'paranoia') {
-        const prompt = selectEligiblePrompt('paranoia', targetId);
-        state.flow = { type:'paranoia', family, originFamily:family, actorId:actor.id, targetId, cardId:card.id, prompt, step:'paranoia-choice', deadline:Date.now()+45000, flags:[] };
-        addEvent('PARANOIA_OPENED', 'Private Choose UI opened; ambient spoken names are ignored.', 'purple');
+        state.flow = {
+          type:'paranoia',
+          family,
+          originFamily:family,
+          actorId:actor.id,
+          targetId:null,
+          cardId:card.id,
+          prompt:null,
+          promptSource:null,
+          paranoiaPhase:null,
+          paranoiaVote:null,
+          step:'prompt-source',
+          serverSelectedAt:null,
+          answerState:'WAITING_FOR_PLAYER',
+          deadline:Date.now()+45000,
+          rouletteRotation:0,
+          flags:[]
+        };
+        addEvent('PROMPT_SOURCE_REQUIRED', `${actor.name} must choose whether to write the question or use Roulette.`, 'purple');
       } else if (family === 'duel') {
-        state.flow = { type:'duel', family, originFamily:family, actorId:actor.id, targetId:null, cardId:card.id, prompt:null, step:'duel-target', deadline:Date.now()+45000, flags:[], answerState:'WAITING_FOR_PLAYER' };
+        state.flow = { type:'duel', family, originFamily:family, actorId:actor.id, targetId:null, cardId:card.id, prompt:null, promptSource:null, duelVote:null, step:'duel-target', deadline:Date.now()+45000, flags:[], answerState:'WAITING_FOR_PLAYER' };
         addEvent('DUEL_TARGET_REQUIRED', `${actor.name} must select an eligible opponent.`, 'cyan');
       } else if (family === 'chaos') {
         const effect = state.nextChaosEffect || DEMO_CHAOS_EFFECTS[(session.completedTurns + state.revision) % DEMO_CHAOS_EFFECTS.length];
@@ -1186,14 +1239,169 @@ import { announce, toast } from './feedback.ts';
       if (!actor.isHuman) scheduleBotSocialResolution();
     }
 
+    function commandSelectPromptSource({ source } = {}) {
+      const flow = state.flow;
+      if (
+        !flow ||
+        !['social','paranoia','duel'].includes(flow.type) ||
+        !['truth','dare','paranoia','duel'].includes(flow.family) ||
+        !['prompt-source','manual-prompt'].includes(flow.step)
+      ) {
+        throw new Error('No prompt source is awaiting selection.');
+      }
+
+
+      if (flow.step === 'manual-prompt' && source !== 'roulette') {
+        throw new Error('Only Roulette can replace a manual prompt source selection.');
+      }
+
+
+      if (!['manual','roulette'].includes(source)) {
+        throw new Error('Choose either manual entry or Roulette.');
+      }
+
+
+      if (source === 'manual') {
+        flow.promptSource = 'manual';
+        flow.prompt = null;
+        flow.serverSelectedAt = null;
+        flow.step = 'manual-prompt';
+        flow.deadline = Date.now() + 45000;
+
+
+        addEvent(
+          'MANUAL_PROMPT_REQUESTED',
+          `${findPlayer(flow.actorId).name} chose to write the ${promptNoun(flow.family)} for this interaction.`,
+          flow.family === 'dare' ? 'orange' : flow.family === 'paranoia' ? 'purple' : flow.family === 'duel' ? 'cyan' : 'lime'
+        );
+
+        return { ok:true, mutated:true };
+      }
+
+
+      const prompt = selectEligiblePrompt(flow.family, flow.family === 'paranoia' ? null : flow.targetId);
+
+
+      flow.promptSource = 'roulette';
+      flow.prompt = prompt;
+      flow.serverSelectedAt = Date.now();
+      flow.step = 'roulette-ready';
+      flow.deadline = Date.now() + 45000;
+
+
+      addEvent(
+        'PROMPT_PRESELECTED',
+        `Server selected a sealed eligible ${flow.family} prompt after Roulette was chosen.`,
+        flow.family === 'dare' ? 'orange' : flow.family === 'paranoia' ? 'purple' : flow.family === 'duel' ? 'cyan' : 'lime'
+      );
+
+      return { ok:true, mutated:true };
+    }
+
+    function commandSubmitManualPrompt({ text } = {}) {
+      const flow = state.flow;
+
+
+      if (
+        !flow ||
+        !['social','paranoia','duel'].includes(flow.type) ||
+        !['truth','dare','paranoia','duel'].includes(flow.family) ||
+        flow.step !== 'manual-prompt' ||
+        flow.promptSource !== 'manual'
+      ) {
+        throw new Error('No manual prompt is awaiting submission.');
+      }
+
+
+      const actor = findPlayer(flow.actorId);
+
+
+      if (!actor) {
+        throw new Error('Prompt author is unavailable.');
+      }
+
+
+      const textValue = validatePromptText(text);
+
+
+      const blockedPattern = /(self[- ]?harm|illegal weapon|coerc|hate crime)/i;
+
+
+      if (blockedPattern.test(textValue)) {
+        throw new Error(
+          'This prompt requires review and cannot be used in the current interaction.'
+        );
+      }
+
+
+      flow.prompt = {
+        id:uid('prompt-turn'),
+        type:flow.family,
+        text:textValue,
+        world:state.session.world,
+        stage:state.session.stage,
+        source:'manual',
+        author:actor.name,
+        authorship:'signed',
+        targeting:['paranoia','duel'].includes(flow.family) ? 'specific' : 'current',
+        options:[],
+        category:flow.family === 'paranoia' ? 'Paranoia' : flow.family === 'duel' ? 'Duel' : flow.family === 'truth' ? 'Truth' : 'Dare',
+        tags:[],
+        minPlayers:2,
+        maxPlayers:state.session.players.length,
+        attribution:'current-player',
+        approved:true,
+        moderationStatus:'accepted',
+        saved:0,
+        plays:0,
+        createdAt:Date.now(),
+        staffPick:false,
+        legendary:false,
+        duelJudgingMode:flow.family === 'duel' ? 'GROUP_VOTE' : undefined,
+        oneOff:true
+      };
+
+
+      flow.step = flow.family === 'paranoia' ? 'paranoia-choice' : flow.family === 'duel' ? 'duel-timer' : 'private-preview';
+      flow.answerState = 'WAITING_FOR_PLAYER';
+      flow.deadline = Date.now() + 45000;
+      if (flow.family === 'paranoia') flow.targetId = null;
+
+
+      addEvent(
+        'MANUAL_PROMPT_ACCEPTED',
+        `${actor.name} wrote a one-off ${flow.family} prompt for this interaction. It was not added to a persistent prompt pool.`,
+        flow.family === 'dare' ? 'orange' : flow.family === 'paranoia' ? 'purple' : flow.family === 'duel' ? 'cyan' : 'lime'
+      );
+
+
+      return { ok:true, mutated:true };
+    }
+
     function commandRevealPrompt() {
       const flow = state.flow;
-      if (!flow || flow.type !== 'social' || !['roulette-ready','roulette-spinning'].includes(flow.step)) throw new Error('No sealed Truth/Dare prompt is ready to reveal.');
+      if (!flow || !['social','paranoia','duel'].includes(flow.type) || !['roulette-ready','roulette-spinning'].includes(flow.step)) throw new Error('No sealed prompt is ready to advance.');
+      if (flow.family === 'paranoia') {
+        flow.step = 'paranoia-choice';
+        flow.answerState = 'WAITING_FOR_PLAYER';
+        flow.deadline = Date.now() + 45000;
+        state.session.stats.rouletteSpins += 1;
+        addEvent('PARANOIA_PROMPT_SELECTED', 'Server selected a sealed eligible Paranoia prompt after Roulette was chosen.', 'purple');
+        return { ok:true, mutated:true };
+      }
+      if (flow.family === 'duel') {
+        flow.step = 'duel-timer';
+        flow.answerState = 'WAITING_FOR_PLAYER';
+        flow.deadline = Date.now() + 45000;
+        state.session.stats.rouletteSpins += 1;
+        addEvent('DUEL_PROMPT_SELECTED', 'Server selected one sealed eligible Duel question after Roulette was chosen.', 'cyan');
+        return { ok:true, mutated:true };
+      }
       flow.step = 'private-preview';
       flow.answerState = 'WAITING_FOR_PLAYER';
       flow.deadline = Date.now() + 45000;
       state.session.stats.rouletteSpins += 1;
-      addEvent('PROMPT_PRIVATE_PREVIEW', `${findPlayer(flow.targetId).name} received the selected prompt without hidden-author leakage.`, flow.family === 'truth' ? 'lime' : 'orange');
+      addEvent('PROMPT_PRIVATE_PREVIEW', `${findPlayer(flow.targetId).name} received the selected prompt without hidden-author leakage.`, flow.family === 'dare' ? 'orange' : 'lime');
       return { ok:true, mutated:true };
     }
 
@@ -1201,6 +1409,11 @@ import { announce, toast } from './feedback.ts';
       const flow = state.flow;
       if (!flow || flow.type !== 'social' || !['truth','dare'].includes(flow.family) || flow.step !== 'private-preview') throw new Error('Rewind is defined only for a current Truth/Dare before public reveal.');
       const target = findPlayer(flow.targetId);
+      if (flow.promptSource === 'manual') {
+        throw new Error(
+          'Rewind applies to Roulette prompts. A manually written prompt keeps its selected source.'
+        );
+      }
       if (!target?.rewindAvailable) throw new Error('This player has already used the once-per-session Rewind.');
       const replacement = selectEligiblePrompt(flow.family, flow.targetId, { exclude:[flow.prompt.id], excludeTexts:[flow.prompt.text] });
       target.rewindAvailable = false;
@@ -1216,7 +1429,21 @@ import { announce, toast } from './feedback.ts';
     function commandPassPrompt() {
       const flow = state.flow;
       if (!flow || !['social','paranoia','duel','chaos'].includes(flow.type)) throw new Error('Pass is available only when a prompt is directed at a player.');
+      if (flow.resolved || ['passed','resolved'].includes(flow.step)) throw new Error('This prompt has already been resolved.');
       const target = findPlayer(flow.targetId || flow.actorId);
+      if (flow.type === 'social' && ['truth','dare'].includes(flow.family)) {
+        const drawn = drawFromDeck(state.session, TRUTH_DARE_PASS_PENALTY_CARDS);
+        if (target) {
+          target.hand.push(...drawn);
+          target.stats.draws += drawn.length;
+        }
+        state.session.stats.totalDraws += drawn.length;
+        addEvent(
+          'DRAW_EFFECT_RESOLVED',
+          `${target?.name || 'Player'} drew ${drawn.length} card${drawn.length === 1 ? '' : 's'} for choosing Pass / Not for Me.`,
+          'orange'
+        );
+      }
       if (target) target.stats.passes += 1;
       state.session.stats.passes += 1;
       addEvent('PROMPT_PASSED', `${target?.name || 'Player'} passed privately. The prompt was not globally removed.`, 'lime');
@@ -1240,13 +1467,15 @@ import { announce, toast } from './feedback.ts';
 
     function commandSelectAnswerMode({ mode } = {}) {
       const flow = state.flow;
-      if (!flow || !['social','chaos','duel'].includes(flow.type)) throw new Error('No active prompt accepts an answer method.');
+      if (!flow || !['social','chaos','duel','paranoia'].includes(flow.type)) throw new Error('No active prompt accepts an answer method.');
+      if (flow.type === 'paranoia' && flow.step !== 'paranoia-target-answer') throw new Error('The Paranoia target answer is not awaiting an answer method.');
+      if (flow.type === 'duel' && flow.step !== 'duel-active') throw new Error('Select the Duel timer before starting the response window.');
       if (!['speak','type','choose','live'].includes(mode)) throw new Error('Choose Speak, Type, Choose or Answered Live.');
       if (mode === 'choose' && !(flow.prompt?.options?.length)) throw new Error('This prompt does not provide curated Choose options. Use Speak, Type or Answered Live.');
       flow.answerMode = mode;
       flow.answerState = 'ANSWER_MODE_SELECTED';
       flow.step = mode === 'speak' ? 'answer-capturing' : mode === 'type' ? 'answer-input' : mode === 'choose' ? 'answer-choose' : 'answer-live';
-      flow.deadline = Date.now()+45000;
+      flow.deadline = Date.now() + (flow.type === 'duel' ? flow.duelTimerSeconds * 1000 : 45000);
       addEvent('ANSWER_MODE_SELECTED', `${mode === 'live' ? 'Answered Live' : mode} selected explicitly.`, mode === 'speak' ? 'lime' : mode === 'type' ? 'cyan' : mode === 'choose' ? 'gold' : 'magenta');
       return { ok:true, mutated:true };
     }
@@ -1289,12 +1518,22 @@ import { announce, toast } from './feedback.ts';
         setTimeout(() => {
           if (state.flow !== flow) return;
           flow.opponentResult = { method:'live', completionOnly:true, submittedAt:Date.now() };
-          flow.step = 'duel-vote';
-          flow.duelPhase = 'vote';
           addEvent('DUEL_SECOND_WINDOW_RESOLVED', `${findPlayer(flow.opponentId).name} completed the separate opponent window.`, 'cyan');
+          beginDuelGroupVote(flow);
           state.revision += 1;
           renderAll();
+          scheduleBotSocialResolution();
         }, 700);
+        return { ok:true, mutated:true };
+      }
+
+      if (flow.type === 'paranoia' && flow.paranoiaPhase === 'stranger') {
+        flow.targetAnswer = flow.answer;
+        flow.answer = null;
+        flow.answerDraft = null;
+        flow.answerMode = null;
+        flow.answerState = 'WAITING_FOR_PLAYER';
+        beginParanoiaStrangerVote(flow);
         return { ok:true, mutated:true };
       }
 
@@ -1334,14 +1573,162 @@ import { announce, toast } from './feedback.ts';
       if (!flow || flow.type !== 'paranoia' || flow.step !== 'paranoia-choice') throw new Error('No Paranoia choice is awaiting private input.');
       const target = findPlayer(targetId);
       if (!target || target.id === flow.actorId) throw new Error('Choose another eligible player.');
+      flow.targetId = target.id;
       flow.choiceTargetId = target.id;
-      flow.step = 'resolved';
-      flow.resolved = true;
-      flow.outcome = `${findPlayer(flow.actorId).name} privately chose ${target.name}. The reveal follows only the prompt contract.`;
+      flow.paranoiaPhase = null;
+      flow.paranoiaVote = null;
+      flow.step = 'paranoia-phase';
+      flow.resolved = false;
+      flow.outcome = null;
+      flow.answerState = 'WAITING_FOR_PLAYER';
+      flow.deadline = Date.now() + 45000;
       target.stats.targeted += 1;
+      addEvent('PARANOIA_TARGET_SELECTED', `${findPlayer(flow.actorId).name} privately chose ${target.name} for this Paranoia question.`, 'purple');
+      return { ok:true, mutated:true };
+    }
+
+    function resolveParanoiaStrangerVotes(flow) {
+      const target = findPlayer(flow.targetId);
+      if (!target) throw new Error('The selected Paranoia target could not be resolved.');
+      const votes = flow.paranoiaVote?.votes || {};
+      const submittedVotes = Object.values(votes);
+      const believeCount = submittedVotes.filter(vote => vote === 'BELIEVE').length;
+      const lyingOrHoldingBackCount = submittedVotes.filter(vote => vote === 'LYING' || vote === 'HOLDING_BACK').length;
+      const penaltyApplied = lyingOrHoldingBackCount > believeCount;
+      if (penaltyApplied) {
+        const drawn = drawFromDeck(state.session, 2);
+        target.hand.push(...drawn);
+        target.stats.draws += drawn.length;
+        state.session.stats.totalDraws += drawn.length;
+        addEvent('DRAW_EFFECT_APPLIED', `${target.name} drew ${drawn.length} configured card${drawn.length === 1 ? '' : 's'} after the Stranger majority.` , 'orange');
+      }
+      if (flow.paranoiaVote) flow.paranoiaVote.resolutionApplied = true;
+      flow.resolved = true;
+      flow.outcome = penaltyApplied
+        ? `${target.name} draws 2 after the Stranger vote reached a strict majority against them.`
+        : `${target.name} receives no penalty.`;
       resolvePromptStats(flow);
       registerResolvedPrompt(flow);
-      addEvent('PARANOIA_CHOICE_REGISTERED', 'Private player choice recorded explicitly and resolved once.', 'purple');
+      addEvent('PARANOIA_VOTE_RESOLVED', penaltyApplied ? 'Stranger vote reached a strict majority against the target.' : 'Stranger vote tied or failed to exceed belief. No penalty is applied.', 'purple');
+    }
+
+    function beginParanoiaStrangerVote(flow) {
+      const actor = findPlayer(flow.actorId);
+      const target = findPlayer(flow.targetId);
+      if (!actor || !target) throw new Error('The active Paranoia choice could not be resolved.');
+      const eligibleVoterIds = state.session.players.filter(player => player.id !== flow.targetId).map(player => player.id);
+      flow.paranoiaVote = { phase:'STRANGER', eligibleVoterIds, votes:{}, resolutionApplied:false };
+      flow.step = 'paranoia-stranger-vote';
+      flow.resolved = false;
+      flow.outcome = null;
+      flow.deadline = Date.now() + 45000;
+      addEvent('PARANOIA_VOTE_REQUIRED', `${target.name} answered. Eligible players now vote whether they believe ${target.name}.`, 'purple');
+      if (!eligibleVoterIds.length) {
+        resolveParanoiaStrangerVotes(flow);
+        flow.step = 'resolved';
+      }
+    }
+
+    function resolveParanoiaClassic(flow, decision) {
+      const target = findPlayer(flow.targetId);
+      const answerPlayer = findPlayer(flow.classicAnswerPlayerId);
+      if (!target || !answerPlayer) throw new Error('The active Classic Paranoia decision could not be resolved.');
+      if (!['reveal','keep-secret'].includes(decision)) throw new Error('Choose Reveal or Keep Secret.');
+      flow.classicRevealDecision = decision;
+      flow.step = 'resolved';
+      flow.resolved = true;
+      if (decision === 'reveal') {
+        flow.outcome = `${answerPlayer.name} chose Reveal. Question: "${flow.prompt.text}"`;
+        addEvent('PARANOIA_CLASSIC_REVEALED', `${answerPlayer.name} chose Reveal for ${target.name}'s Paranoia answer. Question: ${flow.prompt.text}`, 'purple');
+      } else {
+        flow.outcome = `${answerPlayer.name} kept the Paranoia question secret.`;
+        addEvent('PARANOIA_CLASSIC_KEPT_SECRET', `${answerPlayer.name} chose Keep Secret. The Paranoia question remains hidden.`, 'purple');
+      }
+      resolvePromptStats(flow);
+      registerResolvedPrompt(flow);
+    }
+
+    function resolveParanoiaClassicTimeout(flow) {
+      flow.classicRevealDecision = 'keep-secret';
+      flow.step = 'resolved';
+      flow.resolved = true;
+      flow.outcome = 'Classic Paranoia timed out. The question stays secret.';
+      resolvePromptStats(flow);
+      registerResolvedPrompt(flow);
+      addEvent('PARANOIA_CLASSIC_TIMED_OUT', 'Classic Paranoia timed out. The question remains hidden.', 'purple');
+    }
+
+    function commandSelectParanoiaPhase({ phase } = {}) {
+      const flow = state.flow;
+      if (!flow || flow.type !== 'paranoia' || flow.step !== 'paranoia-phase') throw new Error('No Paranoia phase is awaiting selection.');
+      if (!['classic', 'stranger'].includes(phase)) throw new Error('Choose Classic or Stranger.');
+      const actor = findPlayer(flow.actorId);
+      const target = findPlayer(flow.targetId);
+      if (!actor || !target) throw new Error('The active Paranoia choice could not be resolved.');
+      flow.paranoiaPhase = phase;
+      flow.answerState = 'WAITING_FOR_PLAYER';
+      flow.deadline = Date.now() + 45000;
+      if (phase === 'classic') {
+        flow.paranoiaVote = null;
+        flow.classicAnswerPlayerId = null;
+        flow.classicRevealDecision = null;
+        flow.answer = null;
+        flow.answerDraft = null;
+        flow.answerMode = null;
+        flow.step = 'paranoia-classic-answer-player';
+        flow.resolved = false;
+        flow.outcome = null;
+        addEvent('PARANOIA_CLASSIC_ANSWER_REQUIRED', `${actor.name} selected Classic. ${target.name} must choose the player who is their answer.`, 'purple');
+        return { ok:true, mutated:true };
+      }
+      flow.paranoiaVote = null;
+      flow.targetAnswer = null;
+      flow.answer = null;
+      flow.answerDraft = null;
+      flow.answerMode = null;
+      flow.step = 'paranoia-target-answer';
+      flow.resolved = false;
+      flow.outcome = null;
+      addEvent('PARANOIA_TARGET_ANSWER_REQUIRED', `${actor.name} selected Stranger. ${target.name} must answer before eligible players vote.`, 'purple');
+      return { ok:true, mutated:true };
+    }
+
+    function commandSelectParanoiaClassicAnswer({ targetId } = {}) {
+      const flow = state.flow;
+      if (!flow || flow.type !== 'paranoia' || flow.step !== 'paranoia-classic-answer-player' || flow.paranoiaPhase !== 'classic') throw new Error('No Classic Paranoia answer player is awaiting selection.');
+      const initialTarget = findPlayer(flow.targetId);
+      const answerPlayer = findPlayer(targetId);
+      if (!initialTarget || !answerPlayer || answerPlayer.id === initialTarget.id) throw new Error('Choose another eligible player as the answer.');
+      flow.classicAnswerPlayerId = answerPlayer.id;
+      flow.step = 'paranoia-classic-decision';
+      flow.resolved = false;
+      flow.outcome = null;
+      flow.deadline = Date.now() + 45000;
+      addEvent('PARANOIA_CLASSIC_ANSWER_SELECTED', `${initialTarget.name} chose an answer player. That player must decide whether to reveal the question.`, 'purple');
+      return { ok:true, mutated:true };
+    }
+
+    function commandSubmitParanoiaClassicDecision({ decision } = {}) {
+      const flow = state.flow;
+      if (!flow || flow.type !== 'paranoia' || flow.step !== 'paranoia-classic-decision' || flow.paranoiaPhase !== 'classic') throw new Error('No Classic Paranoia reveal decision is awaiting selection.');
+      resolveParanoiaClassic(flow, decision);
+      return { ok:true, mutated:true };
+    }
+
+    function commandSubmitParanoiaVote({ vote, voterId } = {}) {
+      const flow = state.flow;
+      if (!flow || flow.type !== 'paranoia' || flow.step !== 'paranoia-stranger-vote' || !flow.paranoiaVote) throw new Error('No Stranger vote is awaiting submission.');
+      if (!['BELIEVE', 'LYING', 'HOLDING_BACK'].includes(vote)) throw new Error('Choose Believe, Lying, or Holding Back.');
+      const voter = findPlayer(voterId || currentPlayer()?.id);
+      if (!voter || !flow.paranoiaVote.eligibleVoterIds.includes(voter.id)) throw new Error('Only an eligible Stranger voter may submit a vote.');
+      if (flow.paranoiaVote.votes[voter.id]) throw new Error('That player has already submitted a Stranger vote.');
+      flow.paranoiaVote.votes[voter.id] = vote;
+      addEvent('PARANOIA_VOTE_SUBMITTED', `${voter.name} privately voted ${vote} for the current Stranger Paranoia branch.`, 'purple');
+      const allVotesSubmitted = flow.paranoiaVote.eligibleVoterIds.every(playerId => Boolean(flow.paranoiaVote.votes[playerId]));
+      if (allVotesSubmitted) {
+        resolveParanoiaStrangerVotes(flow);
+        flow.step = 'resolved';
+      }
       return { ok:true, mutated:true };
     }
 
@@ -1352,28 +1739,99 @@ import { announce, toast } from './feedback.ts';
       if (!opponent || opponent.id === flow.actorId) throw new Error('Choose another eligible player for the Duel.');
       flow.targetId = flow.actorId;
       flow.opponentId = opponent.id;
-      flow.prompt = selectEligiblePrompt('duel', flow.actorId);
-      flow.step = 'duel-active';
-      flow.duelPhase = 'active-answer';
+      flow.prompt = null;
+      flow.promptSource = null;
+      flow.duelVote = null;
+      flow.serverSelectedAt = null;
+      flow.step = 'prompt-source';
+      flow.duelPhase = 'prompt-source';
       flow.answerState = 'WAITING_FOR_PLAYER';
+      flow.deadline = Date.now() + 45000;
       opponent.stats.targeted += 1;
-      addEvent('DUEL_OPPONENT_SELECTED', `${findPlayer(flow.actorId).name} challenged ${opponent.name}. Two sequential resolution windows will run.`, 'cyan');
+      addEvent('DUEL_OPPONENT_SELECTED', `${findPlayer(flow.actorId).name} challenged ${opponent.name}. Choose the Duel question source next.`, 'cyan');
       return { ok:true, mutated:true };
     }
 
-    function commandDuelVote({ winnerId } = {}) {
+    function commandSelectDuelTimer({ seconds } = {}) {
       const flow = state.flow;
-      if (!flow || flow.type !== 'duel' || flow.step !== 'duel-vote') throw new Error('The Duel is not ready for its result.');
-      if (![flow.actorId, flow.opponentId].includes(winnerId)) throw new Error('Choose one of the two Duel participants.');
-      const winner = findPlayer(winnerId);
-      winner.stats.duelWins += 1;
+      if (!flow || flow.type !== 'duel' || flow.step !== 'duel-timer' || !flow.prompt || !flow.opponentId) throw new Error('No Duel timer is awaiting selection.');
+      const timerSeconds = Number(seconds);
+      if (![15,30,45].includes(timerSeconds)) throw new Error('Choose a Duel timer of 15, 30, or 45 seconds.');
+      flow.duelTimerSeconds = timerSeconds;
+      flow.step = 'duel-active';
+      flow.duelPhase = 'active-answer';
+      flow.answerState = 'WAITING_FOR_PLAYER';
+      flow.deadline = Date.now() + timerSeconds * 1000;
+      addEvent('DUEL_TIMER_SELECTED', `${findPlayer(flow.actorId).name} selected a ${timerSeconds}-second Duel timer.`, 'cyan');
+      return { ok:true, mutated:true };
+    }
+
+    function duelEligibleVoterIds(flow) {
+      return state.session.players
+        .filter(player => player.id !== flow.actorId && player.id !== flow.opponentId)
+        .map(player => player.id);
+    }
+
+    function resolveDuelGroupVote(flow) {
+      if (flow.duelVote?.resolutionApplied) return;
+      const candidates = [flow.actorId, flow.opponentId];
+      const counts = Object.fromEntries(candidates.map(candidateId => [candidateId, 0]));
+      Object.values(flow.duelVote?.votes || {}).forEach(candidateId => {
+        if (candidateId in counts) counts[candidateId] += 1;
+      });
+      const actorVotes = counts[flow.actorId] || 0;
+      const opponentVotes = counts[flow.opponentId] || 0;
+      const winnerId =
+        actorVotes > opponentVotes ? flow.actorId :
+        opponentVotes > actorVotes ? flow.opponentId :
+        null;
+      if (winnerId) {
+        const winner = findPlayer(winnerId);
+        winner.stats.duelWins += 1;
+        flow.winnerId = winnerId;
+        flow.outcome = `${winner.name} won the group vote. Empty-hand victory remains unchanged.`;
+        addEvent('DUEL_RESOLVED', `${winner.name} won the Duel by group vote. This is recap metadata, not the primary win condition.`, 'cyan');
+      } else {
+        flow.winnerId = null;
+        flow.outcome = 'The Duel group vote tied or had no eligible votes. No Duel winner is awarded.';
+        addEvent('DUEL_RESOLVED', 'Duel group vote tied or had no eligible votes. No Duel winner is awarded.', 'cyan');
+      }
+      if (flow.duelVote) flow.duelVote.resolutionApplied = true;
       resolvePromptStats(flow);
       registerResolvedPrompt(flow);
-      flow.winnerId = winnerId;
       flow.step = 'resolved';
+      flow.duelPhase = 'resolved';
       flow.resolved = true;
-      flow.outcome = `${winner.name} won the local Duel result. Empty-hand victory remains unchanged.`;
-      addEvent('DUEL_RESOLVED', `${winner.name} won the Duel. This is recap metadata, not the primary win condition.`, 'cyan');
+    }
+
+    function beginDuelGroupVote(flow) {
+      const eligibleVoterIds = duelEligibleVoterIds(flow);
+      flow.duelVote = { eligibleVoterIds, votes:{}, resolutionApplied:false };
+      flow.step = 'duel-vote';
+      flow.duelPhase = 'group-vote';
+      flow.resolved = false;
+      flow.outcome = null;
+      flow.deadline = Date.now() + 45000;
+      addEvent('DUEL_GROUP_VOTE_REQUIRED', 'The group now votes on the Duel winner. Duel participants cannot vote.', 'cyan');
+      if (!eligibleVoterIds.length) {
+        resolveDuelGroupVote(flow);
+      }
+    }
+
+    function commandDuelVote({ winnerId, voterId } = {}, key, options = {}) {
+      const flow = state.flow;
+      if (!flow || flow.type !== 'duel' || flow.step !== 'duel-vote' || flow.duelPhase !== 'group-vote' || !flow.duelVote) throw new Error('The Duel is not ready for group voting.');
+      const authoritativeVoterId = options.human === false ? voterId : humanPlayer()?.id;
+      const voter = findPlayer(authoritativeVoterId);
+      if (!voter || !flow.duelVote.eligibleVoterIds.includes(voter.id)) throw new Error('Only eligible non-participants may vote on the Duel winner.');
+      if (flow.duelVote.votes[voter.id]) throw new Error('That player has already submitted a Duel vote.');
+      if (![flow.actorId, flow.opponentId].includes(winnerId)) throw new Error('Choose one of the two Duel participants.');
+      flow.duelVote.votes[voter.id] = winnerId;
+      addEvent('DUEL_VOTE_SUBMITTED', `${voter.name} submitted a private Duel winner vote.`, 'cyan');
+      const allVotesSubmitted = flow.duelVote.eligibleVoterIds.every(playerId => Boolean(flow.duelVote.votes[playerId]));
+      if (allVotesSubmitted) {
+        resolveDuelGroupVote(flow);
+      }
       return { ok:true, mutated:true };
     }
 
@@ -1504,9 +1962,65 @@ import { announce, toast } from './feedback.ts';
       const flow = state.flow;
       if (!flow || !state.session || state.session.winnerId) return;
       const actor = findPlayer(flow.actorId);
+      if (flow.type === 'paranoia' && flow.step === 'paranoia-stranger-vote' && actor?.isHuman) {
+        const nextVoterId = flow.paranoiaVote?.eligibleVoterIds.find(playerId => !flow.paranoiaVote.votes[playerId] && !findPlayer(playerId)?.isHuman);
+        if (nextVoterId) {
+          serverCommand(
+            'SUBMIT_PARANOIA_VOTE',
+            { vote:'BELIEVE', voterId:nextVoterId },
+            {
+              human:false,
+              key:`bot-paranoia-vote-${flow.cardId}-${nextVoterId}`
+            }
+          );
+          return scheduleBotSocialResolution();
+        }
+      }
+      if (flow.type === 'duel' && flow.step === 'duel-vote' && actor?.isHuman) {
+        const nextVoterId = flow.duelVote?.eligibleVoterIds.find(playerId => !flow.duelVote.votes[playerId] && !findPlayer(playerId)?.isHuman);
+        if (nextVoterId) {
+          serverCommand(
+            'DUEL_VOTE',
+            { winnerId:flow.actorId, voterId:nextVoterId },
+            {
+              human:false,
+              key:`bot-duel-vote-${flow.cardId}-${nextVoterId}`
+            }
+          );
+          return scheduleBotSocialResolution();
+        }
+      }
+      if (flow.type === 'paranoia' && flow.step === 'paranoia-target-answer' && actor?.isHuman && !findPlayer(flow.targetId)?.isHuman) {
+        serverCommand('SELECT_ANSWER_MODE', { mode:'live' }, { human:false, key:`bot-paranoia-target-mode-${flow.cardId}` });
+        serverCommand('REVIEW_ANSWER', { completionOnly:true }, { human:false, key:`bot-paranoia-target-review-${flow.cardId}` });
+        serverCommand('SUBMIT_ANSWER', {}, { human:false, key:`bot-paranoia-target-submit-${flow.cardId}` });
+        return scheduleBotSocialResolution();
+      }
+      if (flow.type === 'paranoia' && flow.step === 'paranoia-classic-answer-player' && actor?.isHuman && !findPlayer(flow.targetId)?.isHuman) {
+        const answerPlayer = state.session.players.find(player => player.id !== flow.targetId);
+        serverCommand('SELECT_PARANOIA_CLASSIC_ANSWER', { targetId:answerPlayer?.id }, { human:false, key:`bot-paranoia-classic-answer-${flow.cardId}` });
+        return scheduleBotSocialResolution();
+      }
+      if (flow.type === 'paranoia' && flow.step === 'paranoia-classic-decision' && actor?.isHuman && !findPlayer(flow.classicAnswerPlayerId)?.isHuman) {
+        serverCommand('SUBMIT_PARANOIA_CLASSIC_DECISION', { decision:'keep-secret' }, { human:false, key:`bot-paranoia-classic-decision-${flow.cardId}` });
+        return scheduleBotSocialResolution();
+      }
       if (actor?.isHuman) return;
       if (['resolved','passed'].includes(flow.step)) return serverCommand('COMPLETE_FLOW', {}, { human:false, key:`bot-generic-complete-${flow.cardId || flow.actorId}` });
       if (flow.type === 'social') {
+        if (flow.step === 'prompt-source') {
+          serverCommand(
+            'SELECT_PROMPT_SOURCE',
+            { source:'roulette' },
+            {
+              human:false,
+              key:`bot-prompt-source-${flow.cardId}`
+            }
+          );
+
+
+          return scheduleBotSocialResolution();
+        }
         if (flow.step === 'roulette-ready') {
           serverCommand('REVEAL_PROMPT', {}, { human:false, key:`bot-reveal-${flow.cardId}` });
           return scheduleBotSocialResolution();
@@ -1529,15 +2043,84 @@ import { announce, toast } from './feedback.ts';
           return serverCommand('COMPLETE_FLOW', {}, { human:false, key:`bot-complete-${flow.cardId}` });
         }
       }
-      if (flow.type === 'paranoia' && flow.step === 'paranoia-choice') {
-        const target = state.session.players.find(player => player.id !== flow.actorId);
-        serverCommand('PARANOIA_CHOICE', { targetId:target.id }, { human:false, key:`bot-paranoia-${flow.cardId}` });
-        return scheduleBotSocialResolution();
+      if (flow.type === 'paranoia') {
+        if (flow.step === 'prompt-source') {
+          serverCommand(
+            'SELECT_PROMPT_SOURCE',
+            { source:'roulette' },
+            {
+              human:false,
+              key:`bot-paranoia-source-${flow.cardId}`
+            }
+          );
+          return scheduleBotSocialResolution();
+        }
+        if (flow.step === 'paranoia-choice') {
+          const target = state.session.players.find(player => player.id !== flow.actorId);
+          serverCommand('PARANOIA_CHOICE', { targetId:target?.id }, { human:false, key:`bot-paranoia-choice-${flow.cardId}` });
+          return scheduleBotSocialResolution();
+        }
+        if (flow.step === 'paranoia-phase') {
+          serverCommand(
+            'SELECT_PARANOIA_PHASE',
+            { phase:'stranger' },
+            {
+              human:false,
+              key:`bot-paranoia-phase-${flow.cardId}`
+            }
+          );
+          return scheduleBotSocialResolution();
+        }
+        if (flow.step === 'paranoia-classic-answer-player') {
+          const answerPlayer = state.session.players.find(player => player.id !== flow.targetId);
+          serverCommand('SELECT_PARANOIA_CLASSIC_ANSWER', { targetId:answerPlayer?.id }, { human:false, key:`bot-paranoia-classic-answer-${flow.cardId}` });
+          return scheduleBotSocialResolution();
+        }
+        if (flow.step === 'paranoia-classic-decision') {
+          serverCommand('SUBMIT_PARANOIA_CLASSIC_DECISION', { decision:'keep-secret' }, { human:false, key:`bot-paranoia-classic-decision-${flow.cardId}` });
+          return scheduleBotSocialResolution();
+        }
+        if (flow.step === 'paranoia-target-answer') {
+          serverCommand('SELECT_ANSWER_MODE', { mode:'live' }, { human:false, key:`bot-paranoia-target-mode-${flow.cardId}` });
+          serverCommand('REVIEW_ANSWER', { completionOnly:true }, { human:false, key:`bot-paranoia-target-review-${flow.cardId}` });
+          serverCommand('SUBMIT_ANSWER', {}, { human:false, key:`bot-paranoia-target-submit-${flow.cardId}` });
+          return scheduleBotSocialResolution();
+        }
+        if (flow.step === 'paranoia-stranger-vote') {
+          const nextVoterId = flow.paranoiaVote?.eligibleVoterIds.find(playerId => !flow.paranoiaVote.votes[playerId]);
+          if (nextVoterId) {
+            serverCommand(
+              'SUBMIT_PARANOIA_VOTE',
+              { vote:'BELIEVE', voterId:nextVoterId },
+              {
+                human:false,
+                key:`bot-paranoia-vote-${flow.cardId}-${nextVoterId}`
+              }
+            );
+          }
+          return scheduleBotSocialResolution();
+        }
+        if (flow.step === 'roulette-ready') {
+          serverCommand('REVEAL_PROMPT', {}, { human:false, key:`bot-paranoia-reveal-${flow.cardId}` });
+          return scheduleBotSocialResolution();
+        }
       }
       if (flow.type === 'duel') {
         if (flow.step === 'duel-target') {
           const target = state.session.players.find(player => player.id !== flow.actorId);
           serverCommand('DUEL_TARGET', { targetId:target.id }, { human:false, key:`bot-duel-target-${flow.cardId}` });
+          return scheduleBotSocialResolution();
+        }
+        if (flow.step === 'prompt-source') {
+          serverCommand('SELECT_PROMPT_SOURCE', { source:'roulette' }, { human:false, key:`bot-duel-source-${flow.cardId}` });
+          return scheduleBotSocialResolution();
+        }
+        if (flow.step === 'roulette-ready') {
+          serverCommand('REVEAL_PROMPT', {}, { human:false, key:`bot-duel-reveal-${flow.cardId}` });
+          return scheduleBotSocialResolution();
+        }
+        if (flow.step === 'duel-timer') {
+          serverCommand('SELECT_DUEL_TIMER', { seconds:30 }, { human:false, key:`bot-duel-timer-${flow.cardId}` });
           return scheduleBotSocialResolution();
         }
         if (flow.step === 'duel-active') {
@@ -1549,10 +2132,23 @@ import { announce, toast } from './feedback.ts';
           serverCommand('SUBMIT_ANSWER', {}, { human:false, key:`bot-duel-submit-${flow.cardId}` });
           return setTimeout(() => {
             if (state.flow?.step === 'duel-vote') {
-              serverCommand('DUEL_VOTE', { winnerId:flow.actorId }, { human:false, key:`bot-duel-vote-${flow.cardId}` });
               scheduleBotSocialResolution();
             }
           }, 1000);
+        }
+        if (flow.step === 'duel-vote') {
+          const nextVoterId = flow.duelVote?.eligibleVoterIds.find(playerId => !flow.duelVote.votes[playerId] && !findPlayer(playerId)?.isHuman);
+          if (nextVoterId) {
+            serverCommand(
+              'DUEL_VOTE',
+              { winnerId:flow.actorId, voterId:nextVoterId },
+              {
+                human:false,
+                key:`bot-duel-vote-${flow.cardId}-${nextVoterId}`
+              }
+            );
+            return scheduleBotSocialResolution();
+          }
         }
         if (flow.step === 'resolved') return serverCommand('COMPLETE_FLOW', {}, { human:false, key:`bot-duel-complete-${flow.cardId}` });
       }
@@ -1596,9 +2192,39 @@ import { announce, toast } from './feedback.ts';
       if (!flow) return { ok:false, mutated:false };
       const player = findPlayer(flow.targetId || flow.actorId);
       addEvent('SOCIAL_TIMED_OUT', `${player?.name || 'Player'} reached the deterministic timeout state.`, 'orange');
-      flow.step = 'passed';
-      flow.resolved = true;
-      flow.outcome = 'Timed out. The demo preserves the table and advances without public shaming.';
+      if (flow.type === 'paranoia') {
+        if (flow.step === 'paranoia-stranger-vote' && flow.paranoiaVote) {
+          if (!flow.paranoiaVote.resolutionApplied) {
+            resolveParanoiaStrangerVotes(flow);
+          }
+        } else if (flow.paranoiaPhase === 'stranger' && (flow.step === 'paranoia-target-answer' || flow.step.startsWith('answer-'))) {
+          flow.targetAnswer = { method:'live', completionOnly:true, submittedAt:Date.now(), timedOut:true };
+          flow.answer = null;
+          flow.answerDraft = null;
+          flow.answerMode = null;
+          beginParanoiaStrangerVote(flow);
+          return { ok:true, mutated:true };
+        } else if (flow.paranoiaPhase === 'classic' && (flow.step === 'paranoia-classic-answer-player' || flow.step === 'paranoia-classic-decision')) {
+          if (flow.step === 'paranoia-classic-decision' && flow.classicAnswerPlayerId) {
+            resolveParanoiaClassic(flow, 'keep-secret');
+          } else {
+            resolveParanoiaClassicTimeout(flow);
+          }
+        } else if (flow.step === 'paranoia-choice' || flow.step === 'paranoia-phase') {
+          resolvePromptStats(flow);
+          registerResolvedPrompt(flow);
+          flow.outcome = 'Timed out before the Paranoia branch was chosen. No penalty is applied.';
+        }
+        flow.step = 'resolved';
+        flow.resolved = true;
+        if (!flow.outcome) flow.outcome = 'Timed out. The demo preserves the table and advances without public shaming.';
+      } else if (flow.type === 'duel' && flow.step === 'duel-vote' && flow.duelVote) {
+        resolveDuelGroupVote(flow);
+      } else {
+        flow.step = 'passed';
+        flow.resolved = true;
+        flow.outcome = 'Timed out. The demo preserves the table and advances without public shaming.';
+      }
       return { ok:true, mutated:true };
     }
 
@@ -1642,7 +2268,7 @@ import { announce, toast } from './feedback.ts';
         serverCommand('TIMEOUT_TURN', {}, { human:false, key:`timeout-turn-${session.id}-${session.completedTurns}` });
         return;
       }
-      if (state.flow?.deadline && ['answer-capturing','answer-input','answer-choose','answer-live','public-prompt','private-preview','paranoia-choice','duel-target','duel-active'].includes(state.flow.step) && now >= state.flow.deadline) {
+      if (state.flow?.deadline && ['prompt-source','manual-prompt','roulette-ready','roulette-spinning','answer-capturing','answer-input','answer-choose','answer-live','answer-review','public-prompt','private-preview','paranoia-choice','paranoia-phase','paranoia-classic-answer-player','paranoia-classic-decision','paranoia-target-answer','paranoia-stranger-vote','duel-target','duel-timer','duel-active','duel-vote'].includes(state.flow.step) && now >= state.flow.deadline) {
         serverCommand('TIMEOUT_SOCIAL', {}, { human:false, key:`timeout-social-${state.flow.cardId}-${state.flow.step}` });
         return;
       }
@@ -1693,25 +2319,38 @@ import { announce, toast } from './feedback.ts';
       return { ok:true, mutated:true };
     }
 
+    function validatePromptText(value) {
+      const text = String(value || '').trim();
+
+
+      if (text.length < 10 || text.length > 280) {
+        throw new Error('Write a clear prompt between 10 and 280 characters.');
+      }
+
+
+      return text;
+    }
+
     function commandCreatePrompt(payload = {}) {
       const type = payload.type;
-      const textValue = String(payload.text || '').trim();
+      const textValue = validatePromptText(payload.text);
       const destination = payload.destination || 'my';
-      if (!['truth','dare'].includes(type)) throw new Error('Player-created content supports Truth or Dare prompts.');
-      if (textValue.length < 10 || textValue.length > 280) throw new Error('Write a clear prompt between 10 and 280 characters.');
+      if (!['truth','dare','duel'].includes(type)) throw new Error('Player-created content supports Truth, Dare, or Duel prompts.');
       if (!['signed','reveal','taboo'].includes(payload.authorship)) throw new Error('Choose Signed, Reveal After or Taboo.');
       const world = payload.world === 'adult' ? 'adult' : 'clean';
+      const targeting = type === 'duel' ? 'specific' : payload.targeting || 'current';
       const blockedPattern = /(self[- ]?harm|illegal weapon|coerc|hate crime)/i;
       const passesDemoModeration = !blockedPattern.test(textValue);
       const prompt = {
         id:uid('prompt'),type,text:textValue,world,stage:clamp(Number(payload.stage || 0),0,4),
         source: destination === 'house' ? 'house' : destination === 'live' ? 'live' : destination === 'community' ? 'community-pending' : 'personal',
-        author:state.setup.profileName || 'You',authorship:payload.authorship,targeting:payload.targeting || 'current',options:[],
-        category:payload.category || 'Friends',tags:String(payload.tags||'').split(',').map(tag=>tag.trim()).filter(Boolean),
+        author:state.setup.profileName || 'You',authorship:payload.authorship,targeting,options:[],
+        category:type === 'duel' ? 'Duel' : payload.category || 'Friends',tags:String(payload.tags||'').split(',').map(tag=>tag.trim()).filter(Boolean),
         minPlayers:clamp(Number(payload.minPlayers || 2),2,10),maxPlayers:clamp(Number(payload.maxPlayers || 10),2,10),
         attribution:payload.attribution || 'profile',approved:destination !== 'community' && passesDemoModeration,
         moderationStatus: destination === 'community' ? 'submitted' : passesDemoModeration ? 'accepted' : 'review',
-        saved:0,plays:0,createdAt:Date.now(),staffPick:false,legendary:false
+        saved:0,plays:0,createdAt:Date.now(),staffPick:false,legendary:false,
+        duelJudgingMode:type === 'duel' ? 'GROUP_VOTE' : undefined
       };
       if (prompt.maxPlayers < prompt.minPlayers) throw new Error('Maximum players must be at least the minimum players.');
       state.prompts.unshift(prompt);
@@ -2086,8 +2725,11 @@ import { announce, toast } from './feedback.ts';
     function promptTags(prompt, { resolved = false } = {}) {
       if (!prompt) return '';
       const stageLabel = STAGES[prompt.world]?.[prompt.stage]?.label || `Stage ${prompt.stage}`;
-      const source = prompt.source === 'original' ? 'Cribbit Original' : prompt.source === 'community' ? 'Community CHAOS' : prompt.source === 'house' ? 'House Deck' : 'Live submission';
-      return `<div class="prompt-display__meta"><span class="tag" data-tone="${prompt.type === 'truth' ? 'lime' : prompt.type === 'dare' ? 'orange' : prompt.type === 'paranoia' ? 'purple' : prompt.type === 'duel' ? 'cyan' : 'magenta'}">${escapeHTML(prompt.type)}</span><span class="tag">${escapeHTML(source)}</span><span class="tag">${escapeHTML(stageLabel)}</span><span class="tag" data-tone="purple">${escapeHTML(promptAuthorLabel(prompt,resolved))}</span></div>`;
+      const source = prompt.source === 'original' ? 'Cribbit Original' : prompt.source === 'community' ? 'Community CHAOS' : prompt.source === 'house' ? 'House Deck' : prompt.source === 'manual' ? 'Written for this turn' : 'Live submission';
+      const judging = prompt.type === 'duel'
+        ? `<span class="tag">Judging: ${prompt.duelJudgingMode === 'OBJECTIVE' ? 'Objective' : 'Group vote'}</span>`
+        : '';
+      return `<div class="prompt-display__meta"><span class="tag" data-tone="${prompt.type === 'truth' ? 'lime' : prompt.type === 'dare' ? 'orange' : prompt.type === 'paranoia' ? 'purple' : prompt.type === 'duel' ? 'cyan' : 'magenta'}">${escapeHTML(prompt.type)}</span><span class="tag">${escapeHTML(source)}</span><span class="tag">${escapeHTML(stageLabel)}</span>${judging}<span class="tag" data-tone="purple">${escapeHTML(promptAuthorLabel(prompt,resolved))}</span></div>`;
     }
 
     function answerMethodsHTML(flow) {
@@ -2102,6 +2744,63 @@ import { announce, toast } from './feedback.ts';
 
     function targetGridHTML(action, { exclude = [] } = {}) {
       return `<div class="target-grid">${state.session.players.filter(player => !exclude.includes(player.id)).map(player => `<button class="target-option" data-action="${action}" data-target-id="${player.id}" type="button"><span class="avatar" style="--avatar:${player.color}">${escapeHTML(player.name[0])}</span><span><b>${escapeHTML(player.name)}</b><small style="display:block;color:var(--muted);margin-top:3px">${player.hand.length} cards</small></span></button>`).join('')}</div>`;
+    }
+
+    function polarToCartesian(cx, cy, radius, angleDeg) {
+      const radians = (angleDeg - 90) * Math.PI / 180;
+      return {
+        x: cx + radius * Math.cos(radians),
+        y: cy + radius * Math.sin(radians)
+      };
+    }
+
+    function wheelSectorPath(cx, cy, radius, startDeg, endDeg) {
+      const start = polarToCartesian(cx, cy, radius, startDeg);
+      const end = polarToCartesian(cx, cy, radius, endDeg);
+      return `M ${cx} ${cy} L ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${radius} ${radius} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)} Z`;
+    }
+
+    function renderRouletteWheel(accent, spinning, wheelTurn) {
+      const cx = 155;
+      const cy = 155;
+      const outerRadius = 147;
+      const labelRadius = 104;
+      const altFill = `color-mix(in srgb,${accent} 56%,#130d20)`;
+      const turns = Number(wheelTurn) || 1500;
+      const sectors = Array.from({ length: 8 }, (_, index) => {
+        const startDeg = -112.5 + index * 45;
+        const endDeg = startDeg + 45;
+        const midDeg = startDeg + 22.5;
+        const point = polarToCartesian(cx, cy, labelRadius, midDeg);
+        const fill = index % 2 === 0 ? accent : altFill;
+        return `
+          <path class="roulette-wheel__segment" d="${wheelSectorPath(cx, cy, outerRadius, startDeg, endDeg)}" fill="${fill}"></path>
+          <text
+            class="roulette-wheel__label"
+            x="${point.x.toFixed(2)}"
+            y="${point.y.toFixed(2)}"
+          >${String(index + 1).padStart(2,'0')}</text>
+        `;
+      }).join('');
+
+      return `
+        <svg
+          class="roulette-wheel"
+          viewBox="0 0 310 310"
+          aria-hidden="true"
+          style="--wheel-accent:${accent};--wheel-turn:${turns}deg"
+        >
+          <g class="roulette-wheel__rotor${spinning ? ' is-spinning' : ''}">
+            <circle class="roulette-wheel__base" cx="155" cy="155" r="147"></circle>
+            ${sectors}
+            <circle class="roulette-wheel__border" cx="155" cy="155" r="147" fill="none"></circle>
+            <circle class="roulette-wheel__hub" cx="155" cy="155" r="34"></circle>
+            <svg class="roulette-wheel__hub-mark" x="123" y="123" width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+              <use href="#i-frog"></use>
+            </svg>
+          </g>
+        </svg>
+      `;
     }
 
     function renderFlowDialog() {
@@ -2141,12 +2840,16 @@ import { announce, toast } from './feedback.ts';
         const meta = FAMILY_META[flow.family];
         title = `${meta.title} resolution`;
         subtitle = flow.originFamily === 'chaos' ? 'Chaos opened this explicit prompt path.' : `${meta.role}; hidden authorship follows the selected contract.`;
-        if (flow.step === 'roulette-ready' || flow.step === 'roulette-spinning') {
-          const spinning = flow.step === 'roulette-spinning';
-          html = `<div class="flow-layout"><div class="wheel-wrap"><div class="wheel-pointer"></div><div class="roulette-wheel${spinning ? ' is-spinning' : ''}" style="--wheel-accent:${accent};--wheel-turn:${flow.rouletteRotation || 1500}deg">${[1,2,3,4,5,6,7,8].map((n,i)=>`<span class="wheel-label" style="--a:${i*45}deg">${String(n).padStart(2,'0')}</span>`).join('')}<span class="wheel-hub">${icon('i-frog')}</span></div></div><div><div class="private-banner">${icon('i-shield')}<span><b>Server result already selected.</b><br>The anonymous wheel is visualization only. No author name, avatar or author-linked color appears.</span></div><h3 style="font:900 32px/1.05 var(--font-display);text-transform:uppercase;margin:20px 0 8px">${flow.family === 'truth' ? 'Truth Question Roulette' : 'Dare Challenge Roulette'}</h3><p class="view-lead" style="font-size:12px">Eligible ${escapeHTML(flow.family)} ${flow.family === 'truth' ? 'question' : 'challenge'} selected from the room profile, stage, player ceiling, source mix, cooldown and moderation state.</p><div class="prompt-controls"><button class="button button--primary" data-action="spin-roulette" type="button" ${spinning?'disabled':''}>${spinning?'Spinning…':'Spin Roulette'}</button></div></div></div>`;
+        if (flow.step === 'prompt-source') {
+          html = renderPromptSourceStep(flow, accent);
+        } else if (flow.step === 'manual-prompt') {
+          html = renderManualPromptStep(flow, accent);
+        } else if (flow.step === 'roulette-ready' || flow.step === 'roulette-spinning') {
+          html = renderRoulettePromptStep(flow, accent, flow.step === 'roulette-spinning');
         } else if (flow.step === 'private-preview') {
           const target = findPlayer(flow.targetId);
-          html = `<div class="private-banner">${icon('i-lock')}<span><b>Private preview for ${escapeHTML(target.name)}.</b><br>Rewind is available only here for Truth/Dare, before public reveal.</span></div><div class="prompt-display" style="--flow-accent:${accent};margin-top:14px">${promptTags(flow.prompt)}<h3>${escapeHTML(flow.prompt.text)}</h3><p>Authorship remains sealed according to ${escapeHTML(flow.prompt.authorship === 'reveal' ? 'Reveal After' : flow.prompt.authorship)}.</p><div class="prompt-controls"><button class="button button--primary" data-action="publish-prompt" type="button">Reveal prompt to room</button><button class="button" data-action="safety-rewind" type="button" ${target.rewindAvailable?'':'disabled'}>Rewind${target.rewindAvailable?'':' used'}</button><button class="button" data-action="safety-pass" type="button">Pass / Not for Me</button><button class="button button--danger" data-action="safety-flag" type="button">Flag</button></div></div>`;
+          const rewindAvailable = target.rewindAvailable && flow.promptSource !== 'manual';
+          html = `<div class="private-banner">${icon('i-lock')}<span><b>Private preview for ${escapeHTML(target.name)}.</b><br>${flow.promptSource === 'manual' ? 'You wrote this prompt for the current interaction.' : 'Rewind is available only here for Truth/Dare, before public reveal.'}</span></div><div class="prompt-display" style="--flow-accent:${accent};margin-top:14px">${promptTags(flow.prompt)}<h3>${escapeHTML(flow.prompt.text)}</h3><p>Authorship remains sealed according to ${escapeHTML(flow.prompt.authorship === 'reveal' ? 'Reveal After' : flow.prompt.authorship)}.</p><div class="prompt-controls"><button class="button button--primary" data-action="publish-prompt" type="button">Reveal prompt to room</button><button class="button" data-action="safety-rewind" type="button" ${rewindAvailable?'':'disabled'}>${flow.promptSource === 'manual' ? 'Rewind unavailable for written prompt' : `Rewind${target.rewindAvailable ? '' : ' used'}`}</button><button class="button" data-action="safety-pass" type="button">Pass / Not for Me</button><button class="button button--danger" data-action="safety-flag" type="button">Flag</button></div></div>`;
         } else if (flow.step === 'public-prompt') {
           html = `<div class="prompt-display" style="--flow-accent:${accent}">${promptTags(flow.prompt)}<h3>${escapeHTML(flow.prompt.text)}</h3><p>${flow.prompt.authorship === 'signed' ? escapeHTML(promptAuthorLabel(flow.prompt)) : 'Hidden authorship is still protected until the contract permits a reveal.'}</p>${answerMethodsHTML(flow)}<div class="prompt-controls"><button class="button" data-action="safety-pass" type="button">Pass / Not for Me</button><button class="button button--danger" data-action="safety-flag" type="button">Flag for review</button></div></div>`;
         } else if (flow.step.startsWith('answer-')) {
@@ -2155,18 +2858,57 @@ import { announce, toast } from './feedback.ts';
           html = resolvedFlowHTML(flow, accent);
         }
       } else if (flow.type === 'paranoia') {
-        title = 'Paranoia · private choice';
-        subtitle = 'Explicit Choose input replaces spoken names or ambient-audio assumptions.';
-        if (flow.step === 'paranoia-choice') html = `<div class="prompt-display" style="--flow-accent:${accent}">${promptTags(flow.prompt)}<h3>${escapeHTML(flow.prompt.text)}</h3><p>Your target choice is collected privately. Only the designed result is revealed.</p>${targetGridHTML('paranoia-choice',{exclude:[flow.actorId]})}<div class="prompt-controls"><button class="button" data-action="safety-pass" type="button">Pass</button><button class="button button--danger" data-action="safety-flag" type="button">Flag</button></div></div>`;
-        else html = resolvedFlowHTML(flow,accent);
+        if (['prompt-source','manual-prompt','roulette-ready','roulette-spinning'].includes(flow.step)) {
+          title = 'Paranoia resolution';
+          subtitle = 'Choose the prompt source before the private target selection opens.';
+          if (flow.step === 'prompt-source') html = renderPromptSourceStep(flow, accent);
+          else if (flow.step === 'manual-prompt') html = renderManualPromptStep(flow, accent);
+          else html = renderRoulettePromptStep(flow, accent, flow.step === 'roulette-spinning');
+        } else if (flow.step === 'paranoia-choice') {
+          title = 'Paranoia · private choice';
+          subtitle = 'Explicit Choose input replaces spoken names or ambient-audio assumptions.';
+          html = renderParanoiaChoiceStep(flow, accent);
+        } else if (flow.step === 'paranoia-phase') {
+          title = 'Paranoia · branch';
+          subtitle = 'Classic continues to the current resolution path. Stranger asks the target to answer before the room vote.';
+          html = renderParanoiaPhaseStep(flow, accent);
+        } else if (flow.step === 'paranoia-classic-answer-player') {
+          title = 'Paranoia · Classic answer';
+          subtitle = `${findPlayer(flow.targetId)?.name || 'The target'} chooses the player who is their answer.`;
+          html = renderParanoiaClassicAnswerPlayerStep(flow, accent);
+        } else if (flow.step === 'paranoia-classic-decision') {
+          title = 'Paranoia · Reveal decision';
+          subtitle = `${findPlayer(flow.classicAnswerPlayerId)?.name || 'The named player'} decides whether the question is revealed.`;
+          html = renderParanoiaClassicDecisionStep(flow, accent);
+        } else if (flow.step === 'paranoia-target-answer') {
+          title = 'Paranoia · target answer';
+          subtitle = `${findPlayer(flow.targetId)?.name || 'The target'} answers before the Stranger vote opens.`;
+          html = renderParanoiaTargetAnswerStep(flow, accent);
+        } else if (flow.step.startsWith('answer-')) {
+          title = 'Paranoia · target answer';
+          subtitle = `${findPlayer(flow.targetId)?.name || 'The target'} is responding before the Stranger vote.`;
+          html = renderAnswerStep(flow, accent);
+        } else if (flow.step === 'paranoia-stranger-vote') {
+          title = 'Paranoia · Stranger vote';
+          subtitle = 'Eligible players submit their vote. A tie or belief majority means no penalty.';
+          html = renderParanoiaVoteStep(flow, accent);
+        } else html = resolvedFlowHTML(flow,accent);
       } else if (flow.type === 'duel') {
         title = 'Duel · sequential windows';
         subtitle = 'Two single-player turns resolve in sequence; local Duel scoring never replaces empty-hand victory.';
         if (flow.step === 'duel-target') html = `<h3 style="font:900 30px/1 var(--font-display);text-transform:uppercase">Choose an opponent</h3>${targetGridHTML('duel-target',{exclude:[flow.actorId]})}`;
+        else if (['prompt-source','manual-prompt','roulette-ready','roulette-spinning'].includes(flow.step)) {
+          title = 'Duel · question source';
+          subtitle = `${findPlayer(flow.actorId)?.name || 'The challenger'} chooses one shared Duel question after selecting an opponent.`;
+          if (flow.step === 'prompt-source') html = renderPromptSourceStep(flow, accent);
+          else if (flow.step === 'manual-prompt') html = renderManualPromptStep(flow, accent);
+          else html = renderRoulettePromptStep(flow, accent, flow.step === 'roulette-spinning');
+        }
+        else if (flow.step === 'duel-timer') html = renderDuelTimerStep(flow, accent);
         else if (flow.step === 'duel-active') html = `<div class="prompt-display" style="--flow-accent:${accent}">${promptTags(flow.prompt)}<h3>${escapeHTML(flow.prompt.text)}</h3><p>Window 1 of 2: ${escapeHTML(findPlayer(flow.actorId).name)} responds first.</p>${answerMethodsHTML(flow)}</div>`;
         else if (flow.step.startsWith('answer-')) html = renderAnswerStep(flow,accent);
         else if (flow.step === 'duel-opponent') html = `<div class="empty-state">${icon('i-clock')}<h3>Opponent window</h3><p>${escapeHTML(findPlayer(flow.opponentId).name)} is completing the separate resolution window.</p></div>`;
-        else if (flow.step === 'duel-vote') html = `<div class="prompt-display" style="--flow-accent:${accent}"><h3>Resolve the Duel</h3><p>Choose the local Duel winner. This result is recap metadata only.</p><div class="target-grid">${[flow.actorId,flow.opponentId].map(id=>{const p=findPlayer(id);return `<button class="target-option" data-action="duel-vote" data-winner-id="${p.id}" type="button"><span class="avatar" style="--avatar:${p.color}">${escapeHTML(p.name[0])}</span><span><b>${escapeHTML(p.name)}</b><small style="display:block;color:var(--muted);margin-top:3px">Vote as Duel winner</small></span></button>`}).join('')}</div></div>`;
+        else if (flow.step === 'duel-vote') html = renderDuelVoteStep(flow, accent);
         else html = resolvedFlowHTML(flow,accent);
       } else if (flow.type === 'chaos') {
         title = `Chaos · ${flow.effect?.title || 'effect'}`;
@@ -2181,7 +2923,9 @@ import { announce, toast } from './feedback.ts';
       $('#flowDialogTitle').textContent = title;
       $('#flowDialogSubtitle').textContent = subtitle;
       $('#flowDialogBody').innerHTML = html;
-      if (!dialog.open) dialog.showModal();
+      if (!dialog.open) {
+        dialog.showModal();
+      }
     }
 
     function renderAnswerStep(flow, accent) {
@@ -2201,7 +2945,429 @@ import { announce, toast } from './feedback.ts';
     function resolvedFlowHTML(flow, accent) {
       const prompt = flow.prompt;
       const author = prompt ? promptAuthorLabel(prompt,true) : '';
-      return `<div class="prompt-display" style="--flow-accent:${accent}">${prompt ? promptTags(prompt,{resolved:true}) : ''}<h3>${escapeHTML(flow.step === 'passed' ? 'Turn passed' : flow.outcome || 'Effect resolved')}</h3><p>${prompt && prompt.authorship === 'reveal' ? escapeHTML(`Submitted by ${prompt.author} — revealed only after resolution.`) : prompt && prompt.authorship === 'taboo' ? 'Taboo authorship remains hidden from every player.' : escapeHTML(author)}</p><div class="prompt-controls"><button class="button button--primary" data-action="complete-flow" type="button">Continue to win check</button></div></div>`;
+      return `<div class="prompt-display" style="--flow-accent:${accent}">${prompt ? promptTags(prompt,{resolved:true}) : ''}<h3>${escapeHTML(flow.step === 'passed' ? 'Turn passed' : flow.outcome || 'Effect resolved')}</h3><p>${prompt && prompt.authorship === 'reveal' ? escapeHTML(`Submitted by ${prompt.author} — revealed only after resolution.`) : prompt && prompt.authorship === 'taboo' ? 'Taboo authorship remains hidden from every player.' : escapeHTML(author)}</p><div class="prompt-controls"><button class="button button--primary" data-action="complete-flow" type="button">Continue</button></div></div>`;
+    }
+
+    function promptNoun(family) {
+      return family === 'dare' ? 'challenge' : 'question';
+    }
+
+    function promptTitle(family) {
+      return `${FAMILY_META[family].title} ${family === 'dare' ? 'Challenge' : 'Question'}`;
+    }
+
+    function renderPromptSourceStep(flow, accent) {
+      const isDuel = flow.family === 'duel';
+      return `
+        <div class="prompt-display" style="--flow-accent:${accent}">
+          <div class="private-banner">
+            ${icon('i-lock')}
+            <span>
+              <b>Choose the ${isDuel ? 'Duel question' : 'prompt'} source.</b><br>
+              ${isDuel ? 'Write one shared Duel question or spin Duel Roulette.' : `Write this ${promptNoun(flow.family)} yourself or use Roulette.`}
+            </span>
+          </div>
+
+
+          <h3 style="font:900 30px/1 var(--font-display);text-transform:uppercase;margin-top:20px">
+            ${promptTitle(flow.family)}
+          </h3>
+
+
+          <p class="view-lead" style="font-size:12px">
+            ${isDuel
+              ? 'Both Duelists answer the same established question. Current Duel questions resolve by eligible group vote.'
+              : 'Manual entry creates a one-off prompt for this interaction only. Roulette selects an eligible prompt from the enabled room sources.'}
+          </p>
+
+
+          <div class="prompt-controls">
+            <button
+              class="button button--primary"
+              data-action="prompt-source"
+            data-source="manual"
+            type="button"
+          >
+              ${isDuel ? 'Write Duel Question' : 'Write manually'}
+            </button>
+
+
+            <button
+              class="button"
+              data-action="prompt-source"
+            data-source="roulette"
+            type="button"
+          >
+              ${isDuel ? 'Spin Duel Roulette' : 'Use Roulette'}
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderManualPromptStep(flow, accent) {
+      return `
+        <div class="prompt-display" style="--flow-accent:${accent}">
+          <div class="private-banner">
+            ${icon('i-lock')}
+            <span>
+              <b>Private composer.</b><br>
+              This ${promptNoun(flow.family)} is for the current interaction and is not automatically saved.
+            </span>
+          </div>
+
+
+          <h3 style="margin-top:18px">
+            Write your ${FAMILY_META[flow.family].title} ${promptNoun(flow.family)}
+          </h3>
+
+
+          <div class="field" style="margin-top:16px">
+            <label for="manualPromptText">
+              ${promptTitle(flow.family)}
+            </label>
+
+
+            <textarea
+              class="textarea"
+              id="manualPromptText"
+              minlength="10"
+              maxlength="280"
+              aria-describedby="manualPromptHelp"
+              placeholder="Write the ${FAMILY_META[flow.family].title} ${promptNoun(flow.family)}..."
+            ></textarea>
+            <span class="field-help" id="manualPromptHelp">10–280 characters. Shorter or longer prompts will be rejected before this prompt can be used.</span>
+          </div>
+
+
+          <div class="prompt-controls">
+            <button
+              class="button button--primary"
+              data-action="submit-manual-prompt"
+              type="button"
+            >
+              Use this ${promptNoun(flow.family)}
+            </button>
+
+
+            <button
+              class="button"
+              data-action="prompt-source"
+              data-source="roulette"
+              type="button"
+            >
+              Switch to Roulette
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderRoulettePromptStep(flow, accent, spinning) {
+      const eligibilityText = flow.family === 'paranoia'
+        ? 'Eligible Paranoia question selected from the room profile, stage, source mix, cooldown and moderation state.'
+        : `Eligible ${escapeHTML(flow.family)} ${promptNoun(flow.family)} selected from the room profile, stage, player ceiling, source mix, cooldown and moderation state.`;
+      return `
+        <div class="flow-layout">
+          <div class="wheel-wrap">
+            <div class="wheel-pointer"></div>
+            ${renderRouletteWheel(accent, spinning, flow.rouletteRotation || 1500)}
+          </div>
+          <div>
+            <div class="private-banner">
+              ${icon('i-shield')}
+              <span>
+                <b>Server result already selected.</b><br>
+                The anonymous wheel is visualization only. No author name, avatar or author-linked color appears.
+              </span>
+            </div>
+            <h3 style="font:900 32px/1.05 var(--font-display);text-transform:uppercase;margin:20px 0 8px">
+              ${promptTitle(flow.family)} Roulette
+            </h3>
+            <p class="view-lead" style="font-size:12px">
+              ${eligibilityText}
+            </p>
+            <div class="prompt-controls">
+              <button class="button button--primary" data-action="spin-roulette" type="button" ${spinning ? 'disabled' : ''}>
+                ${spinning ? 'Spinning…' : 'Spin Roulette'}
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderDuelTimerStep(flow, accent) {
+      const actor = findPlayer(flow.actorId);
+      const opponent = findPlayer(flow.opponentId);
+      return `
+        <div class="prompt-display" style="--flow-accent:${accent}">
+          <div class="private-banner">
+            ${icon('i-clock')}
+            <span>
+              <b>${escapeHTML(actor?.name || 'The challenger')}, choose the Duel timer.</b><br>
+              Opponent: ${escapeHTML(opponent?.name || 'the opponent')}. The response window starts only after this selection.
+            </span>
+          </div>
+
+
+          ${promptTags(flow.prompt)}
+          <h3 style="margin-top:18px">
+            ${escapeHTML(flow.prompt.text)}
+          </h3>
+
+
+          <p class="view-lead" style="font-size:12px">
+            The challenger selects a fixed Duel timer. No random timer is applied.
+          </p>
+
+
+          <div class="prompt-controls">
+            ${[15,30,45].map(seconds => `
+              <button class="button ${seconds === 30 ? 'button--primary' : ''}" data-action="duel-timer" data-seconds="${seconds}" type="button">
+                ${seconds} seconds
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderDuelVoteStep(flow, accent) {
+      const candidates = [flow.actorId, flow.opponentId].map(id => findPlayer(id)).filter(Boolean);
+      const voters = (flow.duelVote?.eligibleVoterIds || []).map(id => findPlayer(id)).filter(Boolean);
+      const votes = flow.duelVote?.votes || {};
+      const localPlayer = humanPlayer();
+      const voteRows = voters.map(voter => {
+        const submitted = Boolean(votes[voter.id]);
+        const canVoteHere = !submitted && voter.id === localPlayer?.id;
+        return `
+          <div class="vote-row">
+            <div>
+              <b>${escapeHTML(voter.name)}</b>
+              <small style="display:block;color:var(--muted);margin-top:3px">${submitted ? 'Vote submitted' : canVoteHere ? 'Choose who won this Duel' : 'Awaiting this voter'}</small>
+            </div>
+            <div class="prompt-controls" style="margin:0;justify-content:flex-end">
+              ${candidates.map(candidate => `
+                <button
+                  class="button ${candidate.id === flow.actorId ? 'button--primary' : ''}"
+                  data-action="duel-vote"
+                  data-winner-id="${candidate.id}"
+                  type="button"
+                  ${canVoteHere ? '' : 'disabled'}
+                >
+                  ${escapeHTML(candidate.name)}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="prompt-display" style="--flow-accent:${accent}">
+          <div class="private-banner">
+            ${icon('i-shield')}
+            <span>
+              <b>Group vote decides the Duel winner.</b><br>
+              The challenger and opponent do not vote on their own result.
+            </span>
+          </div>
+
+          ${promptTags(flow.prompt)}
+          <h3 style="margin-top:18px">${escapeHTML(flow.prompt.text)}</h3>
+          <p class="view-lead" style="font-size:12px">
+            Eligible non-participants vote once. A tie or no eligible votes awards no Duel winner.
+          </p>
+
+          <div class="vote-list">
+            ${voteRows || `<div class="empty-state">${icon('i-users')}<h3>No eligible group voters</h3><p>The Duel resolves without awarding a Duel winner.</p></div>`}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderParanoiaChoiceStep(flow, accent) {
+      return `<div class="prompt-display" style="--flow-accent:${accent}">${promptTags(flow.prompt)}<h3>${escapeHTML(flow.prompt.text)}</h3><p>Your target choice is collected privately. Only the designed result is revealed.</p>${targetGridHTML('paranoia-choice',{exclude:[flow.actorId]})}<div class="prompt-controls"><button class="button" data-action="safety-pass" type="button">Pass</button><button class="button button--danger" data-action="safety-flag" type="button">Flag</button></div></div>`;
+    }
+
+    function renderParanoiaPhaseStep(flow, accent) {
+      const target = findPlayer(flow.targetId);
+      const targetName = target ? target.name : 'the target';
+      return `
+        <div class="prompt-display" style="--flow-accent:${accent}">
+          <div class="private-banner">
+            ${icon('i-lock')}
+            <span>
+              <b>Choose the Paranoia branch.</b><br>
+              Classic asks ${escapeHTML(targetName)} to name an answer player. Stranger asks ${escapeHTML(targetName)} to answer before the eligible players vote.
+            </span>
+          </div>
+
+
+          <h3 style="margin-top:18px">
+            ${escapeHTML(flow.prompt.text)}
+          </h3>
+
+
+          <p class="view-lead" style="font-size:12px">
+            Classic continues through answer-player selection and a Reveal / Keep Secret decision. Stranger asks the selected target to answer, then asks eligible players to vote.
+          </p>
+
+
+          <div class="prompt-controls">
+            <button class="button button--primary" data-action="paranoia-phase" data-phase="classic" type="button">Classic</button>
+            <button class="button" data-action="paranoia-phase" data-phase="stranger" type="button">Stranger</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderParanoiaClassicAnswerPlayerStep(flow, accent) {
+      const target = findPlayer(flow.targetId);
+      const targetName = target ? target.name : 'the target';
+      return `
+        <div class="prompt-display" style="--flow-accent:${accent}">
+          <div class="private-banner">
+            ${icon('i-lock')}
+            <span>
+              <b>${escapeHTML(targetName)}, choose the player who is your answer.</b><br>
+              The question stays private unless the named player chooses Reveal.
+            </span>
+          </div>
+
+
+          ${promptTags(flow.prompt)}
+          <h3 style="margin-top:18px">
+            ${escapeHTML(flow.prompt.text)}
+          </h3>
+
+
+          ${targetGridHTML('paranoia-classic-answer', { exclude:[flow.targetId] })}
+        </div>
+      `;
+    }
+
+    function renderParanoiaClassicDecisionStep(flow, accent) {
+      const target = findPlayer(flow.targetId);
+      const answerPlayer = findPlayer(flow.classicAnswerPlayerId);
+      const targetName = target ? target.name : 'the target';
+      const answerName = answerPlayer ? answerPlayer.name : 'the named player';
+      return `
+        <div class="prompt-display" style="--flow-accent:${accent}">
+          <div class="private-banner">
+            ${icon('i-lock')}
+            <span>
+              <b>${escapeHTML(answerName)}, reveal the question or keep it secret?</b><br>
+              ${escapeHTML(targetName)} named you as their answer.
+            </span>
+          </div>
+
+
+          <h3 style="margin-top:18px">
+            Reveal or keep secret
+          </h3>
+
+
+          <p class="view-lead" style="font-size:12px">
+            Reveal shows the Paranoia question for this resolved moment. Keep Secret resolves without exposing the question.
+          </p>
+
+
+          <div class="prompt-controls">
+            <button class="button button--primary" data-action="paranoia-classic-decision" data-decision="reveal" type="button">Reveal</button>
+            <button class="button" data-action="paranoia-classic-decision" data-decision="keep-secret" type="button">Keep Secret</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderParanoiaTargetAnswerStep(flow, accent) {
+      const target = findPlayer(flow.targetId);
+      const targetName = target ? target.name : 'the target';
+      return `
+        <div class="prompt-display" style="--flow-accent:${accent}">
+          <div class="private-banner">
+            ${icon('i-lock')}
+            <span>
+              <b>Target answer required.</b><br>
+              Target: ${escapeHTML(targetName)}
+            </span>
+          </div>
+
+
+          ${promptTags(flow.prompt)}
+          <h3 style="margin-top:18px">
+            ${escapeHTML(flow.prompt.text)}
+          </h3>
+
+
+          <p class="view-lead" style="font-size:12px">
+            ${escapeHTML(targetName)} answers this question before the Stranger vote opens.
+          </p>
+
+
+          ${answerMethodsHTML(flow)}
+        </div>
+      `;
+    }
+
+    function renderParanoiaVoteStep(flow, accent) {
+      const target = findPlayer(flow.targetId);
+      const targetName = target ? target.name : 'the target';
+      const voters = (flow.paranoiaVote?.eligibleVoterIds || []).map(id => findPlayer(id)).filter(Boolean);
+      const votes = flow.paranoiaVote?.votes || {};
+      const believeCount = Object.values(votes).filter(vote => vote === 'BELIEVE').length;
+      const pressureCount = Object.values(votes).filter(vote => vote === 'LYING' || vote === 'HOLDING_BACK').length;
+      return `
+        <div class="prompt-display" style="--flow-accent:${accent}">
+          <div class="private-banner">
+            ${icon('i-users')}
+            <span>
+              <b>Stranger vote in progress.</b><br>
+              ${escapeHTML(targetName)} is the chosen target. A tie or belief majority means no penalty.
+            </span>
+          </div>
+
+
+          <h3 style="margin-top:18px">
+            ${escapeHTML(flow.prompt.text)}
+          </h3>
+
+
+          <p class="view-lead" style="font-size:12px">
+            Do you believe ${escapeHTML(targetName)}? Submitted votes count toward the final decision.
+          </p>
+
+
+          <div class="review-box" style="margin:18px 0">
+            <small>Vote tally</small>
+            <p>Believe: ${believeCount} · Lying / Holding Back: ${pressureCount}</p>
+          </div>
+
+
+          <div class="field" style="margin-top:16px">
+            <label>Eligible voters</label>
+            <div class="target-grid">
+              ${voters.map(voter => `
+                <div class="target-option" style="display:grid;gap:10px;align-items:start">
+                  <div style="display:flex;gap:10px;align-items:center">
+                    <span class="avatar" style="--avatar:${voter.color}">${escapeHTML(voter.name[0])}</span>
+                    <span>
+                      <b>${escapeHTML(voter.name)}</b>
+                      <small style="display:block;color:var(--muted);margin-top:3px">${votes[voter.id] ? `Voted ${escapeHTML(votes[voter.id])}` : 'Awaiting vote'}</small>
+                    </span>
+                  </div>
+                  <div class="prompt-controls" style="justify-content:flex-start;gap:8px">
+                    <button class="button button--primary" data-action="paranoia-vote" data-voter-id="${voter.id}" data-vote="BELIEVE" type="button">Believe</button>
+                    <button class="button" data-action="paranoia-vote" data-voter-id="${voter.id}" data-vote="LYING" type="button">Lying / Holding Back</button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
     }
 
     const ROOM_CATEGORIES = ['Truth','Dare','Paranoia','Duel','Icebreakers','Funny','Friends','Couples','Dorm','Party','Bold','Clean','Movies','School','Work','Travel','Creativity','Most Likely To'];
@@ -2398,7 +3564,7 @@ import { announce, toast } from './feedback.ts';
 
     function startRouletteSpin() {
       const flow = state.flow;
-      if (!flow || flow.type !== 'social' || flow.step !== 'roulette-ready') return;
+      if (!flow || !['social','paranoia','duel'].includes(flow.type) || flow.step !== 'roulette-ready') return;
       flow.step = 'roulette-spinning';
       flow.rouletteRotation = 1440 + ((state.revision + state.session.completedTurns) % 8) * 45;
       addEvent('ROULETTE_ANIMATION_STARTED', 'Wheel animation visualizes the server-selected prompt; it does not decide the result.', 'purple');
@@ -2415,6 +3581,7 @@ import { announce, toast } from './feedback.ts';
       flow.answerMode = null;
       flow.answerDraft = null;
       if (flow.type === 'duel') flow.step = 'duel-active';
+      else if (flow.type === 'paranoia' && flow.paranoiaPhase === 'stranger') flow.step = 'paranoia-target-answer';
       else flow.step = 'public-prompt';
       state.revision += 1;
       addEvent('ANSWER_EDITED', 'Answer mode returned to explicit selection before submission.', 'cyan');
@@ -2433,8 +3600,18 @@ import { announce, toast } from './feedback.ts';
       location.reload();
     }
 
+    function closeDialogById(dialogId) {
+      const dialog = dialogId ? document.getElementById(dialogId) : null;
+      const shouldClose = dialog?.tagName === 'DIALOG' && dialog.open;
+      if (shouldClose) {
+        dialog.close();
+      }
+    }
+
     document.addEventListener('click', event => {
-      const nav = event.target.closest('[data-nav]');
+      const clickTarget = event.composedPath().find(node => node instanceof Element);
+      if (!(clickTarget instanceof Element)) return;
+      const nav = clickTarget.closest('[data-nav]');
       if (nav) {
         event.preventDefault();
         if (nav.dataset.boardTab) state.ecosystem.boardTab = nav.dataset.boardTab;
@@ -2446,25 +3623,25 @@ import { announce, toast } from './feedback.ts';
         if (nav.dataset.roomAnchor) requestAnimationFrame(() => document.getElementById(nav.dataset.roomAnchor)?.scrollIntoView({ block:'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }));
         return;
       }
-      const boardTabButton = event.target.closest('[data-board-tab]');
+      const boardTabButton = clickTarget.closest('[data-board-tab]');
       if (boardTabButton) {
         state.ecosystem.boardTab = boardTabButton.dataset.boardTab;
         if (state.view !== 'board') showView('board'); else renderBoard();
         return;
       }
-      const libraryTabButton = event.target.closest('[data-library-tab]');
+      const libraryTabButton = clickTarget.closest('[data-library-tab]');
       if (libraryTabButton) {
         state.ecosystem.libraryTab = libraryTabButton.dataset.libraryTab;
         if (state.view !== 'library') showView('library'); else renderLibrary();
         return;
       }
-      const destinationButton = event.target.closest('[data-create-destination]');
+      const destinationButton = clickTarget.closest('[data-create-destination]');
       if (destinationButton) {
         state.ecosystem.createDestination = destinationButton.dataset.createDestination;
         if (state.view !== 'create') showView('create'); else renderCreate();
         return;
       }
-      const categoryButton = event.target.closest('[data-room-category]');
+      const categoryButton = clickTarget.closest('[data-room-category]');
       if (categoryButton) {
         const category = categoryButton.dataset.roomCategory;
         if (state.ecosystem.roomCategories.has(category)) state.ecosystem.roomCategories.delete(category); else state.ecosystem.roomCategories.add(category);
@@ -2472,9 +3649,9 @@ import { announce, toast } from './feedback.ts';
         renderRooms();
         return;
       }
-      const modeButton = event.target.closest('.mode-card[data-mode]');
+      const modeButton = clickTarget.closest('.mode-card[data-mode]');
       if (modeButton) return setMode(modeButton.dataset.mode);
-      const sourceButton = event.target.closest('[data-source]');
+      const sourceButton = clickTarget.closest('[data-source]:not([data-action])');
       if (sourceButton) {
         const source = sourceButton.dataset.source;
         state.setup.sources[source] = !state.setup.sources[source];
@@ -2482,18 +3659,18 @@ import { announce, toast } from './feedback.ts';
         renderSetup();
         return;
       }
-      const filterButton = event.target.closest('[data-filter]');
+      const filterButton = clickTarget.closest('[data-filter]');
       if (filterButton) {
         state.currentFilter = filterButton.dataset.filter;
         renderBoard();
         return;
       }
-      const closeDialog = event.target.closest('[data-close-dialog]');
+      const closeDialog = clickTarget.closest('[data-close-dialog]');
       if (closeDialog) {
-        $(`#${closeDialog.dataset.closeDialog}`)?.close();
+        closeDialogById(closeDialog.dataset.closeDialog);
         return;
       }
-      const actionButton = event.target.closest('[data-action]');
+      const actionButton = clickTarget.closest('[data-action]');
       if (!actionButton) return;
       const action = actionButton.dataset.action;
       if (action === 'toggle-left-rail') return toggleGameRail('left');
@@ -2514,17 +3691,40 @@ import { announce, toast } from './feedback.ts';
         addEvent('LOBBY_JOINED', `Simulated room code ${code} loaded without changing canonical game rules.`, 'lime');
         return;
       }
-      if (action === 'open-mobile-nav') { $('#mobileNavDialog').showModal(); return; }
-      if (action === 'open-global-search') { renderGlobalSearch(''); $('#searchDialog').showModal(); setTimeout(()=>$('#globalSearchInput')?.focus(),50); return; }
-      if (action === 'open-notifications') { renderNotifications(); $('#notificationsDialog').showModal(); return; }
-      if (action === 'open-profile') { $('#profileDialogName').value=state.setup.profileName; $('#profileDialogWorld').value=state.setup.world; $('#profileDialog').showModal(); return; }
+      if (action === 'open-mobile-nav') {
+        $('#mobileNavDialog').showModal();
+        return;
+      }
+      if (action === 'open-global-search') {
+        renderGlobalSearch('');
+        $('#searchDialog').showModal();
+        setTimeout(()=>$('#globalSearchInput')?.focus(),50);
+        return;
+      }
+      if (action === 'open-notifications') {
+        renderNotifications();
+        $('#notificationsDialog').showModal();
+        return;
+      }
+      if (action === 'open-profile') {
+        $('#profileDialogName').value=state.setup.profileName;
+        $('#profileDialogWorld').value=state.setup.world;
+        $('#profileDialog').showModal();
+        return;
+      }
       if (action === 'save-profile') { state.setup.profileName=$('#profileDialogName').value.trim()||'You'; state.setup.world=$('#profileDialogWorld').value; $('#profileName').value=state.setup.profileName; $('#profileDialog').close(); renderAll(); toast('Profile updated','Personal settings applied to future eligibility checks.','lime'); return; }
       if (action === 'toggle-activity') { state.ecosystem.activityOpen=!state.ecosystem.activityOpen; const dock=$('#activityDock'); if(dock){dock.dataset.open=String(state.ecosystem.activityOpen); actionButton.textContent=state.ecosystem.activityOpen?'Collapse':'Expand';} return; }
       if (action === 'apply-room-config') { const total=Object.values(state.ecosystem.roomWeights).reduce((a,b)=>a+Number(b),0); if(total!==100) return toast('Source mix must equal 100%','Adjust the four source weights before applying the room.','orange'); toast('Room setup applied',`${roomEligiblePrompts().length} prompts are currently eligible for tonight.`,'lime'); addEvent('ROOM_CONFIG_APPLIED','Host applied vibe, category and source-mix settings.','lime'); renderAll(); return; }
       if (action === 'add-to-room') return serverCommand('ADD_TO_ROOM_POOL',{promptId:actionButton.dataset.promptId});
       if (action === 'remove-from-room') return serverCommand('REMOVE_FROM_ROOM_POOL',{promptId:actionButton.dataset.promptId});
       if (action === 'advance-submission') return serverCommand('ADVANCE_SUBMISSION',{submissionId:actionButton.dataset.submissionId});
-      if (action === 'prompt-detail') { const prompt=state.prompts.find(item=>item.id===actionButton.dataset.promptId); if(!prompt)return; $('#cardDialogBody').innerHTML=`<div class="prompt-display" style="--flow-accent:${promptAccent(prompt)}"><div class="prompt-display__meta"><span class="tag" data-tone="${promptTone(prompt)}">${escapeHTML(prompt.type)}</span><span class="tag">${escapeHTML(prompt.source)}</span><span class="tag">${escapeHTML(prompt.category||'Friends')}</span></div><h3>${escapeHTML(prompt.text)}</h3><p>${escapeHTML(promptAuthorLabel(prompt,false))} · ${prompt.minPlayers||2}–${prompt.maxPlayers||10} players · ${Number(prompt.saved||0).toLocaleString()} saves · ${Number(prompt.plays||0).toLocaleString()} plays</p></div>`; $('#cardDialog').showModal(); return; }
+      if (action === 'prompt-detail') {
+        const prompt=state.prompts.find(item=>item.id===actionButton.dataset.promptId);
+        if(!prompt)return;
+        $('#cardDialogBody').innerHTML=`<div class="prompt-display" style="--flow-accent:${promptAccent(prompt)}"><div class="prompt-display__meta"><span class="tag" data-tone="${promptTone(prompt)}">${escapeHTML(prompt.type)}</span><span class="tag">${escapeHTML(prompt.source)}</span><span class="tag">${escapeHTML(prompt.category||'Friends')}</span></div><h3>${escapeHTML(prompt.text)}</h3><p>${escapeHTML(promptAuthorLabel(prompt,false))} · ${prompt.minPlayers||2}–${prompt.maxPlayers||10} players · ${Number(prompt.saved||0).toLocaleString()} saves · ${Number(prompt.plays||0).toLocaleString()} plays</p></div>`;
+        $('#cardDialog').showModal();
+        return;
+      }
       if (action === 'draw-card') return serverCommand('DRAW_CARD');
       if (action === 'play-card') {
         if (actionButton.getAttribute('aria-disabled') === 'true') return toast('Illegal card', 'Client hint says this card does not match; the server would reject it.', 'orange');
@@ -2532,6 +3732,16 @@ import { announce, toast } from './feedback.ts';
       }
       if (action === 'card-detail') return openCardDetail(actionButton.dataset.cardId);
       if (action === 'choose-wild') return serverCommand('CHOOSE_WILD', { color:actionButton.dataset.color });
+      if (action === 'prompt-source') {
+        return serverCommand('SELECT_PROMPT_SOURCE', {
+          source:actionButton.dataset.source
+        });
+      }
+      if (action === 'submit-manual-prompt') {
+        return serverCommand('SUBMIT_MANUAL_PROMPT', {
+          text:$('#manualPromptText')?.value || ''
+        });
+      }
       if (action === 'spin-roulette') return startRouletteSpin();
       if (action === 'publish-prompt') return serverCommand('PUBLISH_PROMPT');
       if (action === 'answer-mode') return serverCommand('SELECT_ANSWER_MODE', { mode:actionButton.dataset.mode });
@@ -2560,7 +3770,12 @@ import { announce, toast } from './feedback.ts';
       }
       if (action === 'nope-reaction') return serverCommand('NOPE_REACTION', { useNope:actionButton.dataset.use === 'true' });
       if (action === 'paranoia-choice') return serverCommand('PARANOIA_CHOICE', { targetId:actionButton.dataset.targetId });
+      if (action === 'paranoia-phase') return serverCommand('SELECT_PARANOIA_PHASE', { phase:actionButton.dataset.phase });
+      if (action === 'paranoia-classic-answer') return serverCommand('SELECT_PARANOIA_CLASSIC_ANSWER', { targetId:actionButton.dataset.targetId });
+      if (action === 'paranoia-classic-decision') return serverCommand('SUBMIT_PARANOIA_CLASSIC_DECISION', { decision:actionButton.dataset.decision });
+      if (action === 'paranoia-vote') return serverCommand('SUBMIT_PARANOIA_VOTE', { vote:actionButton.dataset.vote, voterId:actionButton.dataset.voterId });
       if (action === 'duel-target') return serverCommand('DUEL_TARGET', { targetId:actionButton.dataset.targetId });
+      if (action === 'duel-timer') return serverCommand('SELECT_DUEL_TIMER', { seconds:actionButton.dataset.seconds });
       if (action === 'duel-vote') return serverCommand('DUEL_VOTE', { winnerId:actionButton.dataset.winnerId });
       if (action === 'chaos-target') return serverCommand('CHAOS_TARGET', { targetId:actionButton.dataset.targetId });
       if (action === 'resolve-chaos') {
@@ -2590,7 +3805,17 @@ import { announce, toast } from './feedback.ts';
       }
       if (action === 'force-recap') return serverCommand('FORCE_RECAP');
       if (action === 'clear-log') { state.events=[]; renderEvents(); return; }
-      if (action === 'flow-close-request') return toast('Resolution required', 'The active authoritative flow cannot be dismissed. Resolve, Pass, Rewind or Flag as available.', 'orange');
+      if (action === 'flow-close-request') {
+        if (visualWindow.__CRIBBIT_VISUAL_FIXTURE__ !== null) {
+          visualWindow.__CRIBBIT_VISUAL_FIXTURE__ = null;
+          visualWindow.__CRIBBIT_VISUAL_FIXTURE_META__ = null;
+          state.flow = null;
+          $('#flowDialog')?.close();
+          renderAll();
+          return;
+        }
+        return toast('Resolution required', 'Finish this action first. This window stays open until the current card effect is resolved.', 'orange');
+      }
       if (action === 'play-again') {
         state.session = null; state.flow = null; clearTimeout(state.botTimer); showView('lobby'); renderAll(); return;
       }

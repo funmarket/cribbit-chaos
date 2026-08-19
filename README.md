@@ -121,7 +121,7 @@ Pass, Rewind, Flag, Spice Dial, Speak, Type, Choose, and Answered Live are contr
 - `packages/contracts` — shared API and realtime types
 - `packages/game-engine` — authoritative game engine and canonical playable deck boundary
 - `packages/cards` — transitional card asset/registry package pending cleanup after PNG migration verification
-- `packages/prompts` — prompt domain model
+- `packages/prompts` — prompt domain model, including shared Duel question eligibility via `type='duel'`
 - `packages/platform` — browser and Telegram capability adapters
 - `packages/ui` — approved Web visual system and shared UI implementation
 

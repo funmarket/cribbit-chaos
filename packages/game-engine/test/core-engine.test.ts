@@ -121,7 +121,9 @@ function socialPrompt(
     antiRepeatKey: overrides.antiRepeatKey,
     options: overrides.options,
     authorshipMode: overrides.authorshipMode ?? 'SIGNED',
-    destination: overrides.destination ?? 'room'
+    destination: overrides.destination ?? 'room',
+    duelJudgingMode: overrides.duelJudgingMode ?? (kind === 'duel' ? 'GROUP_VOTE' : undefined),
+    duelObjectiveEvaluation: overrides.duelObjectiveEvaluation
   };
 }
 
@@ -235,6 +237,74 @@ function selectParanoiaTargetCommand(
   };
 }
 
+function selectParanoiaPhaseCommand(
+  state: GameState,
+  commandId: string,
+  phase: 'CLASSIC' | 'STRANGER',
+  playerId = state.currentPlayerId,
+  expectedRevision = state.revision
+): GameCommand {
+  return {
+    commandId,
+    playerId,
+    expectedRevision,
+    sessionId: state.id,
+    type: 'SELECT_PARANOIA_PHASE',
+    phase
+  };
+}
+
+function selectParanoiaClassicAnswerCommand(
+  state: GameState,
+  commandId: string,
+  targetId: string,
+  playerId: string,
+  expectedRevision = state.revision
+): GameCommand {
+  return {
+    commandId,
+    playerId,
+    expectedRevision,
+    sessionId: state.id,
+    type: 'SELECT_PARANOIA_CLASSIC_ANSWER',
+    targetId
+  };
+}
+
+function submitParanoiaClassicDecisionCommand(
+  state: GameState,
+  commandId: string,
+  decision: 'REVEAL' | 'KEEP_SECRET',
+  playerId: string,
+  expectedRevision = state.revision
+): GameCommand {
+  return {
+    commandId,
+    playerId,
+    expectedRevision,
+    sessionId: state.id,
+    type: 'SUBMIT_PARANOIA_CLASSIC_DECISION',
+    decision
+  };
+}
+
+function submitParanoiaVoteCommand(
+  state: GameState,
+  commandId: string,
+  vote: 'BELIEVE' | 'LYING' | 'HOLDING_BACK',
+  playerId = state.currentPlayerId,
+  expectedRevision = state.revision
+): GameCommand {
+  return {
+    commandId,
+    playerId,
+    expectedRevision,
+    sessionId: state.id,
+    type: 'SUBMIT_PARANOIA_VOTE',
+    vote
+  };
+}
+
 function selectDuelTargetCommand(
   state: GameState,
   commandId: string,
@@ -268,6 +338,23 @@ function submitDuelResponseCommand(
     type: 'SUBMIT_DUEL_RESPONSE',
     side,
     ...payload
+  };
+}
+
+function duelVoteCommand(
+  state: GameState,
+  commandId: string,
+  winnerId: string,
+  playerId = state.currentPlayerId,
+  expectedRevision = state.revision
+): GameCommand {
+  return {
+    commandId,
+    playerId,
+    expectedRevision,
+    sessionId: state.id,
+    type: 'DUEL_VOTE',
+    winnerId
   };
 }
 
@@ -1201,7 +1288,7 @@ test('Prompt eligibility accepts group-size ranges and rejects out-of-range prom
   assert.equal(noEligiblePrompt.error?.code, 'NO_ELIGIBLE_PROMPT');
 });
 
-test('Paranoia rejects invalid targets and resolves a valid private target selection', () => {
+test('Paranoia rejects invalid targets, keeps the target selection private, and resolves the Classic branch', () => {
   const state = baseState(3);
   state.currentPlayerId = 'player-1';
   setTopDiscard(state, makeCard('starter', 'number', { color: 'purple', value: 8, symbol: '8' }));
@@ -1226,14 +1313,147 @@ test('Paranoia rejects invalid targets and resolves a valid private target selec
 
   const validTarget = applyCommand(playResult.state, selectParanoiaTargetCommand(playResult.state, 'paranoia-target', 'player-2'));
   assert.equal(validTarget.ok, true);
-  assert.equal(validTarget.state.social, null);
-  assert.equal(validTarget.state.currentPlayerId, 'player-2');
-  assert.deepEqual(validTarget.events.map(event => event.type), ['PARANOIA_TARGET_SELECTED', 'ROULETTE_PRESENTATION_STARTED', 'SOCIAL_EFFECT_RESOLVED', 'TURN_ADVANCED']);
+  assert.equal(validTarget.state.social?.pendingTargetId, 'player-2');
+  assert.equal(validTarget.state.social?.paranoiaPhase, null);
+  assert.equal(validTarget.state.social?.resolutionComplete, false);
+  assert.deepEqual(validTarget.events.map(event => event.type), ['PARANOIA_TARGET_SELECTED', 'TARGET_REQUIRED']);
   assert.equal(validTarget.events[0]?.visibility, 'PLAYER_PRIVATE');
   assert.deepEqual(validTarget.events[0]?.recipientPlayerIds, ['player-1']);
+
+  const classicBranch = applyCommand(validTarget.state, selectParanoiaPhaseCommand(validTarget.state, 'paranoia-classic', 'CLASSIC'));
+  assert.equal(classicBranch.ok, true);
+  assert.equal(classicBranch.state.social?.paranoiaPhase, 'CLASSIC');
+  assert.equal(classicBranch.state.social?.resolutionComplete, false);
+  assert.equal(classicBranch.state.social?.mayAdvanceTurn, false);
+  assert.deepEqual(classicBranch.events.map(event => event.type), ['PARANOIA_PHASE_SELECTED', 'PARANOIA_CLASSIC_ANSWER_REQUIRED']);
+
+  const earlyComplete = applyCommand(classicBranch.state, {
+    commandId: 'paranoia-early-complete',
+    playerId: 'player-1',
+    expectedRevision: classicBranch.state.revision,
+    sessionId: classicBranch.state.id,
+    type: 'COMPLETE_FLOW'
+  });
+  assert.equal(earlyComplete.ok, false);
+  assert.equal(earlyComplete.error?.code, 'INVALID_SOCIAL_RESPONSE');
+
+  const actorAnswer = applyCommand(classicBranch.state, selectParanoiaClassicAnswerCommand(classicBranch.state, 'paranoia-actor-answer', 'player-3', 'player-1'));
+  assert.equal(actorAnswer.ok, false);
+  assert.equal(actorAnswer.error?.code, 'NOT_YOUR_TURN');
+
+  const answerSelected = applyCommand(classicBranch.state, selectParanoiaClassicAnswerCommand(classicBranch.state, 'paranoia-classic-answer', 'player-3', 'player-2'));
+  assert.equal(answerSelected.ok, true);
+  assert.equal(answerSelected.state.social?.pendingTargetId, 'player-2');
+  assert.equal(answerSelected.state.social?.classicAnswerPlayerId, 'player-3');
+  assert.equal(answerSelected.state.social?.resolutionComplete, false);
+
+  const wrongDecisionOwner = applyCommand(answerSelected.state, submitParanoiaClassicDecisionCommand(answerSelected.state, 'paranoia-wrong-decision', 'KEEP_SECRET', 'player-2'));
+  assert.equal(wrongDecisionOwner.ok, false);
+  assert.equal(wrongDecisionOwner.error?.code, 'NOT_YOUR_TURN');
+
+  const revealDecision = applyCommand(answerSelected.state, submitParanoiaClassicDecisionCommand(answerSelected.state, 'paranoia-reveal', 'REVEAL', 'player-3'));
+  assert.equal(revealDecision.ok, true);
+  assert.equal(revealDecision.state.social?.classicRevealDecision, 'REVEAL');
+  assert.equal(revealDecision.state.social?.resolutionComplete, true);
+  assert.deepEqual(revealDecision.events.map(event => event.type), ['PARANOIA_CLASSIC_REVEAL_DECIDED']);
+  assert.equal(revealDecision.events[0]?.visibility, 'PUBLIC');
+  const revealPayload = revealDecision.events[0]?.payload as { promptText?: string };
+  assert.equal(revealPayload.promptText, 'paranoia prompt');
+
+  const completeClassic = applyCommand(revealDecision.state, {
+    commandId: 'paranoia-complete',
+    playerId: 'player-1',
+    expectedRevision: revealDecision.state.revision,
+    sessionId: revealDecision.state.id,
+    type: 'COMPLETE_FLOW'
+  });
+  assert.equal(completeClassic.ok, true);
+  assert.equal(completeClassic.state.social, null);
+  assert.equal(completeClassic.state.currentPlayerId, 'player-2');
+  assert.deepEqual(completeClassic.events.map(event => event.type), ['SOCIAL_EFFECT_RESOLVED', 'TURN_ADVANCED']);
+
+  const secretState = baseState(3);
+  secretState.currentPlayerId = 'player-1';
+  setTopDiscard(secretState, makeCard('secret-starter', 'number', { color: 'purple', value: 8, symbol: '8' }));
+  setHands(secretState, {
+    'player-1': [makeCard('secret-paranoia-card', 'paranoia', { symbol: 'paranoia', color: 'purple' })],
+    'player-2': [makeCard('secret-other-2', 'number', { color: 'cyan', value: 5, symbol: '5' })],
+    'player-3': [makeCard('secret-other-3', 'number', { color: 'lime', value: 9, symbol: '9' })]
+  });
+  const secretPlay = applyCommand(secretState, playCommand(secretState, 'secret-paranoia-play', 'secret-paranoia-card'), socialContext(promptPool));
+  assert.equal(secretPlay.ok, true);
+  const secretTarget = applyCommand(secretPlay.state, selectParanoiaTargetCommand(secretPlay.state, 'secret-paranoia-target', 'player-2'));
+  assert.equal(secretTarget.ok, true);
+  const secretBranch = applyCommand(secretTarget.state, selectParanoiaPhaseCommand(secretTarget.state, 'secret-paranoia-classic', 'CLASSIC'));
+  assert.equal(secretBranch.ok, true);
+  const secretAnswerSelected = applyCommand(secretBranch.state, selectParanoiaClassicAnswerCommand(secretBranch.state, 'secret-paranoia-answer', 'player-3', 'player-2'));
+  assert.equal(secretAnswerSelected.ok, true);
+  const keepSecret = applyCommand(secretAnswerSelected.state, submitParanoiaClassicDecisionCommand(secretAnswerSelected.state, 'secret-paranoia-decision', 'KEEP_SECRET', 'player-3'));
+  assert.equal(keepSecret.ok, true);
+  assert.equal(keepSecret.state.social?.classicRevealDecision, 'KEEP_SECRET');
+  assert.equal(keepSecret.state.social?.resolutionComplete, true);
+  assert.equal(keepSecret.events[0]?.visibility, 'PLAYER_PRIVATE');
+  const keepSecretPayload = keepSecret.events[0]?.payload as Record<string, unknown>;
+  assert.equal('promptText' in keepSecretPayload, false);
 });
 
-test('Duel enters target selection, opens a Nope window, and rejects bad targets', () => {
+test('Paranoia Stranger vote ties do not penalize the target, while a strict majority does', () => {
+  const makeParanoiaState = (commandPrefix: string) => {
+    const state = baseState(4);
+    state.currentPlayerId = 'player-1';
+    setTopDiscard(state, makeCard('starter', 'number', { color: 'purple', value: 8, symbol: '8' }));
+    setHands(state, {
+      'player-1': [makeCard(`${commandPrefix}-paranoia`, 'paranoia', { symbol: 'paranoia', color: 'purple' })],
+      'player-2': [makeCard(`${commandPrefix}-other-2`, 'number', { color: 'cyan', value: 5, symbol: '5' })],
+      'player-3': [makeCard(`${commandPrefix}-other-3`, 'number', { color: 'lime', value: 9, symbol: '9' })],
+      'player-4': [makeCard(`${commandPrefix}-other-4`, 'number', { color: 'orange', value: 7, symbol: '7' })]
+    });
+    return state;
+  };
+
+  const tieState = makeParanoiaState('tie');
+  const tiePromptPool = [socialPrompt('paranoia-tie', 'paranoia', 'specific', { text: 'paranoia tie prompt', groupSizeMin: 4, groupSizeMax: 4 })];
+  const tiePlay = applyCommand(tieState, playCommand(tieState, 'paranoia-tie-play', 'tie-paranoia'), socialContext(tiePromptPool));
+  assert.equal(tiePlay.ok, true);
+  const tieTarget = applyCommand(tiePlay.state, selectParanoiaTargetCommand(tiePlay.state, 'paranoia-tie-target', 'player-2'));
+  assert.equal(tieTarget.ok, true);
+  const tieBranch = applyCommand(tieTarget.state, selectParanoiaPhaseCommand(tieTarget.state, 'paranoia-tie-branch', 'STRANGER'));
+  assert.equal(tieBranch.ok, true);
+  const tieVote1 = applyCommand(tieBranch.state, submitParanoiaVoteCommand(tieBranch.state, 'paranoia-tie-vote-1', 'BELIEVE', 'player-3'));
+  assert.equal(tieVote1.ok, true);
+  const tieVote2 = applyCommand(tieVote1.state, submitParanoiaVoteCommand(tieVote1.state, 'paranoia-tie-vote-2', 'LYING', 'player-4'));
+  assert.equal(tieVote2.ok, true);
+  assert.equal(tieVote2.state.social?.resolutionComplete, false);
+  assert.equal(tieVote2.state.social?.paranoiaVote?.resolutionApplied, false);
+  assert.equal(tieVote2.state.players.find(player => player.id === 'player-2')?.hand.length, 1);
+
+  const majorityState = makeParanoiaState('majority');
+  const majorityPlay = applyCommand(majorityState, playCommand(majorityState, 'paranoia-majority-play', 'majority-paranoia'), socialContext(tiePromptPool));
+  assert.equal(majorityPlay.ok, true);
+  const majorityTarget = applyCommand(majorityPlay.state, selectParanoiaTargetCommand(majorityPlay.state, 'paranoia-majority-target', 'player-2'));
+  assert.equal(majorityTarget.ok, true);
+  const majorityBranch = applyCommand(majorityTarget.state, selectParanoiaPhaseCommand(majorityTarget.state, 'paranoia-majority-branch', 'STRANGER'));
+  assert.equal(majorityBranch.ok, true);
+  const majorityVote0 = applyCommand(majorityBranch.state, submitParanoiaVoteCommand(majorityBranch.state, 'paranoia-majority-vote-0', 'BELIEVE', 'player-1'));
+  assert.equal(majorityVote0.ok, true);
+  const majorityVote1 = applyCommand(majorityVote0.state, submitParanoiaVoteCommand(majorityVote0.state, 'paranoia-majority-vote-1', 'LYING', 'player-3'));
+  assert.equal(majorityVote1.ok, true);
+  const majorityVote2 = applyCommand(majorityVote1.state, submitParanoiaVoteCommand(majorityVote1.state, 'paranoia-majority-vote-2', 'HOLDING_BACK', 'player-4'));
+  assert.equal(majorityVote2.ok, true);
+  assert.equal(majorityVote2.state.social?.paranoiaVote?.resolutionApplied, true);
+  const majorityComplete = applyCommand(majorityVote2.state, {
+    commandId: 'paranoia-majority-complete',
+    playerId: 'player-1',
+    expectedRevision: majorityVote2.state.revision,
+    sessionId: majorityVote2.state.id,
+    type: 'COMPLETE_FLOW'
+  });
+  assert.equal(majorityComplete.ok, true);
+  assert.equal(majorityComplete.state.social, null);
+  assert.equal(majorityComplete.state.players.find(player => player.id === 'player-2')?.hand.length, 3);
+});
+
+test('Duel enters target selection without a Nope window and rejects bad targets', () => {
   const state = baseState(3);
   state.currentPlayerId = 'player-1';
   setTopDiscard(state, makeCard('starter', 'number', { color: 'cyan', value: 4, symbol: '4' }));
@@ -1255,13 +1475,15 @@ test('Duel enters target selection, opens a Nope window, and rejects bad targets
   const duelTarget = applyCommand(playResult.state, selectDuelTargetCommand(playResult.state, 'duel-target', 'player-2', 'player-1', playResult.state.revision), socialContext(promptPool));
   assert.equal(duelTarget.ok, true);
   assert.equal(duelTarget.state.social?.pendingDuel?.opponentId, 'player-2');
-  assert.equal(duelTarget.state.social?.pendingReaction?.eligible, true);
+  assert.equal(duelTarget.state.social?.pendingReaction, null);
   assert.equal(duelTarget.state.social?.prompt?.id, 'duel-target');
-  assert.deepEqual(duelTarget.events.map(event => event.type), ['DUEL_TARGET_SELECTED', 'ROULETTE_PRESENTATION_STARTED', 'PROMPT_SELECTED', 'NOPE_WINDOW_OPENED']);
+  assert.equal(duelTarget.state.social?.pendingDuel?.prompt?.id, 'duel-target');
+  assert.equal(duelTarget.state.social?.pendingDuel?.prompt?.duelJudgingMode, 'GROUP_VOTE');
+  assert.deepEqual(duelTarget.events.map(event => event.type), ['DUEL_TARGET_SELECTED', 'ROULETTE_PRESENTATION_STARTED', 'PROMPT_SELECTED']);
   assert.deepEqual(duelTarget.events[0]?.recipientPlayerIds, ['player-1', 'player-2']);
 });
 
-test('PLAY_NOPE keeps the Duel reaction window alive for initiator-first responses, closes on opponent response, and respects no-Nope-card flow', () => {
+test('PLAY_NOPE is rejected for Duel even when the opponent holds a Nope', () => {
   const promptPool = [socialPrompt('duel-prompt', 'duel', 'specific', { text: 'duel prompt', groupSizeMin: 3, groupSizeMax: 4 })];
 
   const makeDuelState = (withNope: boolean): GameState => {
@@ -1280,13 +1502,13 @@ test('PLAY_NOPE keeps the Duel reaction window alive for initiator-first respons
   const playA = applyCommand(stateA, playCommand(stateA, 'duel-play-a', 'duel-card'), socialContext(promptPool));
   const targetA = applyCommand(playA.state, selectDuelTargetCommand(playA.state, 'duel-target-a', 'player-2'), socialContext(promptPool));
   assert.equal(targetA.ok, true);
+  assert.equal(targetA.state.social?.pendingReaction, null);
   const initiatorFirst = applyCommand(targetA.state, submitDuelResponseCommand(targetA.state, 'duel-init-a', 'initiator', { completionOnly: true }, 'player-1'));
   assert.equal(initiatorFirst.ok, true);
-  assert.equal(initiatorFirst.state.social?.pendingReaction?.eligible, true);
+  assert.equal(initiatorFirst.state.social?.pendingReaction, null);
   const nopeAfterInitiator = applyCommand(initiatorFirst.state, playNopeCommand(initiatorFirst.state, 'duel-nope-a', 'nope-card', 'player-2'));
-  assert.equal(nopeAfterInitiator.ok, true);
-  assert.equal(nopeAfterInitiator.state.social, null);
-  assert.deepEqual(nopeAfterInitiator.events.map(event => event.type), ['NOPE_PLAYED', 'SOCIAL_EFFECT_RESOLVED', 'TURN_ADVANCED']);
+  assert.equal(nopeAfterInitiator.ok, false);
+  assert.equal(nopeAfterInitiator.error?.code, 'INELIGIBLE_NOPE');
 
   const stateB = makeDuelState(true);
   const playB = applyCommand(stateB, playCommand(stateB, 'duel-play-b', 'duel-card'), socialContext(promptPool));
@@ -1297,7 +1519,7 @@ test('PLAY_NOPE keeps the Duel reaction window alive for initiator-first respons
   assert.equal(opponentDecline.state.social?.pendingReaction, null);
   const lateNope = applyCommand(opponentDecline.state, playNopeCommand(opponentDecline.state, 'duel-nope-b', 'nope-card', 'player-2'));
   assert.equal(lateNope.ok, false);
-  assert.equal(lateNope.error?.code, 'NO_PENDING_REACTION');
+  assert.equal(lateNope.error?.code, 'INELIGIBLE_NOPE');
 
   const stateC = makeDuelState(false);
   const playC = applyCommand(stateC, playCommand(stateC, 'duel-play-c', 'duel-card'), socialContext(promptPool));
@@ -1306,12 +1528,34 @@ test('PLAY_NOPE keeps the Duel reaction window alive for initiator-first respons
   assert.equal(targetC.state.social?.pendingReaction, null);
   const initiatorResponse = applyCommand(targetC.state, submitDuelResponseCommand(targetC.state, 'duel-init-c', 'initiator', { completionOnly: true }, 'player-1'));
   assert.equal(initiatorResponse.ok, true);
+  assert.equal(initiatorResponse.state.social?.pendingDuel?.prompt?.id, 'duel-prompt');
   const opponentResponse = applyCommand(initiatorResponse.state, submitDuelResponseCommand(initiatorResponse.state, 'duel-opponent-c', 'opponent', { completionOnly: true }, 'player-2'));
   assert.equal(opponentResponse.ok, true);
-  assert.equal(opponentResponse.state.social, null);
+  assert.equal(opponentResponse.state.social?.pendingDuel?.prompt?.id, 'duel-prompt');
+  assert.equal(opponentResponse.state.social?.pendingDuel?.prompt?.duelJudgingMode, 'GROUP_VOTE');
+  assert.deepEqual(opponentResponse.state.social?.pendingDuel?.vote?.eligibleVoterIds, ['player-3']);
+  assert.equal(opponentResponse.state.social?.resolutionComplete, false);
+
+  const participantVote = applyCommand(opponentResponse.state, duelVoteCommand(opponentResponse.state, 'duel-participant-vote-c', 'player-1', 'player-1'));
+  assert.equal(participantVote.ok, false);
+  assert.equal(participantVote.error?.code, 'INVALID_SOCIAL_TARGET');
+
+  const opponentVote = applyCommand(opponentResponse.state, duelVoteCommand(opponentResponse.state, 'duel-opponent-vote-c', 'player-1', 'player-2'));
+  assert.equal(opponentVote.ok, false);
+  assert.equal(opponentVote.error?.code, 'INVALID_SOCIAL_TARGET');
+
+  const invalidCandidateVote = applyCommand(opponentResponse.state, duelVoteCommand(opponentResponse.state, 'duel-invalid-candidate-c', 'player-3', 'player-3'));
+  assert.equal(invalidCandidateVote.ok, false);
+  assert.equal(invalidCandidateVote.error?.code, 'INVALID_SOCIAL_TARGET');
+
+  const groupVote = applyCommand(opponentResponse.state, duelVoteCommand(opponentResponse.state, 'duel-group-vote-c', 'player-1', 'player-3'));
+  assert.equal(groupVote.ok, true);
+  assert.equal(groupVote.state.social?.pendingDuel?.winnerId, 'player-1');
+  assert.equal(groupVote.state.social?.pendingDuel?.vote?.resolutionApplied, true);
+  assert.equal(groupVote.state.social?.resolutionComplete, true);
 });
 
-test('SUBMIT_DUEL_RESPONSE validates response signals, choices, and rejected Nope windows without mutating state', () => {
+test('SUBMIT_DUEL_RESPONSE validates response signals and choices without opening a Nope window', () => {
   const promptPool = [socialPrompt('duel-response', 'duel', 'specific', { text: 'duel response prompt', groupSizeMin: 3, groupSizeMax: 4, options: ['alpha', 'beta'] })];
 
   const makeTargetedDuelState = (withNope: boolean): GameState => {
@@ -1335,7 +1579,7 @@ test('SUBMIT_DUEL_RESPONSE validates response signals, choices, and rejected Nop
   const emptyResponse = applyCommand(emptyState, submitDuelResponseCommand(emptyState, 'duel-empty', 'opponent', {}, 'player-2'));
   assert.equal(emptyResponse.ok, false);
   assert.equal(emptyResponse.error?.code, 'INVALID_SOCIAL_RESPONSE');
-  assert.equal(emptyResponse.state.social?.pendingReaction?.eligible, true);
+  assert.equal(emptyResponse.state.social?.pendingReaction, null);
   assert.equal(emptyResponse.state.social?.pendingDuel?.opponentResponse, null);
 
   const completionState = makeTargetedDuelState(false);
@@ -1354,6 +1598,115 @@ test('SUBMIT_DUEL_RESPONSE validates response signals, choices, and rejected Nop
   const validChoiceState = makeTargetedDuelState(false);
   const validChoice = applyCommand(validChoiceState, submitDuelResponseCommand(validChoiceState, 'duel-choice-valid', 'opponent', { choice: 'alpha' }, 'player-2'));
   assert.equal(validChoice.ok, true);
+});
+
+test('Duel group vote accepts each eligible non-participant once and unique top candidate wins', () => {
+  const state = baseState(5);
+  state.currentPlayerId = 'player-1';
+  setTopDiscard(state, makeCard('starter', 'number', { color: 'cyan', value: 4, symbol: '4' }));
+  setHands(state, {
+    'player-1': [makeCard('duel-card', 'duel', { symbol: 'duel', color: 'cyan' }), makeCard('filler', 'number', { color: 'orange', value: 7, symbol: '7' })],
+    'player-2': [makeCard('other-2', 'number', { color: 'purple', value: 5, symbol: '5' })],
+    'player-3': [makeCard('other-3', 'number', { color: 'lime', value: 9, symbol: '9' })],
+    'player-4': [makeCard('other-4', 'number', { color: 'orange', value: 6, symbol: '6' })],
+    'player-5': [makeCard('other-5', 'number', { color: 'cyan', value: 8, symbol: '8' })]
+  });
+
+  const promptPool = [socialPrompt('duel-majority', 'duel', 'specific', { text: 'duel majority prompt', groupSizeMin: 5, groupSizeMax: 5 })];
+  const play = applyCommand(state, playCommand(state, 'duel-majority-play', 'duel-card'), socialContext(promptPool));
+  assert.equal(play.ok, true);
+  const target = applyCommand(play.state, selectDuelTargetCommand(play.state, 'duel-majority-target', 'player-2'), socialContext(promptPool));
+  assert.equal(target.ok, true);
+  const initiatorResponse = applyCommand(target.state, submitDuelResponseCommand(target.state, 'duel-majority-init', 'initiator', { completionOnly: true }, 'player-1'));
+  assert.equal(initiatorResponse.ok, true);
+  const opponentResponse = applyCommand(initiatorResponse.state, submitDuelResponseCommand(initiatorResponse.state, 'duel-majority-opponent', 'opponent', { completionOnly: true }, 'player-2'));
+  assert.equal(opponentResponse.ok, true);
+  assert.deepEqual(opponentResponse.state.social?.pendingDuel?.vote?.eligibleVoterIds, ['player-3', 'player-4', 'player-5']);
+  const voteRequiredEvent = opponentResponse.events.find(event => event.type === 'DUEL_GROUP_VOTE_REQUIRED');
+  assert.deepEqual((voteRequiredEvent?.payload as { candidates?: string[] }).candidates, ['player-1', 'player-2']);
+  assert.deepEqual((voteRequiredEvent?.payload as { eligibleVoterIds?: string[] }).eligibleVoterIds, ['player-3', 'player-4', 'player-5']);
+
+  const voteOne = applyCommand(opponentResponse.state, duelVoteCommand(opponentResponse.state, 'duel-majority-vote-1', 'player-1', 'player-3'));
+  assert.equal(voteOne.ok, true);
+  const duplicateVote = applyCommand(voteOne.state, duelVoteCommand(voteOne.state, 'duel-majority-vote-duplicate', 'player-2', 'player-3'));
+  assert.equal(duplicateVote.ok, false);
+  assert.equal(duplicateVote.error?.code, 'INVALID_SOCIAL_RESPONSE');
+  const voteTwo = applyCommand(voteOne.state, duelVoteCommand(voteOne.state, 'duel-majority-vote-2', 'player-1', 'player-4'));
+  assert.equal(voteTwo.ok, true);
+  assert.equal(voteTwo.state.social?.resolutionComplete, false);
+  const voteThree = applyCommand(voteTwo.state, duelVoteCommand(voteTwo.state, 'duel-majority-vote-3', 'player-2', 'player-5'));
+  assert.equal(voteThree.ok, true);
+  assert.equal(voteThree.state.social?.pendingDuel?.winnerId, 'player-1');
+  assert.equal(voteThree.state.social?.pendingDuel?.vote?.resolutionApplied, true);
+  assert.equal(voteThree.state.social?.resolutionComplete, true);
+
+  const complete = applyCommand(voteThree.state, {
+    commandId: 'duel-majority-complete',
+    playerId: 'player-1',
+    expectedRevision: voteThree.state.revision,
+    sessionId: voteThree.state.id,
+    type: 'COMPLETE_FLOW'
+  });
+  assert.equal(complete.ok, true);
+  assert.equal(complete.state.social, null);
+  assert.equal(complete.state.currentPlayerId, 'player-2');
+  assert.deepEqual(complete.events.map(event => event.type), ['SOCIAL_EFFECT_RESOLVED', 'TURN_ADVANCED']);
+});
+
+test('Duel group vote ties do not award a Duel winner', () => {
+  const state = baseState(4);
+  state.currentPlayerId = 'player-1';
+  setTopDiscard(state, makeCard('starter', 'number', { color: 'cyan', value: 4, symbol: '4' }));
+  setHands(state, {
+    'player-1': [makeCard('duel-card', 'duel', { symbol: 'duel', color: 'cyan' }), makeCard('filler', 'number', { color: 'orange', value: 7, symbol: '7' })],
+    'player-2': [makeCard('other-2', 'number', { color: 'purple', value: 5, symbol: '5' })],
+    'player-3': [makeCard('other-3', 'number', { color: 'lime', value: 9, symbol: '9' })],
+    'player-4': [makeCard('other-4', 'number', { color: 'orange', value: 6, symbol: '6' })]
+  });
+
+  const promptPool = [socialPrompt('duel-tie', 'duel', 'specific', { text: 'duel tie prompt', groupSizeMin: 4, groupSizeMax: 4 })];
+  const play = applyCommand(state, playCommand(state, 'duel-tie-play', 'duel-card'), socialContext(promptPool));
+  assert.equal(play.ok, true);
+  const target = applyCommand(play.state, selectDuelTargetCommand(play.state, 'duel-tie-target', 'player-2'), socialContext(promptPool));
+  assert.equal(target.ok, true);
+  const initiatorResponse = applyCommand(target.state, submitDuelResponseCommand(target.state, 'duel-tie-init', 'initiator', { completionOnly: true }, 'player-1'));
+  assert.equal(initiatorResponse.ok, true);
+  const opponentResponse = applyCommand(initiatorResponse.state, submitDuelResponseCommand(initiatorResponse.state, 'duel-tie-opponent', 'opponent', { completionOnly: true }, 'player-2'));
+  assert.equal(opponentResponse.ok, true);
+  assert.deepEqual(opponentResponse.state.social?.pendingDuel?.vote?.eligibleVoterIds, ['player-3', 'player-4']);
+
+  const voteOne = applyCommand(opponentResponse.state, duelVoteCommand(opponentResponse.state, 'duel-tie-vote-1', 'player-1', 'player-3'));
+  assert.equal(voteOne.ok, true);
+  assert.equal(voteOne.state.social?.resolutionComplete, false);
+  const voteTwo = applyCommand(voteOne.state, duelVoteCommand(voteOne.state, 'duel-tie-vote-2', 'player-2', 'player-4'));
+  assert.equal(voteTwo.ok, true);
+  assert.equal(voteTwo.state.social?.pendingDuel?.winnerId, null);
+  assert.equal(voteTwo.state.social?.pendingDuel?.vote?.resolutionApplied, true);
+  assert.equal(voteTwo.state.social?.resolutionComplete, true);
+});
+
+test('Two-player Duel has zero eligible voters and resolves without a Duel winner', () => {
+  const state = baseState(2);
+  state.currentPlayerId = 'player-1';
+  setTopDiscard(state, makeCard('starter', 'number', { color: 'cyan', value: 4, symbol: '4' }));
+  setHands(state, {
+    'player-1': [makeCard('duel-card', 'duel', { symbol: 'duel', color: 'cyan' }), makeCard('filler', 'number', { color: 'orange', value: 7, symbol: '7' })],
+    'player-2': [makeCard('other-2', 'number', { color: 'purple', value: 5, symbol: '5' })]
+  });
+
+  const promptPool = [socialPrompt('duel-two-player', 'duel', 'specific', { text: 'duel two-player prompt', groupSizeMin: 2, groupSizeMax: 2 })];
+  const play = applyCommand(state, playCommand(state, 'duel-two-player-play', 'duel-card'), socialContext(promptPool));
+  assert.equal(play.ok, true);
+  const target = applyCommand(play.state, selectDuelTargetCommand(play.state, 'duel-two-player-target', 'player-2'), socialContext(promptPool));
+  assert.equal(target.ok, true);
+  const initiatorResponse = applyCommand(target.state, submitDuelResponseCommand(target.state, 'duel-two-player-init', 'initiator', { completionOnly: true }, 'player-1'));
+  assert.equal(initiatorResponse.ok, true);
+  const opponentResponse = applyCommand(initiatorResponse.state, submitDuelResponseCommand(initiatorResponse.state, 'duel-two-player-opponent', 'opponent', { completionOnly: true }, 'player-2'));
+  assert.equal(opponentResponse.ok, true);
+  assert.deepEqual(opponentResponse.state.social?.pendingDuel?.vote?.eligibleVoterIds, []);
+  assert.equal(opponentResponse.state.social?.pendingDuel?.winnerId, null);
+  assert.equal(opponentResponse.state.social?.pendingDuel?.vote?.resolutionApplied, true);
+  assert.equal(opponentResponse.state.social?.resolutionComplete, true);
 });
 
 test('PLAY_NOPE is rejected for an ineligible social effect', () => {
@@ -1386,24 +1739,34 @@ test('PASS_PROMPT resolves eligible Truth and Dare prompts privately, advances e
     'player-2': [makeCard('truth-p2', 'number', { color: 'lime', value: 4, symbol: '4' })],
     'player-3': [makeCard('truth-p3', 'number', { color: 'purple', value: 8, symbol: '8' })]
   });
+  truthState.drawPile = [
+    makeCard('truth-penalty-1', 'number', { color: 'lime', value: 1, symbol: '1' }),
+    makeCard('truth-penalty-2', 'number', { color: 'purple', value: 2, symbol: '2' })
+  ];
 
   const truthPlay = applyCommand(truthState, playCommand(truthState, 'truth-pass-play', 'truth-card'), socialContext([truthPrompt]));
   assert.equal(truthPlay.ok, true);
+  assert.equal(truthPlay.state.players[0].hand.length, 1);
   const truthPass = applyCommand(truthPlay.state, passCommand(truthPlay.state, 'truth-pass', 'player-1', truthPlay.state.revision));
   assert.equal(truthPass.ok, true);
   assert.equal(truthPass.state.social, null);
   assert.equal(truthPass.state.currentPlayerId, 'player-2');
-  assert.equal(truthPass.state.players[0].hand.length, 1);
-  assert.equal(truthPass.state.players[0].hand[0].id, 'truth-filler');
-  assert.equal(truthPass.events[0].type, 'SOCIAL_PASSED');
+  assert.deepEqual(truthPass.state.players[0].hand.map(card => card.id), ['truth-filler', 'truth-penalty-2', 'truth-penalty-1']);
+  assert.equal(truthPass.state.drawPile.length, 0);
+  assert.equal(truthPass.events[0].type, 'DRAW_EFFECT_APPLIED');
   assert.equal(truthPass.events[0].visibility, 'PLAYER_PRIVATE');
   assert.deepEqual(truthPass.events[0].recipientPlayerIds, ['player-1']);
-  assert.equal(truthPass.events[1].type, 'SOCIAL_EFFECT_RESOLVED');
-  assert.equal(truthPass.events[2].type, 'TURN_ADVANCED');
+  assert.deepEqual((truthPass.events[0].payload as { drawnCardIds?: string[] }).drawnCardIds, ['truth-penalty-2', 'truth-penalty-1']);
+  assert.equal(truthPass.events[1].type, 'SOCIAL_PASSED');
+  assert.equal(truthPass.events[1].visibility, 'PLAYER_PRIVATE');
+  assert.deepEqual(truthPass.events[1].recipientPlayerIds, ['player-1']);
+  assert.equal(truthPass.events[2].type, 'SOCIAL_EFFECT_RESOLVED');
+  assert.equal(truthPass.events[3].type, 'TURN_ADVANCED');
 
   const replayTruthPass = applyCommand(truthPass.state, passCommand(truthPass.state, 'truth-pass', 'player-1', truthPlay.state.revision));
   assert.equal(replayTruthPass.ok, true);
   assert.equal(replayTruthPass.idempotentReplay, true);
+  assert.equal(replayTruthPass.state.players[0].hand.length, 3);
 
   const collidingTruthPass = applyCommand(truthPass.state, passCommand(truthPass.state, 'truth-pass', 'player-2', truthPass.state.revision));
   assert.equal(collidingTruthPass.ok, false);
@@ -1420,14 +1783,21 @@ test('PASS_PROMPT resolves eligible Truth and Dare prompts privately, advances e
     'player-1': [makeCard('dare-card', 'dare', { symbol: 'dare', color: 'cyan' })],
     'player-2': [makeCard('dare-p2', 'number', { color: 'lime', value: 4, symbol: '4' })]
   });
+  dareState.drawPile = [
+    makeCard('dare-penalty-1', 'number', { color: 'orange', value: 1, symbol: '1' }),
+    makeCard('dare-penalty-2', 'number', { color: 'purple', value: 2, symbol: '2' })
+  ];
 
   const darePlay = applyCommand(dareState, playCommand(dareState, 'dare-pass-play', 'dare-card'), socialContext([darePrompt]));
   assert.equal(darePlay.ok, true);
+  assert.equal(darePlay.state.players[0].hand.length, 0);
   const darePass = applyCommand(darePlay.state, passCommand(darePlay.state, 'dare-pass'));
   assert.equal(darePass.ok, true);
-  assert.equal(darePass.state.status, 'FINISHED');
-  assert.equal(darePass.state.winnerId, 'player-1');
-  assert.deepEqual(darePass.events.map(event => event.type), ['SOCIAL_PASSED', 'SOCIAL_EFFECT_RESOLVED', 'GAME_WON']);
+  assert.equal(darePass.state.status, 'ACTIVE');
+  assert.equal(darePass.state.winnerId, null);
+  assert.deepEqual(darePass.state.players[0].hand.map(card => card.id), ['dare-penalty-2', 'dare-penalty-1']);
+  assert.equal(darePass.state.drawPile.length, 0);
+  assert.deepEqual(darePass.events.map(event => event.type), ['DRAW_EFFECT_APPLIED', 'SOCIAL_PASSED', 'SOCIAL_EFFECT_RESOLVED', 'TURN_ADVANCED']);
 
   const paranoiaState = baseState(3);
   paranoiaState.currentPlayerId = 'player-1';
@@ -1446,6 +1816,40 @@ test('PASS_PROMPT resolves eligible Truth and Dare prompts privately, advances e
   assert.equal(paranoiaPass.state.currentPlayerId, 'player-2');
   assert.equal(paranoiaPass.state.players[0].hand.length, 1);
   assert.deepEqual(paranoiaPass.events.map(event => event.type), ['SOCIAL_PASSED', 'SOCIAL_EFFECT_RESOLVED', 'TURN_ADVANCED']);
+});
+
+test('Truth and Dare normal completion does not apply the refusal penalty', () => {
+  const completeSocial = (kind: 'truth' | 'dare') => {
+    const state = baseState(3);
+    state.currentPlayerId = 'player-1';
+    setTopDiscard(state, makeCard(`${kind}-completion-starter`, 'number', { color: 'orange', value: 2, symbol: '2' }));
+    setHands(state, {
+      'player-1': [makeCard(`${kind}-completion-card`, kind, { symbol: kind, color: 'orange' }), makeCard(`${kind}-completion-filler`, 'number', { color: 'cyan', value: 7, symbol: '7' })],
+      'player-2': [makeCard(`${kind}-completion-p2`, 'number', { color: 'lime', value: 4, symbol: '4' })],
+      'player-3': [makeCard(`${kind}-completion-p3`, 'number', { color: 'purple', value: 8, symbol: '8' })]
+    });
+    state.drawPile = [
+      makeCard(`${kind}-unused-penalty-1`, 'number', { color: 'lime', value: 1, symbol: '1' }),
+      makeCard(`${kind}-unused-penalty-2`, 'number', { color: 'purple', value: 2, symbol: '2' })
+    ];
+
+    const prompt = socialPrompt(`${kind}-completion-prompt`, kind, 'current', { text: `${kind} completion prompt` });
+    const play = applyCommand(state, playCommand(state, `${kind}-completion-play`, `${kind}-completion-card`), socialContext([prompt]));
+    assert.equal(play.ok, true);
+    const mode = applyCommand(play.state, answerModeCommand(play.state, `${kind}-completion-mode`, 'ANSWERED_LIVE'));
+    assert.equal(mode.ok, true);
+    const review = applyCommand(mode.state, reviewAnswerCommand(mode.state, `${kind}-completion-review`, { completionOnly: true }));
+    assert.equal(review.ok, true);
+    const submit = applyCommand(review.state, submitAnswerCommand(review.state, `${kind}-completion-submit`));
+    assert.equal(submit.ok, true);
+    assert.equal(submit.state.players[0].hand.length, 1);
+    assert.deepEqual(submit.state.players[0].hand.map(card => card.id), [`${kind}-completion-filler`]);
+    assert.deepEqual(submit.state.drawPile.map(card => card.id), [`${kind}-unused-penalty-1`, `${kind}-unused-penalty-2`]);
+    assert.equal(submit.events.some(event => event.type === 'DRAW_EFFECT_APPLIED'), false);
+  };
+
+  completeSocial('truth');
+  completeSocial('dare');
 });
 
 test('PASS_PROMPT lets Chaos participants complete independently and supports Duel Pass before and after target selection', () => {
@@ -2011,7 +2415,7 @@ test('Social command idempotency and commandId collision protection still hold f
   assert.equal(nopeTarget.ok, true);
   const emptyNope = applyCommand(nopeTarget.state, playNopeCommand(nopeTarget.state, 'duel-nope-cache', 'nope-card', 'player-2'));
   assert.equal(emptyNope.ok, false);
-  assert.equal(emptyNope.error?.code, 'NO_PENDING_REACTION');
+  assert.equal(emptyNope.error?.code, 'INELIGIBLE_NOPE');
   const replayNope = applyCommand(emptyNope.state, playNopeCommand(emptyNope.state, 'duel-nope-cache', 'other-card', 'player-2'));
   assert.equal(replayNope.ok, false);
   assert.equal(replayNope.error?.code, 'COMMAND_ID_COLLISION');
@@ -2329,7 +2733,7 @@ test('duel timeout resolves both pre-target and post-target reaction states with
   assert.equal(postPlay.ok, true);
   const postTarget = applyCommand(postPlay.state, selectDuelTargetCommand(postPlay.state, 'duel-post-target', 'player-2'), socialContext(promptPool, {}, undefined, 1000));
   assert.equal(postTarget.ok, true);
-  assert.equal(Boolean(postTarget.state.social?.pendingReaction), true);
+  assert.equal(postTarget.state.social?.pendingReaction, null);
 
   const postEarly = applyCommand(postTarget.state, timeoutSocialCommand(postTarget.state, 'duel-post-timeout'), { now: postTarget.state.timer!.deadlineAt - 1 });
   assert.equal(postEarly.ok, false);

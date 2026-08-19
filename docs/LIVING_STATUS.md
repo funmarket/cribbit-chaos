@@ -16,6 +16,7 @@ GitHub is canonical for deployable source, game rules, documentation, and implem
 - Final card-art polish is intentionally deferred until the mechanics are coherent and verified.
 - Telegram's PNG-based card renderer has been replaced in source with the Web-style HTML/CSS card presentation. Telegram no longer needs the PNG card assets for its card renderer.
 - The PNG asset package has not yet been deleted because the replacement must pass CI/build verification first under the mandatory workflow.
+- Duel now uses one shared Duel question for both participants. Current subjective/manual/team/app text Duel questions resolve through eligible non-participant group vote; automatic objective Duel judging remains deferred until structured answer/evaluation content exists.
 
 ## Canonical playable deck
 

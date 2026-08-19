@@ -102,7 +102,8 @@ After M1/M2 pass:
 - [ ] lock social-card legality relative to active color/symbol
 - [ ] formalize Nope eligibility matrix
 - [ ] formalize Chaos deterministic effect catalogue
-- [ ] formalize Duel resolver types/reward policy
+- [x] formalize subjective Duel shared-question/group-vote resolver policy
+- [ ] add structured objective Duel answer/evaluation content and backend evaluator
 - [ ] verify Truth/Dare/Paranoia complete flows
 - [ ] verify Pass/Rewind/Flag privacy and behavior
 - [ ] make every visible button map to one implemented authoritative command

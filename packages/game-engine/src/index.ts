@@ -1,6 +1,8 @@
 export type {
   Card,
   CardColor,
+  DuelJudgingMode,
+  DuelObjectiveEvaluation,
   GameCommand,
   GameCommandType,
   GameConfig,
