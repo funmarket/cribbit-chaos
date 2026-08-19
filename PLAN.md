@@ -245,28 +245,44 @@ Effects:
 
 Machiavelli is one-use and moves to Exhausted after resolution.
 
-## Active gameplay slice — forced-on-draw dispatcher
+## Locked game-feel rule — immediate interaction on draw
 
-Truth/Dare and Duel runtime acceptance are complete. Forced-on-draw is now the active mechanics task.
+Cribbit CHAOS should become more active and less passive whenever the deck produces a social/player-interaction card.
 
-One authoritative forced-draw dispatcher must decide whether a newly drawn card stays in hand or immediately enters its existing family flow.
+**Any card whose primary purpose is to create an immediate player-to-player, player-to-group, or group-wide interaction automatically activates as soon as it is drawn from the authoritative draw pile.** It must not simply sit dormant in the player's hand waiting for a later voluntary play.
 
-Forced on draw:
+This applies to every authoritative draw source, including:
+
+- normal voluntary draw
+- forced draw / Draw penalties
+- Truth/Dare refusal Draw 2
+- Paranoia penalties
+- any future authoritative effect that explicitly draws from the draw pile
+
+Cards granted or generated directly into a hand are not treated as draws unless the generating effect explicitly says to draw them. This keeps Machiavelli-generated cards semantically distinct from cards physically drawn from the deck.
+
+### Immediate interaction families
+
+Current canonical classification:
 
 - Truth
 - Dare
 - Paranoia
-- Chaos
 - Duel
+- Taboo
+- Reverse Confession
 - TAG
 - Truth or Chaos
 - Hijack
-- Taboo
-- Machiavelli
-- Reverse Confession
 - DIG ME
+- Chaos
+- Machiavelli
 
-Not forced on draw:
+These families auto-trigger on draw because they immediately create a social choice, target, challenge, confession, group effect, or rule-changing interaction.
+
+### Non-immediate / hand-resident families
+
+These stay in hand when drawn unless another rule explicitly consumes them:
 
 - Number
 - Skip
@@ -276,44 +292,85 @@ Not forced on draw:
 - Nope
 - Ghost
 
+Ghost remains the explicit exception because its canonical identity is a delayed/persistent threat rather than an immediate social-resolution card.
+
+### Chained draw behavior
+
+If resolving one effect draws multiple cards and one or more of those cards are immediate-interaction families, they must be queued and resolved **one at a time in draw order**.
+
+Example:
+
+```text
+Truth refusal
+-> Draw 2
+-> first drawn card = Number -> stays in hand
+-> second drawn card = Taboo -> queue Taboo interaction
+-> finish Truth refusal boundary
+-> immediately enter queued Taboo flow
+-> resolve Taboo
+-> only then resume normal turn progression
+```
+
+No overlapping modals, no parallel social flows, and no discarded interaction because another flow was already open.
+
+## Active gameplay slice — authoritative interaction-on-draw dispatcher
+
+One authoritative draw dispatcher/queue must decide whether each newly drawn physical card stays in hand or immediately enters its existing family flow.
+
 Architecture requirement:
 
 ```text
-DRAW_CARD
--> authoritative card draw
+ANY AUTHORITATIVE DRAW
+-> remove physical card from draw pile
 -> inspect drawn family
--> normal hand family: keep in hand
--> forced family: invoke existing authoritative family entry flow
+-> hand-resident family: add/keep in hand
+-> immediate-interaction family: enqueue forced interaction
+-> resolve queued interactions sequentially
+-> after queue is empty, continue the original turn/effect boundary
 ```
 
-Do not build a second Truth/Dare/Paranoia/Duel implementation for forced draws.
+Do not build a second Truth/Dare/Paranoia/Duel implementation for drawn cards.
 
-### Forced-on-draw implementation requirements
+### Implementation requirements
 
-- one dispatcher only
+- one classification source and one dispatcher/queue only
 - family classification is explicit and testable
+- applies to every authoritative draw path, not only the visible Draw button
 - drawn physical card identity remains authoritative
 - no fake replacement card is created
-- the forced card must enter the same family flow as a normally played card wherever that family flow already exists
-- unresolved forced effects block normal play/draw until resolution
-- final win checks happen only after the forced effect and any required penalties complete
-- command replay/idempotency must not trigger the same forced effect twice
-- bot turns must traverse the same forced resolution path
+- interaction card cannot become a dormant later-play card after being drawn
+- forced interaction must use the same family flow as normal play wherever that flow exists
+- unresolved interactions block normal play/draw
+- queued interactions resolve FIFO in draw order
+- final win checks and turn advancement happen only after the originating effect and forced-interaction queue are complete
+- command replay/idempotency must not trigger the same drawn interaction twice
+- bots traverse the same queue and family flows
 - no UI-only forced resolution state
+- direct-to-hand generated/granted cards do not auto-trigger unless explicitly defined as a draw
 
-### Forced-on-draw first verification set
+### First implementation/verification set
 
-Start with already-accepted families before unfinished special cards:
+Start with families whose normal flows are already accepted:
 
 1. Truth
 2. Dare
 3. Paranoia
 4. Duel
-5. Chaos if its current entry flow is safe to reuse without inventing unfinished effect semantics
 
-Then connect remaining forced families only as their authoritative family mechanics become complete.
+Then connect Taboo, Reverse Confession, TAG, Truth or Chaos, Hijack, DIG ME, Chaos, and Machiavelli as each authoritative family flow is completed or confirmed reusable.
 
-## Remaining special-card mechanics after forced-on-draw foundation
+Tests must include at minimum:
+
+- normal draw -> interaction auto-triggers
+- penalty Draw 2 -> interaction card auto-triggers
+- two interaction cards drawn together -> FIFO sequential resolution
+- normal/basic card drawn -> remains in hand
+- command replay -> no duplicate forced interaction
+- bot draw -> same forced path
+- original turn does not advance until forced queue empties
+- win check cannot bypass unresolved queued interaction
+
+## Remaining special-card mechanics after interaction-on-draw foundation
 
 Complete and verify the still-incomplete families using one authoritative implementation per mechanic:
 
@@ -365,11 +422,12 @@ Do not silently mark these complete while working on gameplay:
 
 ## Current Next Task
 
-**Implement the single authoritative forced-on-draw dispatcher, beginning with the already-accepted Truth, Dare, Paranoia, and Duel family flows.**
+**Implement the single authoritative interaction-on-draw dispatcher/queue, beginning with the already-accepted Truth, Dare, Paranoia, and Duel family flows.**
 
-1. Audit current `DRAW_CARD` behavior in the shared reducer and legacy Web runtime.
-2. Add one forced-family classification/dispatcher rather than per-family draw hacks.
-3. Route forced Truth/Dare/Paranoia/Duel draws into their existing entry flows without creating duplicate systems.
-4. Preserve normal hand behavior for Number, Skip, Reverse, Draw, Wild, Nope, and Ghost.
-5. Add deterministic tests for forced vs non-forced drawn families, idempotency, bot traversal, and last-card/win ordering.
-6. Validate source, then browser-test the Web runtime before marking forced-on-draw accepted.
+1. Audit every current authoritative draw path in the shared reducer and legacy Web runtime.
+2. Add one central immediate-interaction family classification.
+3. Add one FIFO forced-interaction queue that survives chained draws without overlapping flows.
+4. Route drawn Truth/Dare/Paranoia/Duel cards into their existing entry flows.
+5. Preserve hand behavior for Number, Skip, Reverse, Draw, Wild, Nope, and Ghost.
+6. Add deterministic tests for voluntary draw, penalty draws, multi-interaction draws, replay safety, bot traversal, turn ordering, and win ordering.
+7. Validate source, then browser-test the Web runtime before marking interaction-on-draw accepted.
