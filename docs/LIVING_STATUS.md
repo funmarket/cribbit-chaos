@@ -2,7 +2,7 @@
 
 Last verified source branch: `feature/visual-integration-checkpoint`
 
-This file is the concise operational status companion to `PLAN.md`. It records what is accepted, what is source-complete but still needs browser proof, and what we do next.
+This file is the concise operational status companion to `PLAN.md`. It records what is accepted, what is currently being implemented, and what we do next.
 
 ## Source of truth
 
@@ -85,11 +85,7 @@ Stranger:
 
 Manual browser checks passed for Classic no-winner, Stranger no-winner, last-card Paranoia winner, and Truth/Dare Continue regression.
 
-## Source-complete / browser acceptance pending
-
-### Truth / Dare Manual + Roulette
-
-Implemented source flow:
+### Truth / Dare Manual + Roulette — ACCEPTED
 
 ```text
 Play Truth/Dare
@@ -98,29 +94,33 @@ Play Truth/Dare
 -> preview/reveal/answer
 ```
 
-Manual prompt validation: 10-280 characters. Manual prompts are one-off runtime prompts, not automatically saved permanently.
+Manual prompt validation remains 10-280 characters and Manual prompts are one-off runtime prompts.
 
-### Truth / Dare refusal rule
-
-Locked canonical rule:
+Refusal behavior is accepted:
 
 ```text
 Pass / Not for Me
--> draw exactly 2 real cards
+-> exactly Draw 2
 -> authoritative hand updates
--> effect resolves
+-> social effect resolves
 -> win/turn resolution occurs afterward
 ```
 
-Applies to Truth and Dare, Manual and Roulette.
+Browser acceptance confirmed:
 
-Last-card ordering is locked: playing the last Truth/Dare and then passing cannot win because Draw 2 occurs first.
+- [x] Truth Manual -> Pass / Not for Me -> exactly Draw 2
+- [x] Truth Roulette -> Pass / Not for Me -> exactly Draw 2
+- [x] Dare Manual -> Pass / Not for Me -> exactly Draw 2
+- [x] Dare Roulette -> Pass / Not for Me -> exactly Draw 2
+- [x] normal Truth completion -> no refusal Draw 2
+- [x] normal Dare completion -> no refusal Draw 2
+- [x] last-card Truth pass -> no win
+- [x] last-card Dare pass -> no win
+- [x] Continue / turn resolution runs normally
 
-Automated source tests exist. Browser verification is still required before marking Truth/Dare accepted.
+### Duel — ACCEPTED
 
-### Duel
-
-Implemented source model:
+Canonical model:
 
 ```text
 Play Duel
@@ -149,11 +149,14 @@ Group-vote authority:
 
 Duel cannot be Noped.
 
-Human vote identity is derived from the local human player. Internal/bot votes may use explicit voter identity only on the non-human path.
+Browser acceptance confirmed:
 
-Bot-vote lifecycle source fix is present: entering Duel voting wakes the existing bot social resolver.
+- [x] human challenger + bot opponent + eligible bot voter -> bot auto-votes and resolves
+- [x] mixed human + bot eligible voters -> bot votes automatically; waits only for eligible human
+- [x] all-bot eligible voters -> each votes once and resolves
+- [x] two-player Duel -> no eligible voters -> no-winner resolution without frozen vote UI
 
-Browser verification is still required before marking Duel accepted.
+Objective automatic judging remains future work and requires structured objective evaluation metadata.
 
 ## Machiavelli locked rule
 
@@ -168,30 +171,19 @@ Machiavelli opens a private six-option server-enforced chooser only:
 
 Effects are the canonical definitions recorded in `PLAN.md`. Machiavelli is one-use and moves to Exhausted after resolution.
 
-## Current runtime acceptance checklist
+## Active task — forced-on-draw foundation
 
-Truth/Dare:
+Truth/Dare, Paranoia, and Duel are accepted enough to reuse as existing family flows.
 
-- [ ] Truth Manual -> Pass / Not for Me -> exactly Draw 2
-- [ ] Truth Roulette -> Pass / Not for Me -> exactly Draw 2
-- [ ] Dare Manual -> Pass / Not for Me -> exactly Draw 2
-- [ ] Dare Roulette -> Pass / Not for Me -> exactly Draw 2
-- [ ] normal Truth completion -> no refusal Draw 2
-- [ ] normal Dare completion -> no refusal Draw 2
-- [ ] last-card Truth pass -> no win
-- [ ] last-card Dare pass -> no win
-- [ ] Continue / turn resolution runs once
+One authoritative dispatcher must handle newly drawn cards:
 
-Duel:
-
-- [ ] human challenger + bot opponent + eligible bot voter -> bot auto-votes and resolves
-- [ ] mixed human + bot eligible voters -> bot votes automatically; waits only for eligible human
-- [ ] all-bot eligible voters -> each votes once and resolves
-- [ ] two-player Duel -> no eligible voters -> no-winner resolution without frozen vote UI
-
-## Next implementation after acceptance
-
-**Single authoritative forced-on-draw dispatcher.**
+```text
+DRAW_CARD
+-> authoritative draw
+-> inspect drawn family
+-> normal hand family: keep in hand
+-> forced family: enter the existing authoritative family flow
+```
 
 Forced on draw:
 
@@ -218,11 +210,29 @@ Not forced on draw:
 - Nope
 - Ghost
 
-The dispatcher must reuse the existing authoritative family entry flows. Do not create duplicate family implementations for forced draws.
+Implementation constraints:
+
+- one dispatcher only
+- no duplicate family flow for forced cards
+- drawn card identity remains authoritative
+- no fake replacement cards
+- unresolved forced effects block normal play/draw
+- win checks happen only after the forced effect and required penalties resolve
+- command replay/idempotency cannot trigger a forced effect twice
+- bots follow the same forced-resolution path
+- no UI-only authority
+
+First connection/verification set:
+
+- Truth
+- Dare
+- Paranoia
+- Duel
+- Chaos only where current authoritative entry can be reused without inventing unfinished Chaos semantics
 
 ## Following mechanics work
 
-After forced-on-draw, complete and verify the remaining special-card families:
+After the forced-on-draw foundation, complete and verify:
 
 - Chaos deterministic effect catalogue
 - TAG
@@ -253,4 +263,4 @@ Runtime-affecting work is not accepted until browser/live-Web verification confi
 
 ## Current next task
 
-**Perform the Truth/Dare + Duel runtime acceptance checklist against the Web app, record each result here immediately, then begin forced-on-draw only after the accepted paths are green or a reproducible blocker is documented.**
+**Audit `DRAW_CARD` in the shared reducer and legacy Web runtime, then implement one forced-on-draw dispatcher beginning with the already-accepted Truth, Dare, Paranoia, and Duel entry flows.**
