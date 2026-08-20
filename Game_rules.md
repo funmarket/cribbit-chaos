@@ -1,57 +1,47 @@
-# Cribbit CHAOS — Living Game Rules
+# Cribbit CHAOS — GameRules.md
 
-> **Status:** Living canonical gameplay rulebook.
+> **Canonical local rule snapshot**
 >
-> This file must be updated whenever a gameplay rule is approved, changed, superseded, or clarified. `PLAN.md` tracks implementation work. `docs/LIVING_STATUS.md` tracks current progress and verification. **`Game_rules.md` defines what the game is supposed to do.**
+> This file records the gameplay rules recovered and approved in the current design conversation.
 >
-> Runtime bugs do not redefine these rules. If the app behaves differently, the implementation must be fixed or the rule must be explicitly changed here.
+> **Important authority rule:** Do not rewrite these rules from current runtime behavior, old registry descriptions, incomplete code, or outdated documents. If the app behaves differently, the implementation must be fixed unless a gameplay rule is explicitly changed by the game owner.
+>
+> **Status convention**
+>
+> - **LOCKED** = explicitly decided and should be implemented as written.
+> - **UNRESOLVED** = not fully decided; do not invent behavior.
+> - Implementation status belongs in implementation/status documents, not in the gameplay rules.
 
 ---
 
-## 1. Game identity
+# 1. Game Objective — LOCKED
 
-Cribbit CHAOS is a fast social hand-shedding card game built around classic color/value play plus disruptive social and interaction cards.
+Cribbit CHAOS is a social hand-shedding party card game.
 
-The core goal is simple:
+The objective is:
 
-**Be the first player to legally reach zero cards after every required effect, penalty, reaction, and social resolution has completed.**
+> **Be the first player to legally empty your hand.**
 
-Social interactions, Duel wins, votes, confessions, prompt answers, and special effects may create pressure or recap stats, but they do not replace the zero-card win condition unless a future rule explicitly says otherwise.
+A player does **not** win merely because their visible hand temporarily reaches zero.
 
----
+A win is valid only after:
 
-## 2. Authority and fairness
+1. the final card was legally played;
+2. the card's required effect has fully resolved;
+3. all targets, answers, reactions, votes, reveals and decisions are complete;
+4. all mandatory penalties and draws are complete;
+5. all forced-on-draw interaction cards created by those draws have resolved;
+6. the authoritative win check confirms that the player's hand is empty.
 
-The authoritative game engine/server owns:
-
-- the physical deck and card instance IDs;
-- shuffle/deal/draw randomness;
-- hands;
-- drawable pool;
-- discard pile;
-- exhausted/permanently removed cards;
-- adaptive probability state;
-- current player and turn direction;
-- legal plays;
-- pending effects;
-- reaction windows;
-- social flows;
-- penalties;
-- timers/timeouts;
-- win checks;
-- generated runtime cards created by explicitly approved mechanics.
-
-The UI only displays state and collects explicit player input. It must not invent outcomes, duplicate effects, or resolve authoritative rules locally.
-
-The adaptive card system is allowed to react to **shared match history and remaining physical cards**, but it may never target a specific player because they are winning, losing, skilled, weak, or about to draw.
+No card-specific victory, Duel result, vote result, confession or social result replaces the normal zero-card victory condition unless a future rule explicitly says so.
 
 ---
 
-## 3. Canonical physical deck — CHAOS-133-V1
+# 2. Canonical Physical Deck — CHAOS-133-V1 — LOCKED
 
-Every normal game starts from exactly **133 physical card instances**.
+Every normal game starts with exactly **133 physical card instances**.
 
-| Family | Count |
+| Card family | Count |
 |---|---:|
 | Number | 76 |
 | Skip | 6 |
@@ -72,904 +62,267 @@ Every normal game starts from exactly **133 physical card instances**.
 | Ghost | 1 |
 | Reverse Confession | 3 |
 | DIG ME | 1 |
-| **Total** | **133** |
+| **TOTAL** | **133** |
 
-### Physical deck vs runtime-created cards
+The physical starting deck remains 133 cards even if an approved effect later generates runtime cards.
 
-The physical starting deck remains 133 cards.
+Generated runtime cards must have unique authoritative IDs.
 
-Machiavelli may create approved runtime card instances after the game begins. Those generated cards can increase the active card count above 133 without changing the physical starting deck definition.
-
-No other mechanic may create cards from nothing unless it is explicitly approved and documented here.
+No mechanic may create cards from nothing unless that mechanic is explicitly approved in these rules.
 
 ---
 
-## 4. Card groupings
-
-Rarity and runtime behavior are separate properties.
-
-### 4.1 Number / baseline
-
-- Number x76
-
-### 4.2 Common action families
-
-- Skip x6
-- Reverse x6
-- Draw x6
-
-These are the three 6-copy tactical families.
-
-### 4.3 Three-copy families
-
-- Wild x3
-- Truth x3
-- Dare x3
-- Paranoia x3
-- Chaos x3
-- Duel x3
-- Nope x3
-- TAG x3
-- Truth or Chaos x3
-- Hijack x3
-- Taboo x3
-- Reverse Confession x3
-
-### 4.4 One-copy rare families
-
-- Machiavelli x1
-- Ghost x1
-- DIG ME x1
-
-### 4.5 Immediate interaction families
-
-These families create an immediate social, targeting, confession, group, challenge, or rule-changing interaction when drawn after the opening deal:
-
-- Truth x3
-- Dare x3
-- Paranoia x3
-- Chaos x3
-- Duel x3
-- TAG x3
-- Truth or Chaos x3
-- Hijack x3
-- Taboo x3
-- Machiavelli x1
-- Reverse Confession x3
-- DIG ME x1
-
-Total immediate-interaction physical cards: **32**.
-
-### 4.6 Other special/tactical cards
-
-- Nope x3 — reaction/defense card.
-- Ghost x1 — delayed/persistent threat.
-- Wild x3 — unrestricted classic color-change action.
-
-If these are included with the immediate-interaction families as the broader **high-impact/special** category, the deck contains **39 special cards**.
-
----
-
-## 5. Initial deal vs later draws
-
-This distinction is a locked Cribbit CHAOS rule.
-
-### 5.1 Opening-hand exception
-
-Cards dealt during the **initial starting hand** do not auto-trigger merely because they are interaction cards.
-
-An interaction card received in the opening hand stays in that player's hand and can be played later when legal.
-
-```text
-INITIAL DEAL
--> interaction card enters starting hand
--> no automatic interaction
--> player may voluntarily play it later
-```
-
-### 5.2 Post-start interaction draw rule
-
-After the initial deal is complete, an immediate-interaction card drawn from the authoritative drawable pool must be played/resolved immediately.
-
-It cannot be saved for a later turn.
-
-```text
-POST-START DRAW
--> select one real physical card from adaptive drawable pool
--> normal/tactical hand card -> keep in hand
--> immediate-interaction card -> auto-play / enter authoritative family flow immediately
-```
-
-This applies to post-start draws caused by:
-
-- a normal Draw action;
-- a Draw-card penalty;
-- Truth/Dare refusal penalty;
-- Paranoia penalty;
-- any other approved mechanic that explicitly draws physical cards.
-
-Cards generated or granted **directly into a hand** are not automatically treated as draws unless the generating mechanic explicitly says they are drawn.
-
-### 5.3 Chained interaction draws
-
-If one effect draws multiple cards and more than one drawn card is an immediate-interaction card, those interactions resolve one at a time in physical draw order.
-
-```text
-Draw multiple cards
--> select each physical card sequentially from current adaptive state
--> keep normal cards in hand
--> queue drawn interaction cards FIFO
--> resolve first interaction completely
--> resolve next interaction
--> continue only when queue is empty
-```
-
-No overlapping social modals, no parallel unresolved effects, and no silently storing a drawn interaction card for later.
-
-### 5.4 Opening-hand balance — LOCKED FOUNDATION
+# 3. Starting Hand — LOCKED
 
 Every player starts with exactly **7 physical cards**.
 
-Every opening hand must contain:
+Every opening hand contains:
 
-- **minimum 1 high-impact/special card**;
-- **maximum 2 high-impact/special cards**.
+- minimum **1 high-impact/special card**;
+- maximum **2 high-impact/special cards**.
 
-The dealer must not use a fixed recipe for every player and must not use the old QA/demo hand that intentionally served many specials together.
+The opening dealer must not use the old QA/demo hand that intentionally loads a player with many special cards.
 
-The probability of receiving 1 versus 2 specials is adaptive to the real remaining physical inventory and player count. It is not permanently hard-coded to one fixed percentage such as 60/40.
+Opening hands use the real physical `CHAOS-133-V1` inventory.
 
-Opening-hand dealing must:
+Opening-hand interaction cards remain **dormant in the hand**.
 
-- operate on the real CHAOS-133-V1 physical instances;
-- never duplicate or destroy cards;
-- preserve the 1–2 special bound for every player;
-- preserve rarity by real physical availability;
-- keep opening-hand interaction cards dormant until voluntarily played;
-- produce varied legal hand shapes across new matches;
-- use a fresh authoritative server seed for each new match.
+They do **not** automatically trigger simply because they were dealt during setup.
 
 ---
 
-## 6. Adaptive card distribution — CHAOS Pulse
+# 4. CHAOS Pulse — Internal Draw/Deal System — LOCKED ARCHITECTURE
 
-Cribbit CHAOS uses an **adaptive probability system** for authoritative card selection instead of a permanently fixed post-start deck order or a rigid `2 specials per N cards` pattern.
+CHAOS Pulse is the internal dealing and post-start draw-selection mechanic of the normal Cribbit CHAOS game.
 
-Detailed implementation authority lives in `docs/adaptive-card-distribution-rule.md`.
+It is **not**:
 
-### 6.1 Family base availability
+- a separate mode;
+- an optional game;
+- a player toggle;
+- a separate lab mechanic.
 
-For each drawable family `f`:
+Allowed adaptive inputs include:
 
-```text
-BaseAvailability(f) = 10 x drawablePhysicalCopies(f)
-```
+- real remaining physical-card counts;
+- family freshness;
+- global recent interaction density;
+- lifecycle state;
+- authoritative RNG state.
 
-Examples:
+Forbidden adaptive inputs include:
 
-```text
-6 drawable copies -> weight 60
-5 drawable copies -> weight 50
-4 drawable copies -> weight 40
-3 drawable copies -> weight 30
-2 drawable copies -> weight 20
-1 drawable copy   -> weight 10
-0 drawable copies -> weight 0
-```
+- player identity;
+- who is winning or losing;
+- who has the fewest cards;
+- skill/MMR/account history;
+- a desire to punish or rescue a specific player.
 
-These are **weights**, not literal probabilities.
-
-### 6.2 Family freshness
-
-When a family has just appeared or resolved, its short-term weight is reduced. Its weight gradually returns toward natural availability as unrelated draws/events occur.
-
-This makes repetition less likely without making it impossible.
-
-Example concept:
-
-```text
-Skip just appeared
--> Skip freshness decreases
-
-subsequent unrelated draws
--> Skip freshness recovers
-```
-
-This applies globally to the shared match, not only to the player who played that card.
-
-### 6.3 Interaction pressure
-
-Immediate-interaction families share a global pacing multiplier.
-
-```text
-several quiet/non-interaction draws
--> interaction pressure rises
-
-interaction resolves
--> interaction pressure falls
-```
-
-This reduces extreme droughts and extreme clustering without fixed windows or exact countdowns.
-
-### 6.4 Tier/lifecycle state
-
-Explicit lifecycle changes can modify availability/weight where required by a locked rule.
-
-Examples:
-
-- exhausted one-use cards cannot be selected again when no drawable instance remains;
-- discard recycling can restore reusable physical cards to drawable availability;
-- Machiavelli effects immediately recalculate affected physical/generated pools.
-
----
-
-## 7. CHAOS Pulse probability pipeline — LOCKED ARCHITECTURE
-
-Every authoritative post-start draw uses this order:
+Conceptual pipeline:
 
 ```text
 PHYSICAL AVAILABILITY
 +
-FAMILY FRESHNESS / MATCH MEMORY
+FAMILY FRESHNESS
 +
 GLOBAL INTERACTION PRESSURE
 +
-TIER / LIFECYCLE STATE
+LIFECYCLE / TIER STATE
 ↓
-1. ADAPTIVE WEIGHTS
+ADAPTIVE WEIGHTS
 ↓
-2. PRIMARY CHAOS VARIANCE
+PRIMARY CHAOS VARIANCE
 ↓
-3. ADAPTIVE REBALANCER
+ADAPTIVE REBALANCER
 ↓
-4. SECONDARY CHAOS VARIANCE / FINAL JITTER
+SECONDARY CHAOS VARIANCE
 ↓
-5. HARD SAFETY GUARD
+HARD SAFETY
 ↓
-6. NORMALIZE FINAL PROBABILITIES
+NORMALIZE
 ↓
 SELECT ONE REAL DRAWABLE PHYSICAL CARD
 ```
 
-### 7.1 Adaptive weights
-
-Before randomness is injected, the engine establishes the intended current weight for each family:
+Base family availability concept:
 
 ```text
-AdaptiveWeight(f)
-=
-BaseAvailability(f)
-x Freshness(f)
-x InteractionPressure(f)
-x TierLifecycle(f)
+BaseAvailability(f) = 10 × remaining drawable physical copies of family f
 ```
 
-This is the balancing layer. It defines what the shared match rhythm currently wants.
+Exact tuning constants are **UNRESOLVED** and must be playtested without changing the fairness rules above.
 
-### 7.2 Primary CHAOS variance
+---
 
-The first variance pass deliberately disturbs those adaptive weights so the equation cannot become mechanically predictable.
+# 5. Opening Deal vs Post-Start Draws — LOCKED
 
-Conceptually:
+## 5.1 Opening deal
+
+Immediate-interaction cards dealt into the initial seven-card hand do not trigger automatically.
+
+They remain in hand until legally played.
+
+## 5.2 Forced-on-draw families
+
+After setup is complete, these card families immediately enter their card flow when physically drawn:
+
+- Truth
+- Dare
+- Paranoia
+- Chaos
+- Duel
+- TAG
+- Truth or Chaos
+- Hijack
+- Taboo
+- Machiavelli
+- Reverse Confession
+- DIG ME
+
+They cannot be saved in hand when physically drawn after game start.
+
+## 5.3 Not forced-on-draw
+
+These cards normally remain in hand when drawn:
+
+- Number
+- Skip
+- Reverse
+- Draw
+- Wild
+- Nope
+- Ghost
+
+## 5.4 Direct grants are not draws
+
+Cards generated or transferred directly into a player's hand are not automatically treated as physical draws.
+
+Therefore they do not auto-trigger unless the generating/transferring rule explicitly says otherwise.
+
+## 5.5 Multiple forced interactions
+
+If a player draws multiple cards and more than one is an immediate-interaction card:
 
 ```text
-PrimaryNoisyWeight(f)
-=
-AdaptiveWeight(f)
-x PrimaryChaosVariance(f)
+draw/select cards sequentially
+→ ordinary cards stay in hand
+→ immediate interactions enter FIFO queue
+→ resolve first interaction completely
+→ resolve next interaction
+→ continue only after queue is empty
 ```
 
-Initial simulation candidate:
+No overlapping social modals.
+
+---
+
+# 6. Normal Turn Structure — LOCKED
+
+A normal turn follows this authority order:
+
+1. current player makes one legal play/draw decision;
+2. the selected card/effect starts;
+3. required target/prompt/reaction/social flow resolves;
+4. mandatory penalties resolve;
+5. any forced-on-draw interactions resolve FIFO;
+6. the played card enters its correct lifecycle zone;
+7. authoritative win check runs;
+8. if there is no winner, play advances/resumes.
+
+A UI Continue button may not run duplicate win checks or duplicate turn advancement.
+
+---
+
+# 7. Number — LOCKED
+
+A Number card is a normal hand-shedding card.
+
+It may be legally played when it matches the active play condition by color or number/value.
 
 ```text
-approximately 0.85 to 1.15
+Play Number
+→ no special effect
+→ resolve turn
+→ win check
+→ advance
 ```
 
-The exact range is not production-final.
+---
 
-### 7.3 Adaptive Rebalancer
+# 8. Skip — LOCKED
 
-The rebalancer runs after the primary disturbance. Its job is to correct excessive macro/category distortion without erasing useful family-level chaos.
-
-Examples of broad categories include:
-
-- Number/baseline;
-- common actions;
-- immediate interactions;
-- retained tactical specials;
-- rare tier where applicable.
-
-If primary CHAOS temporarily pushes the total interaction probability far outside the intended adaptive range, the rebalancer may pull that category back toward its target while preserving relative family changes inside it.
-
-The rebalancer must **not** make outcomes deterministic or forbid legal unusual sequences.
-
-### 7.4 Secondary CHAOS variance / final jitter
-
-Because rebalancing can make the output too mathematically clean, a second smaller CHAOS pass runs afterward.
-
-Conceptually:
+> **Skip the next eligible player.**
 
 ```text
-FinalNoisyWeight(f)
-=
-RebalancedWeight(f)
-x SecondaryChaosVariance(f)
+Play SKIP
+→ next eligible player loses that turn
+→ rotation continues
 ```
 
-Initial simulation candidate:
+---
+
+# 9. Reverse — LOCKED
+
+> **Reverse the current direction of play.**
 
 ```text
-approximately 0.97 to 1.03
+clockwise
+→ REVERSE
+→ counter-clockwise
 ```
 
-The secondary pass is intentionally narrower than the primary pass.
+In a two-player game, Reverse behaves as a turn-return effect.
 
-By default it should perturb family probability **inside the rebalanced category mass**, preserving broad pacing while restoring uncertainty about the exact family.
+---
 
-### 7.5 Hard safety guard
+# 10. Draw — PARTLY LOCKED
 
-The final guard is not another balancing pass. It enforces only non-negotiable invariants such as:
+The approved core rule is:
 
-- zero drawable copies -> zero probability;
-- exhausted/permanently removed card -> unavailable;
-- no duplicated physical instance;
-- finite/non-negative weights;
-- opening-hand 1–2 special rule during setup;
-- explicit lifecycle/card exclusions.
-
-It must not undo the secondary CHAOS jitter merely because a legal family became slightly more or less likely.
-
-### 7.6 Meaning of two-stage CHAOS
+> **Playing Draw ends the actor's action/turn and the next eligible player draws exactly 2 real cards.**
 
 ```text
-high probability != guaranteed
-low probability  != impossible
+Player A plays DRAW
+→ A's action ends
+→ next eligible Player B draws exactly 2 real cards
+→ any forced-on-draw cards resolve FIFO
 ```
 
-unless physical availability or a hard rule makes the result impossible.
+**UNRESOLVED:** It has not yet been explicitly locked whether Player B then takes their normal turn after the Draw 2 or whether the Draw card also removes that turn.
 
-Therefore:
-
-- back-to-back interactions remain possible but become less likely after interaction pressure falls;
-- the same family may repeat but freshness usually suppresses it temporarily;
-- quiet stretches remain possible while interaction pressure increasingly resists extreme droughts;
-- rare cards can appear surprisingly early but remain scarce through real physical availability;
-- the Rebalancer protects broad game rhythm;
-- the second CHAOS pass protects unpredictability after that correction.
+Do not silently add a Skip effect until this is explicitly decided.
 
 ---
 
-## 8. Shared-match fairness rule
+# 11. Wild — LOCKED
 
-Allowed adaptive inputs:
-
-- remaining physical family counts;
-- recently drawn/played/resolved families;
-- recent global interaction density;
-- explicitly approved lifecycle changes;
-- server RNG/variance state.
-
-Forbidden adaptive inputs:
-
-- identity of the player about to draw;
-- who is winning or losing;
-- who has fewer cards;
-- skill/MMR/account history;
-- desire to punish or rescue a particular player.
-
-The probability system controls the **shared match rhythm**, never the fate of a chosen player.
-
----
-
-## 9. New-match variety and replay
-
-Every production match uses a fresh authoritative server seed.
+> **Choose the active color.**
 
 ```text
-same seed + same authoritative commands
--> reproducible match for debugging
-
-new match
--> new seed
--> new opening hands
--> new probability evolution
+Play WILD
+→ choose active color
+→ chosen color becomes authoritative
+→ resolve turn
 ```
-
-The authoritative server stores enough RNG/adaptive state to reproduce draw decisions during replay/debugging.
 
 ---
 
-## 10. CHAOS Meter
+# 12. Prompt Architecture — LOCKED
 
-The UI may expose global interaction pressure through a non-exact meter:
+Prompt-driven families reuse shared prompt infrastructure, but their ordering is family-specific.
+
+Current locked ordering:
 
 ```text
-CALM
-STIRRING
-RISING
-HOT
-DANGER
-```
-
-The meter indicates changing risk, not an exact next-card promise.
-
-Even at `DANGER`, a normal card may still be drawn.
-
-The exact adaptive weights, primary variance, rebalanced weights, secondary variance, and RNG result must remain hidden until the authoritative draw is committed.
-
----
-
-## 11. Turn and play principles
-
-A normal turn allows the current player to play a legal card or draw under the configured authoritative rules.
-
-Core requirements:
-
-- ownership is validated server-side;
-- only the current player can make a normal turn play;
-- unresolved effects block unrelated normal play;
-- a card effect completes before normal turn progression resumes;
-- win checks occur at the correct resolution boundary, not simply when the visible hand temporarily reaches zero.
-
----
-
-## 12. Winning
-
-The primary victory condition is:
-
-**First player to legally empty their hand.**
-
-However, a player cannot win while their final card still has an unresolved required effect.
-
-Examples:
-
-- Final Truth/Dare card is played, then the player chooses Pass -> Draw 2 occurs first -> the player no longer has zero cards -> no win.
-- Final Paranoia card -> required Paranoia resolution completes -> then win check.
-- Any queued forced interaction generated by a draw must resolve before the originating turn/effect can complete its final win/advance boundary.
-
-One authoritative win check must occur at the proper completion boundary. A UI Continue button must not cause duplicate win checks or duplicate turn advancement.
-
----
-
-## 13. Truth and Dare
-
-Truth and Dare use the same prompt-source architecture.
-
-### 13.1 Prompt source
-
-```text
-Play Truth or Dare
--> choose Manual or Roulette
--> establish one prompt
--> resolve prompt
-```
-
-Manual prompts:
-
-- 10–280 characters;
-- one-off for the current interaction;
-- not automatically persisted to a permanent deck.
-
-Roulette:
-
-- the authoritative prompt is selected first;
-- the wheel is visual presentation only;
-- spinning does not decide or replace the selected prompt.
-
-### 13.2 Pass / Not for Me
-
-Locked rule:
-
-**Passing/refusing a Truth or Dare causes that player to draw exactly 2 real cards before the effect resolves and before any win check.**
-
-```text
-Truth/Dare
--> Pass / Not for Me
--> draw exactly 2
--> process any immediate-interaction cards drawn under the post-start draw rule
--> finish the Truth/Dare resolution boundary
--> win check / turn continuation only after required interactions are clear
-```
-
-Normal successful completion of Truth/Dare does not apply the refusal Draw 2 penalty.
-
----
-
-## 14. Paranoia
-
-Paranoia first establishes the question, then selects an initial target, then branches to Classic or Stranger.
-
-```text
-Play Paranoia
--> Manual or Roulette
--> question established
--> select initial target
--> choose Classic or Stranger
-```
-
-### 14.1 Classic
-
-```text
-paranoia-choice
--> paranoia-phase
--> paranoia-classic-answer-player
--> paranoia-classic-decision
--> resolved
--> Continue / win check
-```
-
-Rules:
-
-- the initial target chooses another player as the answer player;
-- the answer player cannot be the initial target;
-- the named answer player decides Reveal or Keep Secret;
-- choosing Classic does not itself resolve the card;
-- the initial target and named answer player remain distinct authoritative fields.
-
-### 14.2 Stranger
-
-```text
-paranoia-choice
--> paranoia-phase
--> paranoia-target-answer
--> paranoia-stranger-vote
--> resolved
--> Continue / win check
-```
-
-Rules:
-
-- the selected target answers first;
-- eligible voters are everyone except the target;
-- voters choose Believe or the combined Lying / Holding Back side;
-- strict Lying / Holding Back majority -> target draws 2;
-- tie -> no penalty;
-- Believe majority -> no penalty.
-
-Any cards drawn by the Stranger penalty follow the post-start interaction-draw rule.
-
----
-
-## 15. Duel
-
-Canonical Duel flow:
-
-```text
-Play Duel
--> choose opponent
--> choose Manual or Duel Roulette
--> establish ONE shared question
--> challenger chooses timer
--> challenger answers
--> opponent answers the SAME question
--> determine Duel result
--> resolve
--> Continue / win check
-```
-
-### 15.1 Current judging mode
-
-Current manual/textual/app Duel questions are resolved by **GROUP_VOTE** unless structured objective evaluation data explicitly exists.
-
-Do not use AI free-text judging as a substitute for objective authority.
-
-### 15.2 Group vote
-
-Candidates:
-
-- challenger;
-- opponent.
-
-Eligible voters:
-
-- every session player except the challenger and opponent.
-
-Rules:
-
-- Duel participants cannot vote on their own Duel;
-- each eligible voter votes once;
-- unique top vote wins the Duel;
-- tie -> no Duel winner;
-- zero eligible votes -> no Duel winner;
-- two-player Duel therefore resolves with no Duel winner and must not hang.
-
-Duel-result metadata does not replace the primary empty-hand victory condition.
-
-### 15.3 Nope and Duel
-
-**Duel is not Nope-eligible.**
-
----
-
-## 16. Nope
-
-Nope is a visible tactical reaction card held in the player's hand. It is not a safety control and is separate from Pass, Rewind, and Flag.
-
-A permitted Nope reaction window must always have exactly one terminal outcome:
-
-```text
-Play Nope
-OR
-Allow effect
-OR
-reaction timeout
-```
-
-A reaction timeout is a deterministic decline/allow outcome. It must never leave the game frozen at zero seconds.
-
-Current confirmed Nope behavior includes eligible Draw effects and the currently implemented targeted Chaos hand-swap contract. The final complete eligibility matrix for all future special cards remains to be locked here.
-
-When Nope is used:
-
-- the real Nope card is consumed from the reacting player's hand;
-- it follows its canonical exhausted/discard lifecycle;
-- the eligible effect is blocked according to that effect contract;
-- the game must continue after resolution.
-
-When Nope is declined or times out:
-
-- the eligible effect resolves normally;
-- the game must continue after resolution.
-
----
-
-## 17. Chaos
-
-Chaos is an immediate-interaction special family and auto-triggers when drawn after the opening deal.
-
-The exact production deterministic Chaos effect catalogue is still being completed.
-
-Implementation principle:
-
-- one authoritative effect is selected;
-- it resolves exactly once;
-- any targeted reaction window follows the authoritative Nope eligibility rule;
-- generated nested Truth/Dare or other social flows reuse their existing authoritative mechanics.
-
----
-
-## 18. Taboo
-
-Taboo is an immediate-interaction family and auto-triggers when drawn after the opening deal.
-
-Current registry intent: choose one player and ask a question; the target answers YES or receives the defined draw consequence.
-
-**Exact production flow/penalty details still require final implementation confirmation and must be updated here when locked.**
-
----
-
-## 19. Reverse Confession
-
-Reverse Confession is an immediate-interaction family and auto-triggers when drawn after the opening deal.
-
-Current canonical card intent:
-
-**Confess something about yourself. It can be real or made up — do not say which one it is.**
-
-The exact group-response/resolution mechanics are still being completed and must be documented here once locked.
-
----
-
-## 20. TAG
-
-TAG is an immediate-interaction family and auto-triggers when drawn after the opening deal.
-
-Current registry intent: attack + relocate rotation.
-
-Exact production targeting and turn-relocation semantics remain to be completed and locked here.
-
----
-
-## 21. Truth or Chaos
-
-Truth or Chaos is an immediate-interaction family and auto-triggers when drawn after the opening deal.
-
-The final family-specific choice/resolution contract is still being completed. It must reuse established prompt and social-flow infrastructure rather than create a duplicate system.
-
----
-
-## 22. Hijack
-
-Hijack is an immediate-interaction family and auto-triggers when drawn after the opening deal.
-
-Current registry intent: sacrifice/redirect the current turn and relocate rotation.
-
-Exact production semantics remain to be locked here.
-
----
-
-## 23. DIG ME
-
-DIG ME is an immediate-interaction family and auto-triggers when drawn after the opening deal.
-
-Current canonical card intent:
-
-**Choose a player. They must answer a question about you.**
-
-Exact answer/prompt resolution semantics remain to be completed and documented here.
-
----
-
-## 24. Ghost
-
-Ghost does **not** auto-trigger merely because it is drawn.
-
-It is the explicit delayed/persistent exception among the high-impact special cards.
-
-Current identity: face-down delayed threat / timed interruption.
-
-Final lifecycle and trigger timing remain to be completed and locked here.
-
----
-
-## 25. Machiavelli
-
-Machiavelli is a one-use rule-changing card.
-
-It is **not free-text rule authoring**.
-
-When resolved, the player privately chooses exactly one of six fixed server-enforced options:
-
-1. Convert the Weak
-2. Taboo for All
-3. No Mercy
-4. Paranoia Spreads
-5. Double the Pressure
-6. Reverse Confession
-
-The server applies the selection immediately. The selected rule name and quote are then broadcast to the table.
-
-### 25.1 Convert the Weak
-
-Convert every Skip card currently in hands, drawable pool, and discard into Draw +2 cards.
-
-### 25.2 Taboo for All
-
-Add one newly generated Taboo card to each player's hand.
-
-### 25.3 No Mercy
-
-Permanently remove all Nope cards from hands, drawable pool, and discard.
-
-### 25.4 Paranoia Spreads
-
-Add one newly generated DIG ME / Paranoia-family card to each player's hand.
-
-The exact family-selection semantics are still pending if not otherwise explicitly locked.
-
-### 25.5 Double the Pressure
-
-Duplicate every remaining Truth and Dare currently in the drawable pool and add the generated duplicates to authoritative drawable availability.
-
-### 25.6 Reverse Confession
-
-Add one newly generated Reverse Confession to each player's hand.
-
-### 25.7 Lifecycle
-
-Machiavelli is one-use and moves to Exhausted after its effect resolves.
-
-Generated cards are backend-created runtime instances. They do not modify the definition of the physical 133-card starting deck.
-
----
-
-## 26. Draw ordering and effect queues
-
-All authoritative draw paths must preserve physical selection order.
-
-If a multi-card penalty produces interaction cards:
-
-1. each physical card is selected sequentially from the current adaptive state;
-2. ordinary/tactical cards remain in the target's hand;
-3. drawn immediate-interaction cards enter the forced-interaction queue;
-4. interactions resolve FIFO;
-5. the originating effect cannot fully finish/advance the turn until required queued interactions are resolved.
-
-The queue must be authoritative, replay-safe, and shared by humans and bots.
-
----
-
-## 27. Timeouts
-
-Timeouts are gameplay outcomes, not dead ends.
-
-Every timed state must define a deterministic server-side terminal action.
-
-Examples:
-
-- Nope timeout -> decline/allow the effect;
-- Duel vote timeout -> resolve using submitted eligible votes or no winner under the locked voting rules;
-- Paranoia timeout -> follow the branch-specific deterministic fallback;
-- prompt/social timeout -> resolve to the documented safe continuation state.
-
-A timer reaching zero must never leave an unresolved modal with no legal way to progress.
-
----
-
-## 28. Safety and prompt controls
-
-Pass / Not for Me, Rewind, and Flag are controls, not physical card families.
-
-### Pass / Not for Me
-
-A player may refuse eligible prompt interactions. Truth/Dare refusal carries the locked Draw 2 penalty.
-
-### Rewind
-
-Rewind is a private prompt-replacement control for eligible Roulette Truth/Dare flows before public reveal, subject to the current once-per-session contract.
-
-### Flag
-
-Flag reports/moderates a prompt. It does not automatically delete the prompt and is not a tactical veto like Nope.
-
----
-
-## 29. Card lifecycle principles
-
-Cards must follow their canonical lifecycle:
-
-- reusable classic cards normally move through discard/recycle;
-- one-use social/special cards may move to Exhausted after resolution where defined;
-- persistent cards remain active until their own resolution condition;
-- permanently removed cards do not return through discard recycling;
-- generated runtime cards have unique authoritative instance IDs.
-
-No UI action may silently clone, resurrect, discard, or destroy a physical card outside an approved rule.
-
----
-
-## 30. Adaptive-distribution tuning still pending
-
-The **adaptive model and pipeline order are locked**, but exact tuning constants are not yet production-final.
-
-Simulation/playtesting must choose:
-
-- exact one-vs-two opening-special distribution curve;
-- freshness drop after a family appears;
-- freshness recovery speed;
-- interaction-pressure rise per quiet draw;
-- interaction-pressure reset after an interaction;
-- rare-tier spacing strength;
-- primary CHAOS variance range;
-- Adaptive Rebalancer category tolerance;
-- secondary CHAOS variance range;
-- whether a tiny bounded category-level final jitter is desirable;
-- soft minimum/maximum multipliers;
-- CHAOS Meter thresholds.
-
-These values must be tuned without changing the fairness rule, physical-card integrity, or 1–2 opening-special bound.
-
-Other unresolved family decisions remain:
-
-- exact complete Chaos effect catalogue;
-- final Taboo mechanics;
-- final Reverse Confession mechanics;
-- final TAG mechanics;
-- final Truth or Chaos mechanics;
-- final Hijack mechanics;
-- final DIG ME mechanics;
-- final Ghost lifecycle;
-- final Nope eligibility matrix outside already locked exclusions/contracts;
-- exact Machiavelli Paranoia Spreads generated-family semantics;
-- any future structured objective Duel judging modes.
-
----
-
-## 31. Rule-change protocol
-
-Whenever a gameplay decision changes:
-
-1. update **`Game_rules.md` first or in the same controlled change**;
-2. update detailed rule docs such as `docs/adaptive-card-distribution-rule.md` where applicable;
-3. update `PLAN.md` if implementation work changes;
-4. update `docs/LIVING_STATUS.md` with implementation/verification state;
-5. update rule-decision docs/contracts/tests as needed;
-6. implement one authoritative rule path;
-7. validate source;
-8. browser-verify runtime behavior before marking the rule accepted.
-
-If documentation conflicts:
-
-- `Game_rules.md` is the consolidated product-rule reference;
-- specific newer explicit rule decisions supersede older text until `Game_rules.md` is brought back into sync;
-- runtime behavior is never automatically considered correct merely because it currently behaves that way.
+TRUTH:
+prompt source
+→ prompt
+→ answer
+
+DARE:
+target
+→ prompt source
+→ challenge
+→ target response
+
+PARANOIA:
