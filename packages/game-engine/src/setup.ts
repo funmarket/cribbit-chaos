@@ -5,6 +5,7 @@ import type { RandomSource } from './rng.ts';
 import { createSeededRandom, toSeedString } from './rng.ts';
 import { makeEvent } from './events.ts';
 import { startTimer } from './timer.ts';
+import { createAdaptiveProbabilityState, dealAdaptiveOpeningHands } from './adaptive-distribution.ts';
 
 const DEFAULT_CONFIG: Omit<GameConfig, 'seed'> = {
   startingHandCount: 7,
@@ -89,11 +90,19 @@ export function createGame(
   const resolvedConfig = resolveConfig(config);
   const gameId = `game-${toSeedString(resolvedConfig.seed)}`;
   const nextPlayers = createPlayers(players);
-  const deck = buildCoreDeck(resolvedConfig.seed, rng);
+  const canonicalDeck = buildCoreDeck(resolvedConfig.seed, rng);
+  const openingDeal = dealAdaptiveOpeningHands(
+    canonicalDeck,
+    nextPlayers.length,
+    resolvedConfig.startingHandCount,
+    createSeededRandom(`${toSeedString(resolvedConfig.seed)}:opening`)
+  );
+  const deck = openingDeal.remainingDeck;
   const dealtHands: Record<string, readonly string[]> = {};
 
-  for (const player of nextPlayers) {
-    player.hand = deck.splice(0, resolvedConfig.startingHandCount);
+  for (let index = 0; index < nextPlayers.length; index += 1) {
+    const player = nextPlayers[index];
+    player.hand = openingDeal.hands[index] ?? [];
     dealtHands[player.id] = player.hand.map(card => card.id);
   }
 
@@ -118,7 +127,8 @@ export function createGame(
     social: null,
     winnerId: null,
     rewindUsedByPlayerIds: [],
-    processedCommands: {}
+    processedCommands: {},
+    adaptiveProbability: createAdaptiveProbabilityState()
   };
 
   startTimer(state, 'TURN', currentPlayerId, context.now, state.revision);
@@ -131,7 +141,8 @@ export function createGame(
       currentPlayerId,
       direction: state.direction,
       activeColor: state.activeColor,
-      activeSymbol: state.activeSymbol
+      activeSymbol: state.activeSymbol,
+      distribution: 'CHAOS_PULSE_ADAPTIVE_V1'
     }),
     ...state.players.map((player, index) =>
       makeEvent(state, 'CARD_DEALT', {
