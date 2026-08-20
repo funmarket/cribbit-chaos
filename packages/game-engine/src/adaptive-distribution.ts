@@ -27,6 +27,10 @@ export const HIGH_IMPACT_SPECIAL_KINDS = new Set<CardKind>([
 const COMMON_ACTION_KINDS = new Set<CardKind>(['skip', 'reverse', 'draw']);
 const RARE_KINDS = new Set<CardKind>(['machiavelli', 'ghost', 'dig_me']);
 
+type AdaptiveStateWithObservation = AdaptiveProbabilityState & {
+  lastObservedDiscardId?: string;
+};
+
 export interface AdaptiveOpeningDeal {
   hands: Card[][];
   remainingDeck: Card[];
@@ -145,18 +149,17 @@ function ensureAdaptiveState(state: GameState): AdaptiveProbabilityState {
 
 /**
  * A card played from hand is normally visible as the top discard before the next
- * draw. Folding recent discard history into freshness lets common-action plays such
- * as Skip/Reverse/Draw immediately influence the shared next-draw probabilities
- * without creating player-specific odds.
+ * draw. Observe each new top-discard instance exactly once so a played Skip, Truth,
+ * etc. lowers its family's freshness, then naturally ages as later draws advance the
+ * shared sequence instead of being refreshed forever by the same discard card.
  */
 function syncRecentDiscardHistory(state: GameState, adaptive: AdaptiveProbabilityState): void {
-  const recent = state.discardPile.slice(-5).reverse();
-  for (let offset = 0; offset < recent.length; offset += 1) {
-    const kind = recent[offset].kind;
-    const step = Math.max(0, adaptive.sequence - offset);
-    const current = adaptive.familyLastSeenStep[kind];
-    if (current === undefined || step > current) adaptive.familyLastSeenStep[kind] = step;
-  }
+  const topDiscard = state.discardPile.at(-1);
+  if (!topDiscard) return;
+  const observed = adaptive as AdaptiveStateWithObservation;
+  if (observed.lastObservedDiscardId === topDiscard.id) return;
+  observed.lastObservedDiscardId = topDiscard.id;
+  adaptive.familyLastSeenStep[topDiscard.kind] = adaptive.sequence;
 }
 
 function freshnessMultiplier(kind: CardKind, adaptive: AdaptiveProbabilityState): number {
