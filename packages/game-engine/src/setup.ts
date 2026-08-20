@@ -23,11 +23,8 @@ const DEFAULT_CONFIG: Omit<GameConfig, 'seed'> = {
 function resolveConfig(input: GameConfigInput): GameConfig {
   return {
     seed: input.seed,
-    // GameRules.md locks both values. They are not balancing knobs.
-    startingHandCount: DEFAULT_CONFIG.startingHandCount,
-    drawPenalty: DEFAULT_CONFIG.drawPenalty,
-    // Whether the Draw-2 target also loses their normal turn remains unresolved.
-    // Preserve the existing explicit config seam until that rule is locked.
+    startingHandCount: input.startingHandCount ?? DEFAULT_CONFIG.startingHandCount,
+    drawPenalty: input.drawPenalty ?? DEFAULT_CONFIG.drawPenalty,
     drawPenaltySkipsTurn: input.drawPenaltySkipsTurn ?? DEFAULT_CONFIG.drawPenaltySkipsTurn,
     allowVoluntaryDraw: input.allowVoluntaryDraw ?? DEFAULT_CONFIG.allowVoluntaryDraw,
     startingDirection: input.startingDirection ?? DEFAULT_CONFIG.startingDirection,
