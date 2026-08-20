@@ -59,18 +59,39 @@ function createPlayers(players: readonly GamePlayerSetup[]): Player[] {
   }));
 }
 
-function pickStarterCard(deck: Card[], strategy: GameConfig['initialDiscardStrategy']): Card {
+/**
+ * Starter selection keeps its existing deterministic setup contract, but the chosen
+ * card is reserved before the constrained opening dealer runs. This prevents the
+ * adaptive dealer from accidentally consuming the starter and lets opening hands
+ * vary without changing the initial-discard strategy.
+ */
+function reserveStarterCard(
+  deck: Card[],
+  strategy: GameConfig['initialDiscardStrategy'],
+  openingCardCount: number
+): Card {
+  const candidateStart = Math.min(Math.max(0, openingCardCount), Math.max(0, deck.length - 1));
+  const candidateZone = deck.slice(candidateStart);
+
+  let candidate: Card | undefined;
   if (strategy === 'TOP_SHUFFLED_CARD') {
-    const starter = deck.pop();
-    if (!starter) {
-      throw createEngineError('INVALID_SETUP', 'The deck did not contain a valid starter card.');
-    }
-    return starter;
+    candidate = candidateZone.at(-1) ?? deck.at(-1);
+  } else {
+    candidate = candidateZone.find(card => card.kind === 'number')
+      ?? candidateZone.at(-1)
+      ?? deck.find(card => card.kind === 'number')
+      ?? deck.at(-1);
   }
 
-  let starterIndex = deck.findIndex(card => card.kind === 'number');
-  if (starterIndex < 0) starterIndex = deck.length - 1;
-  const [starter] = deck.splice(starterIndex, 1);
+  if (!candidate) {
+    throw createEngineError('INVALID_SETUP', 'The deck did not contain a valid starter card.');
+  }
+
+  const index = deck.findIndex(card => card.id === candidate!.id);
+  if (index < 0) {
+    throw createEngineError('INVALID_SETUP', 'The reserved starter card was not present in the physical deck.');
+  }
+  const [starter] = deck.splice(index, 1);
   if (!starter) {
     throw createEngineError('INVALID_SETUP', 'The deck did not contain a valid starter card.');
   }
@@ -91,6 +112,11 @@ export function createGame(
   const gameId = `game-${toSeedString(resolvedConfig.seed)}`;
   const nextPlayers = createPlayers(players);
   const canonicalDeck = buildCoreDeck(resolvedConfig.seed, rng);
+  const starter = reserveStarterCard(
+    canonicalDeck,
+    resolvedConfig.initialDiscardStrategy,
+    nextPlayers.length * resolvedConfig.startingHandCount
+  );
   const openingDeal = dealAdaptiveOpeningHands(
     canonicalDeck,
     nextPlayers.length,
@@ -106,7 +132,6 @@ export function createGame(
     dealtHands[player.id] = player.hand.map(card => card.id);
   }
 
-  const starter = pickStarterCard(deck, resolvedConfig.initialDiscardStrategy);
   const startingPlayerIndex = ((resolvedConfig.startingPlayerIndex % nextPlayers.length) + nextPlayers.length) % nextPlayers.length;
   const currentPlayerId = nextPlayers[startingPlayerIndex]?.id ?? nextPlayers[0].id;
   const state: GameState = {
