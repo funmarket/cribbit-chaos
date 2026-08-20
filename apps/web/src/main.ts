@@ -165,6 +165,91 @@ function removeLegacyQaOpeningHandControl(): void {
   qaToggle.closest<HTMLElement>('.knob-row')?.remove();
 }
 
+function startPublicSocialMomentNarration(): void {
+  const eventList = document.querySelector<HTMLElement>('#eventList');
+  const activeTitle = document.querySelector<HTMLElement>('#activeChallengeTitle');
+  const activeCopy = document.querySelector<HTMLElement>('#activeChallengeCopy');
+
+  if (!eventList || !activeTitle || !activeCopy) return;
+
+  const challengePane = activeCopy.closest<HTMLElement>('.board-challenge');
+  if (!challengePane) return;
+
+  const recap = document.createElement('div');
+  recap.id = 'publicSocialMomentRecap';
+  recap.className = 'board-callout';
+  recap.hidden = true;
+  recap.setAttribute('role', 'status');
+  recap.setAttribute('aria-live', 'polite');
+  activeCopy.insertAdjacentElement('afterend', recap);
+
+  const remembered = new Map<string, string>();
+  let processing = false;
+
+  const sync = (): void => {
+    if (processing) return;
+    processing = true;
+
+    try {
+      const items = Array.from(eventList.querySelectorAll<HTMLElement>('.event-item'));
+
+      for (const item of items) {
+        const type = item.querySelector<HTMLElement>('.event-item__top b')?.textContent?.trim();
+        if (type !== 'PROMPT REVEALED') continue;
+
+        const messageNode = item.querySelector<HTMLParagraphElement>('p');
+        const time = item.querySelector<HTMLTimeElement>('time')?.textContent?.trim() ?? '';
+        const originalMessage = messageNode?.textContent?.trim() ?? '';
+        const match = originalMessage.match(/^(.+?) received the public (truth|dare) prompt\.$/i);
+
+        if (!messageNode || !match) continue;
+
+        const actor = match[1].trim();
+        const family = match[2].toLowerCase() as 'truth' | 'dare';
+        const key = `${time}|${actor}|${family}`;
+        let summary = remembered.get(key);
+
+        if (!summary) {
+          const currentTitle = activeTitle.textContent?.trim().toLowerCase() ?? '';
+          const prompt = activeCopy.textContent?.trim() ?? '';
+          const familyVisible = currentTitle.includes(`${family} resolution`);
+
+          // Capture only after the runtime has emitted PROMPT_REVEALED. This avoids
+          // exposing the sealed/private-preview text before it is public to the room.
+          if (!familyVisible || !prompt || prompt === 'Complete the active authoritative flow.') {
+            continue;
+          }
+
+          const label = family === 'dare' ? 'Challenge' : 'Question';
+          const obligation = family === 'dare' ? 'must complete' : 'must answer';
+          summary = `${actor} played ${family.toUpperCase()} → ${actor} ${obligation}. ${label}: “${prompt}”`;
+          remembered.set(key, summary);
+        }
+
+        if (messageNode.textContent !== summary) {
+          messageNode.textContent = summary;
+        }
+
+        recap.hidden = false;
+        recap.textContent = summary;
+        recap.dataset.tone = family;
+        break;
+      }
+    } finally {
+      processing = false;
+    }
+  };
+
+  const observer = new MutationObserver(sync);
+  observer.observe(eventList, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
+
+  sync();
+}
+
 function setupHomepageHeaderScroll(): void {
   const header = document.querySelector<HTMLElement>('.app-header');
   const lobbyView = document.querySelector<HTMLElement>('[data-view="lobby"]');
@@ -233,6 +318,7 @@ async function startWeb(): Promise<void> {
   });
 
   startCanonicalBoardCardHydration();
+  startPublicSocialMomentNarration();
   setupHomepageHeaderScroll();
 }
 
