@@ -63,6 +63,17 @@ export interface Card {
   symbol?: string;
 }
 
+export interface AdaptiveProbabilityState {
+  /** Advances whenever an authoritative card draw or card play changes match memory. */
+  sequence: number;
+  /** Counts post-start physical draw selections only. */
+  drawCount: number;
+  /** Global multiplier applied only to immediate-interaction families. */
+  interactionPressure: number;
+  /** Last shared-match sequence at which each family appeared. */
+  familyLastSeenStep: Partial<Record<CardKind, number>>;
+}
+
 export interface Player {
   id: string;
   seat: number;
@@ -276,6 +287,7 @@ export interface GameState {
   winnerId: string | null;
   rewindUsedByPlayerIds: string[];
   processedCommands: Record<string, ProcessedCommandRecord>;
+  adaptiveProbability?: AdaptiveProbabilityState;
 }
 
 export interface GameTransition<TState = GameState> {
