@@ -2,7 +2,7 @@
 
 Last verified source branch: `feature/visual-integration-checkpoint`
 
-This file is the concise operational status companion to `PLAN.md`. It records what is accepted, what is currently being implemented, and what we do next.
+This file is the concise operational status companion to `PLAN.md`. It records what is accepted, what is currently implemented, and what we do next.
 
 ## Source of truth
 
@@ -38,14 +38,6 @@ Family counts:
 
 Machiavelli may generate approved runtime card instances after game start, so active game card count can exceed 133 without changing the physical starting-deck authority.
 
-Reverse Confession canonical assets are JPEG:
-
-- `cards/reverse_confession/fIYGR_01.jpg`
-- `cards/reverse_confession/fIYGR_02.jpg`
-- `cards/reverse_confession/fIYGR_03.jpg`
-
-Do not keep duplicate PNG/JPEG versions of the same canonical physical card.
-
 Known separate asset QA issue: `cards/numbers/lime/number_lime_1_02.jpg` is zero-byte. This is not a gameplay-rule change.
 
 ## Accepted runtime behavior
@@ -67,163 +59,137 @@ Unresolved gameplay effects cannot be dismissed. Close attempts keep the modal o
 
 ### Hybrid Paranoia — ACCEPTED
 
-Prompt source first, then target, then Classic/Stranger.
-
-Classic:
-
-- phase selection does not resolve
-- initial target names answer player
-- named answer player chooses Reveal / Keep Secret
-- Continue runs the normal win boundary
-
-Stranger:
-
-- target answers
-- eligible voters are everyone except target
-- tie = no penalty
-- strict `LYING` / `HOLDING_BACK` majority -> target Draw 2
-
-Manual browser checks passed for Classic no-winner, Stranger no-winner, last-card Paranoia winner, and Truth/Dare Continue regression.
+Classic and Stranger flows, target/answer-player identity, voting, penalties, Continue, and win boundaries were browser-verified.
 
 ### Truth / Dare Manual + Roulette — ACCEPTED
 
-```text
-Play Truth/Dare
--> choose Manual or Roulette
--> establish prompt
--> preview/reveal/answer
-```
+Manual/Roulette prompt flow and refusal behavior are accepted.
 
-Manual prompt validation remains 10-280 characters and Manual prompts are one-off runtime prompts.
-
-Refusal behavior is accepted:
-
-```text
-Pass / Not for Me
--> exactly Draw 2
--> authoritative hand updates
--> social effect resolves
--> win/turn resolution occurs afterward
-```
-
-Browser acceptance confirmed:
-
-- [x] Truth Manual -> Pass / Not for Me -> exactly Draw 2
-- [x] Truth Roulette -> Pass / Not for Me -> exactly Draw 2
-- [x] Dare Manual -> Pass / Not for Me -> exactly Draw 2
-- [x] Dare Roulette -> Pass / Not for Me -> exactly Draw 2
-- [x] normal Truth completion -> no refusal Draw 2
-- [x] normal Dare completion -> no refusal Draw 2
-- [x] last-card Truth pass -> no win
-- [x] last-card Dare pass -> no win
-- [x] Continue / turn resolution runs normally
+`Pass / Not for Me` draws exactly 2 before resolution/win checking.
 
 ### Duel — ACCEPTED
 
-Canonical model:
+Current subjective/manual/app text Duels use `GROUP_VOTE`; challenger/opponent cannot vote; unique top wins; tie/no voters means no Duel winner; two-player Duel does not hang. Duel cannot be Noped.
 
-```text
-Play Duel
--> opponent
--> Manual or Duel Roulette
--> ONE shared Duel question
--> challenger-selected timer
--> challenger response
--> opponent response to same question
--> winner resolution
--> Continue / win check
-```
+## Visual fix — draw pile canonical card back
 
-Current subjective/manual/team/app text Duel prompts use `GROUP_VOTE`.
-
-Group-vote authority:
-
-- candidates = challenger and opponent only
-- eligible voters = all session players except those two participants
-- participants cannot vote
-- each eligible voter votes once
-- unique top wins
-- tie = no winner
-- no eligible submitted votes = no winner
-- two-player Duel resolves no-winner and must not hang
-
-Duel cannot be Noped.
-
-Browser acceptance confirmed:
-
-- [x] human challenger + bot opponent + eligible bot voter -> bot auto-votes and resolves
-- [x] mixed human + bot eligible voters -> bot votes automatically; waits only for eligible human
-- [x] all-bot eligible voters -> each votes once and resolves
-- [x] two-player Duel -> no eligible voters -> no-winner resolution without frozen vote UI
-
-Objective automatic judging remains future work and requires structured objective evaluation metadata.
-
-## Visual fix in source — draw pile canonical card back
-
-The board previously rendered the draw pile as a CSS placeholder shell even though `packages/cards/src/cards.ts` already defines the canonical back as `backs/card_back.jpg` and the asset exists in `CHAOS-133-V1`.
-
-Source fix now present:
-
-- `packages/ui/src/draw-pile-card-back.css` renders `packages/cards/assets/CHAOS-133-V1/backs/card_back.jpg` on the draw pile.
-- `packages/ui/src/bootstrap.ts` imports that stylesheet.
-- the old internal placeholder stack is hidden so it no longer covers the artwork.
-- the remaining-card count stays visible as a compact overlay.
-- the draw pile keeps a stacked-card silhouette using the same canonical back artwork.
-- disabling the Draw control no longer visually erases the card back.
+Source renders the canonical `backs/card_back.jpg` on the Web draw pile while preserving the count overlay and stack silhouette.
 
 Status: **SOURCE FIXED — browser verification pending**.
 
-Required visual check:
-
-- [ ] draw pile shows the real canonical card back
-- [ ] remaining-card count is readable
-- [ ] disabled draw state still shows the back art
-- [ ] stack edges remain visually clear
-- [ ] clicking the pile still calls the existing Draw action when legal
-
 ## Machiavelli locked rule
 
-Machiavelli opens a private six-option server-enforced chooser only:
+Machiavelli uses exactly six server-enforced options and is one-use -> Exhausted. Canonical definitions remain in `Game_rules.md` and `PLAN.md`.
 
-1. Convert the Weak
-2. Taboo for All
-3. No Mercy
-4. Paranoia Spreads
-5. Double the Pressure
-6. Reverse Confession
+## CHAOS Pulse adaptive distribution — SOURCE IMPLEMENTED / MANUAL TRIAL PENDING
 
-Effects are the canonical definitions recorded in `PLAN.md`. Machiavelli is one-use and moves to Exhausted after resolution.
+The adaptive probability architecture is now implemented in the shared game engine.
 
-## Locked draw rule — opening hand optional, later interaction draws immediate
-
-This is now a canonical gameplay rule.
-
-### Initial starting hand
-
-Interaction cards received during the opening deal remain ordinary hand cards. They do **not** auto-play during setup.
-
-A player may voluntarily play those opening-hand interaction cards later whenever normal play legality allows.
-
-### After the game starts
-
-Any immediate-interaction card drawn from the authoritative draw pile after the opening deal must auto-play immediately. It cannot be saved in hand for a later turn.
-
-This applies to:
-
-- voluntary draws
-- Draw penalties
-- Truth/Dare refusal Draw 2
-- Paranoia penalties
-- any future effect that explicitly draws from the authoritative draw pile
-
-Canonical distinction:
+Canonical order:
 
 ```text
-INITIAL DEAL -> interaction card stays in hand -> optional later play
-POST-START DRAW -> interaction card auto-plays immediately
+ADAPTIVE WEIGHTS
+-> PRIMARY CHAOS VARIANCE
+-> ADAPTIVE REBALANCER
+-> SECONDARY CHAOS VARIANCE
+-> HARD SAFETY GUARD
+-> NORMALIZE
+-> SELECT ONE REAL PHYSICAL CARD
 ```
 
-Current immediate-interaction families:
+### Opening dealer
+
+The shared dealer now:
+
+- uses real `CHAOS-133-V1` physical instances;
+- deals exactly 7 cards per player;
+- guarantees **1–2 high-impact/special cards** in each starting hand;
+- avoids one fixed repeated hand template;
+- adapts one-vs-two special probability to remaining inventory/player count;
+- reserves the starter card before the adaptive deal;
+- keeps opening-hand interaction cards dormant until voluntarily played;
+- remains deterministic for a recorded seed while new production matches can use fresh seeds.
+
+### Post-start selection
+
+`packages/game-engine/src/deck.ts::drawCards()` now selects cards through the shared CHAOS Pulse adaptive selector.
+
+Current trial model includes:
+
+- base physical availability (`10 x remaining drawable copies`);
+- family freshness/memory;
+- global interaction pressure;
+- mild rare-tier trial weighting;
+- primary bounded variance;
+- category rebalancing;
+- smaller secondary within-category jitter;
+- real physical-instance removal after selection.
+
+Multi-card draws recalculate sequentially after each physical card.
+
+### Shared source files
+
+- `packages/contracts/src/index.ts`
+- `packages/game-engine/src/adaptive-distribution.ts`
+- `packages/game-engine/src/deck.ts`
+- `packages/game-engine/src/setup.ts`
+- `packages/game-engine/src/index.ts`
+- `packages/game-engine/test/adaptive-distribution.test.ts`
+
+### Validation
+
+CI run for source commit `c18b431e24d7bac53fba1c627d404fea770b59b4` completed **SUCCESS**.
+
+Passed in CI:
+
+- [x] typecheck
+- [x] Web build
+- [x] Telegram build
+- [x] API build
+- [x] tests
+
+Adaptive tests cover 2–10 players, 1–2 opening specials, 133-card conservation, deterministic replay, seed variety, freshness, interaction pressure, both variance layers, rebalancing, zero availability, real-card removal, and sequential multi-card draws.
+
+This is **source verification only**, not browser gameplay acceptance.
+
+## Web trial surface — ready for manual check
+
+The Web lobby now contains a **Try CHAOS Pulse** button backed by the real shared game engine.
+
+Files:
+
+- `apps/web/src/chaos-pulse-lab.ts`
+- `apps/web/src/chaos-pulse-lab.css`
+- `apps/web/src/main.ts`
+
+The trial panel lets us:
+
+- choose 2–10 players;
+- generate a fresh-seeded match;
+- inspect all opening hands;
+- see special + interaction counts for each hand;
+- produce 12 sequential adaptive physical draws;
+- see interaction pressure before/after every draw;
+- reroll repeatedly to judge variety and pacing.
+
+Status: **BUILD VERIFIED — USER/BROWSER TRIAL PENDING**.
+
+## Important compatibility boundary
+
+The current main Web gameplay board still boots under `runtimeMode: legacy-compatibility`.
+
+That legacy runtime still contains its own old local deck/deal/draw implementation. Therefore:
+
+- the **Try CHAOS Pulse** panel is using the new shared adaptive engine now;
+- the **main playable compatibility board is not yet using CHAOS Pulse for its actual deck**;
+- do not copy the adaptive algorithm into `legacy-runtime` as another rules engine;
+- next migration must bridge/remove the compatibility deck seam and consume the shared engine instead.
+
+## Locked draw rule — opening optional, post-start interaction immediate
+
+Opening-hand interaction cards stay in hand and can be played voluntarily later.
+
+Post-start physical draws of these families must resolve immediately:
 
 - Truth
 - Dare
@@ -238,7 +204,7 @@ Current immediate-interaction families:
 - Chaos
 - Machiavelli
 
-Current hand-resident families when drawn:
+Hand-resident on draw:
 
 - Number
 - Skip
@@ -248,127 +214,51 @@ Current hand-resident families when drawn:
 - Nope
 - Ghost
 
-Ghost remains a delayed/persistent card and does not auto-resolve simply because it was drawn.
+Generated/direct-to-hand cards follow their generating effect and are not silently reclassified as draws.
 
-Generated/direct-to-hand cards are not treated as post-start draws unless the generating effect explicitly defines them as drawn.
+## Chained draws
 
-## Chained post-start draws
+Multiple physical draws are selected sequentially from the current adaptive state. Immediate interactions must then resolve FIFO in physical selection order, with no overlapping social flows.
 
-If one draw action produces multiple interaction cards, they resolve sequentially in physical draw order.
+## Active integration task
 
-Example:
+The shared engine now owns **which real physical card is selected**. The remaining integration task is to make the actual Web board consume that shared authority and route selected immediate-interaction cards into the one forced-interaction FIFO dispatcher.
 
-```text
-Truth refusal
--> Draw 2
--> Number stays in hand
--> Taboo is queued
--> current Truth refusal boundary completes
--> Taboo starts immediately
--> Taboo resolves
--> original turn may continue only after the queue is empty
-```
-
-If two interaction cards are drawn, the first resolves completely before the second begins. No overlapping modals or simultaneous social flows.
-
-## Active task — post-start interaction-on-draw dispatcher/queue
-
-One authoritative mechanism must distinguish initial dealing from later draws:
+Required convergence:
 
 ```text
-INITIAL DEAL
--> cards enter starting hands directly
--> no interaction auto-play
+shared adaptive opening dealer
+-> actual board starting hands
 
-POST-START AUTHORITATIVE DRAW
--> remove physical card from draw pile
--> inspect family
--> hand-resident card: keep/add to hand
--> interaction card: commit/enqueue immediate play
--> resolve queue FIFO
--> resume original effect/turn only when queue is empty
+shared CHAOS Pulse draw selector
+-> actual board draw/penalty paths
+-> hand-resident card OR immediate-interaction queue
+-> existing family flow
+-> FIFO resolution
+-> turn/win continuation only when queue is clear
 ```
 
-Implementation constraints:
-
-- one central family classification
-- one dispatcher/queue only
-- initial deal explicitly bypasses auto-play
-- no family-specific draw hacks
-- no duplicate Truth/Dare/Paranoia/Duel flows
-- real physical card identity stays authoritative
-- no fake replacement cards
-- post-start drawn interaction cannot remain dormant in hand
-- opening-hand interaction remains voluntarily playable later
-- queued interactions resolve FIFO in draw order
-- unresolved queue blocks normal play/draw
-- turn advancement and win check wait for the queue to empty
-- replay/idempotency cannot fire the same drawn interaction twice
-- bots use the same path
-- generated/direct-to-hand cards follow their generating effect rather than being silently treated as draws
-
-First implementation set:
-
-- Truth
-- Dare
-- Paranoia
-- Duel
-
-Then connect the remaining interaction families as their normal authoritative flows are completed/verified:
-
-- Taboo
-- Reverse Confession
-- TAG
-- Truth or Chaos
-- Hijack
-- DIG ME
-- Chaos
-- Machiavelli
-
-Required tests:
-
-- [ ] opening deal interaction card -> remains in starting hand
-- [ ] opening-hand interaction card -> can be voluntarily played later
-- [ ] post-start voluntary draw interaction -> immediate family flow
-- [ ] penalty Draw 2 interaction -> immediate family flow
-- [ ] two interaction cards in one draw -> FIFO sequential flows
-- [ ] hand-resident draw -> stays in hand
-- [ ] replay -> no duplicate forced flow
-- [ ] bot draw -> same behavior
-- [ ] turn does not advance until forced queue empties
-- [ ] win check cannot bypass unresolved queued interaction
-
-## Following mechanics work
-
-After the interaction-on-draw foundation, complete and verify:
-
-- Chaos deterministic effect catalogue
-- TAG
-- Truth or Chaos
-- Hijack
-- Taboo
-- Machiavelli six-option runtime implementation
-- Reverse Confession
-- DIG ME
-- Ghost lifecycle
-- final Nope eligibility matrix for any future eligible effects
-
-Then clean duplicate commands/client-local rule ownership, add complete-turn regression tests for every family, and tune pacing/UX only after mechanics are stable.
+Do not implement a second CHAOS Pulse inside the legacy runtime.
 
 ## Repository guardrails
 
-Never commit temporary artifacts such as:
-
-- `FIX.md`
-- scratch files
-- recovery notes
-- generated diffs
-- diagnostics
-- debug logs
-- temporary planning files
+Never commit temporary artifacts such as `FIX.md`, scratch files, recovery notes, generated diffs, diagnostics, logs, or temporary planning files.
 
 Runtime-affecting work is not accepted until browser/live-Web verification confirms it.
 
 ## Current next task
 
-**Browser-check the draw-pile back-art fix, then audit initial dealing separately from every post-start authoritative draw path and implement the single FIFO interaction-on-draw dispatcher/queue beginning with Truth, Dare, Paranoia, and Duel while preserving opening-hand optional play.**
+**Run the Web app and manually evaluate `Try CHAOS Pulse`; after the distribution feels directionally correct, migrate the main compatibility board's deck/deal/draw seam to the shared engine and connect post-start interaction draws to the shared FIFO resolver.**
+
+Trial checklist:
+
+- [ ] 2-player repeated rerolls show varied hands and every hand has 1–2 specials
+- [ ] 5-player repeated rerolls show varied hands and every hand has 1–2 specials
+- [ ] 10-player repeated rerolls show varied hands and every hand has 1–2 specials
+- [ ] no obvious repeated fixed hand recipe
+- [ ] common 6-copy actions feel more frequent than 3-copy families
+- [ ] 1-copy cards remain visibly scarce across rerolls
+- [ ] adaptive 12-draw sequences do not show an obvious fixed window pattern
+- [ ] interaction pressure visibly falls after an interaction and rebuilds through quieter draws
+- [ ] unusual/repeated outcomes remain possible enough to feel chaotic
+- [ ] trial UI is usable on desktop/mobile
