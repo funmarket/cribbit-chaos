@@ -10,11 +10,11 @@
 
 ## 1. Core design rule
 
-Cribbit CHAOS uses **adaptive probability with bounded CHAOS variance**.
+Cribbit CHAOS uses **adaptive probability with two bounded CHAOS-variance layers**.
 
 The system must feel unpredictable without becoming unfair or mathematically uncontrolled.
 
-The important ordering is:
+The authoritative order is:
 
 ```text
 PHYSICAL AVAILABILITY
@@ -25,24 +25,26 @@ INTERACTION PRESSURE
         +
 TIER / LIFECYCLE STATE
         ↓
-ADAPTIVE WEIGHTS
+1. ADAPTIVE WEIGHTS
         ↓
-CHAOS VARIANCE
+2. PRIMARY CHAOS VARIANCE
         ↓
-ADAPTIVE REBALANCER / GUARDRAILS
+3. ADAPTIVE REBALANCER
         ↓
-NORMALIZED FINAL PROBABILITIES
+4. SECONDARY CHAOS VARIANCE / FINAL JITTER
+        ↓
+5. HARD SAFETY GUARD
+        ↓
+6. NORMALIZED FINAL PROBABILITIES
         ↓
 SELECT ONE REAL PHYSICAL CARD
 ```
 
-**Adaptive weights are calculated before CHAOS variance.**
+The first adaptive calculation establishes the intended match rhythm. Primary CHAOS variance disturbs it. The Adaptive Rebalancer prevents that disturbance from becoming excessive. A second, smaller CHAOS-variance pass then restores uncertainty that the rebalancer might otherwise smooth away.
 
-The variance is then allowed to disturb those weights so the next card cannot be predicted mechanically.
+The final hard-safety guard enforces only non-negotiable rules. It does **not** rebalance the probabilities again.
 
-After variance, a final **Adaptive Rebalancer** checks the disturbed weights against the adaptive intent and physical rules. It corrects excessive distortion without removing the uncertainty that variance introduced.
-
-This means CHAOS is allowed to bend the equation, but it is not allowed to take control of the equation.
+Therefore the final draw remains chaotic while still physically valid and globally fair.
 
 ---
 
@@ -252,20 +254,20 @@ Examples:
 
 ---
 
-## 7. Stage 2 — CHAOS Variance
+## 7. Stage 2 — Primary CHAOS Variance
 
-Only after the adaptive model has established its intended weights does the system add controlled randomness.
+Only after the adaptive model has established its intended weights does the first random disturbance occur.
 
 For every eligible family:
 
 ```text
-NoisyWeight(f)
+PrimaryNoisyWeight(f)
 =
 AdaptiveWeight(f)
-x ChaosVariance(f)
+x PrimaryChaosVariance(f)
 ```
 
-`ChaosVariance(f)` is a server-seeded bounded random multiplier around `1.0`.
+`PrimaryChaosVariance(f)` is a server-seeded bounded random multiplier around `1.0`.
 
 Initial simulation candidate:
 
@@ -279,40 +281,38 @@ Example:
 
 ```text
 Truth adaptive weight = 24
-variance = 1.11
-noisy weight = 26.64
+primary variance = 1.11
+primary noisy weight = 26.64
 
 Skip adaptive weight = 35
-variance = 0.88
-noisy weight = 30.80
+primary variance = 0.88
+primary noisy weight = 30.80
 ```
 
-This is intentional. A lower adaptive-weight family can occasionally overtake a higher adaptive-weight family.
+A lower adaptive-weight family can therefore temporarily overtake a higher one.
 
-That prevents the adaptive system from becoming predictable.
+That is intentional and prevents the adaptive system from becoming mechanically predictable.
 
 ---
 
 ## 8. Stage 3 — Adaptive Rebalancer
 
-CHAOS variance is **not** the final authority.
+The primary CHAOS variance is not allowed to destroy the intended macro-balance.
 
-After variance perturbs the adaptive weights, the server runs an Adaptive Rebalancer before final normalization.
-
-The rebalancer is deliberately lighter than the main adaptive calculation. Its job is to correct excessive distortion while preserving the random surprise.
-
-Conceptually:
+The server therefore runs an Adaptive Rebalancer:
 
 ```text
-CorrectedWeight(f)
+RebalancedWeight(f)
 =
 Rebalance(
   AdaptiveWeight(f),
-  NoisyWeight(f),
+  PrimaryNoisyWeight(f),
   category totals,
   hard physical rules
 )
 ```
+
+The rebalancer is deliberately lighter than the main adaptive calculation. It corrects excessive distortion while preserving most legitimate family-to-family variation.
 
 ### The rebalancer must preserve
 
@@ -333,9 +333,9 @@ Rebalance(
 
 ### Recommended mathematical strategy
 
-The adaptive model establishes **category probability mass** first.
+The adaptive model establishes broad **category probability mass** first.
 
-Examples of categories may include:
+Possible categories:
 
 - baseline Number;
 - common actions;
@@ -343,51 +343,129 @@ Examples of categories may include:
 - retained tactical specials;
 - one-copy rare tier.
 
-CHAOS variance may redistribute weight **inside** those categories.
-
-After variance, the rebalancer can renormalize family weights inside a category back toward that category's adaptive probability mass.
+The primary CHAOS pass may distort both families and categories. The rebalancer pulls category totals back toward the adaptive target while preserving much of the family-level disturbance.
 
 Example:
 
 ```text
 Adaptive interaction category mass = 28%
 
-CHAOS variance temporarily favors:
-Truth up
-Duel down
-Taboo up
-Paranoia down
+Primary CHAOS temporarily pushes interactions = 41%
 
 Rebalancer:
--> preserves most of those internal family changes
--> keeps total interaction mass near the adaptive 28% target
+-> pulls total interaction mass back near the adaptive target
+-> preserves internal changes such as Truth up, Duel down, Taboo up
 ```
 
-This prevents random noise from accidentally turning a carefully calculated interaction probability into an uncontrolled 45% interaction spike.
-
-A small bounded category-level deviation may later be allowed if simulation shows it improves game feel, but it must itself have hard limits.
+The exact allowed category deviation is a simulation-controlled tuning value.
 
 ---
 
-## 9. Final probability
+## 9. Stage 4 — Secondary CHAOS Variance / Final Jitter
 
-After rebalancing:
+The Adaptive Rebalancer can make the distribution too clean if its output becomes the final probability.
+
+Therefore a **second, smaller CHAOS variance** is applied after rebalancing.
+
+```text
+FinalNoisyWeight(f)
+=
+RebalancedWeight(f)
+x SecondaryChaosVariance(f)
+```
+
+The secondary variance is intentionally narrower than the primary variance.
+
+Initial simulation candidate:
+
+```text
+Primary CHAOS variance:   approximately 0.85 to 1.15
+Secondary CHAOS variance: approximately 0.97 to 1.03
+```
+
+These ranges are tuning values, not yet production-final.
+
+### Why the second variance is smaller
+
+The first CHAOS pass is allowed to significantly disturb the adaptive equation.
+
+The rebalancer then repairs excessive distortion.
+
+The second pass exists only to prevent the repaired result from becoming too exact or predictable.
+
+If the second variance were as large as the first, it could simply recreate the imbalance the rebalancer was added to solve.
+
+### Preferred implementation — within-category final jitter
+
+By default, the secondary CHAOS variance should operate **inside the rebalanced category mass**.
+
+Example:
+
+```text
+Rebalanced immediate-interaction mass = 29%
+
+Secondary CHAOS jitter changes:
+Truth        up slightly
+Duel         down slightly
+Taboo        up slightly
+Paranoia     down slightly
+
+Total immediate-interaction mass remains approximately 29%
+```
+
+This gives us an important property:
+
+> The rebalancer protects the broad rhythm, while the final CHAOS pass protects surprise about the exact family.
+
+A very small category-level final jitter may be tested later, but it must have a separate hard bound.
+
+---
+
+## 10. Stage 5 — Hard Safety Guard
+
+Nothing after the second CHAOS pass should rebalance the game again, because doing so would erase the final uncertainty.
+
+The last pass is therefore only a **hard safety guard**.
+
+It may enforce only non-negotiable conditions such as:
+
+- family with zero drawable cards -> weight 0;
+- exhausted/permanently removed card -> unavailable;
+- no duplicate physical instances;
+- opening-hand 1–2 special invariant;
+- explicit card/lifecycle exclusions;
+- finite/non-negative weights;
+- valid normalized probability total.
+
+The hard guard must **not** say:
+
+```text
+"Truth is now a little too likely, reduce it."
+```
+
+That is the rebalancer's job and already happened before the secondary CHAOS pass.
+
+---
+
+## 11. Final probability
+
+After the hard safety guard:
 
 ```text
 P(f)
 =
-CorrectedWeight(f)
+SafeFinalWeight(f)
 /
-sum(CorrectedWeight(all eligible families))
+sum(SafeFinalWeight(all eligible families))
 ```
 
-The server then selects exactly one eligible family from that probability distribution and then selects one real drawable physical instance from that family.
+The server selects exactly one eligible family and then one real drawable physical instance from that family.
 
-The selected physical instance is removed from the drawable pool before any subsequent physical draw is calculated.
+The selected physical instance leaves the drawable pool before any subsequent physical draw is calculated.
 
 ---
 
-## 10. Event-driven adaptation
+## 12. Event-driven adaptation
 
 The equation changes after authoritative match events.
 
@@ -424,7 +502,7 @@ Any approved Machiavelli deck mutation immediately triggers a complete affected-
 
 ---
 
-## 11. Multi-card draws
+## 13. Multi-card draws
 
 Multi-card draws are selected sequentially.
 
@@ -441,7 +519,7 @@ Probability logic never replaces family-resolution logic.
 
 ---
 
-## 12. Shared-match fairness
+## 14. Shared-match fairness
 
 Allowed inputs:
 
@@ -465,7 +543,7 @@ The system changes the **shared probability environment**, never an individual p
 
 ---
 
-## 13. CHAOS Meter
+## 15. CHAOS Meter
 
 The app may expose the global interaction-pressure state through a non-exact meter:
 
@@ -481,11 +559,11 @@ The meter is a pressure signal, not a countdown and not a promise.
 
 Even at `DANGER`, a normal card may still be selected.
 
-Exact internal weights, variance rolls, corrected weights, and RNG results remain hidden until a draw is committed.
+Exact adaptive weights, primary variance rolls, rebalanced weights, secondary variance rolls, and RNG results remain hidden until a draw is committed.
 
 ---
 
-## 14. Deterministic replay
+## 16. Deterministic replay
 
 Every new match receives a fresh authoritative server seed.
 
@@ -498,8 +576,9 @@ Replay state includes at minimum:
 - freshness state;
 - interaction pressure;
 - lifecycle modifiers;
-- CHAOS variance RNG consumption;
+- primary CHAOS variance RNG consumption;
 - rebalancer configuration;
+- secondary CHAOS variance RNG consumption;
 - generated-card events.
 
 ```text
@@ -513,14 +592,16 @@ new match
 
 ---
 
-## 15. Tuning constants remain simulation-controlled
+## 17. Tuning constants remain simulation-controlled
 
 The rule locks the **order and architecture**:
 
 ```text
 Adaptive Weights
--> CHAOS Variance
+-> Primary CHAOS Variance
 -> Adaptive Rebalancer
+-> Secondary CHAOS Variance
+-> Hard Safety Guard
 -> Normalize
 -> Draw
 ```
@@ -532,14 +613,16 @@ The following numeric values remain tunable until simulation/playtesting establi
 - freshness recovery;
 - interaction-pressure rise/reset;
 - rare-tier spacing strength;
-- CHAOS variance range;
+- primary CHAOS variance range;
 - rebalancer tolerance;
-- category-level variance allowance;
+- allowed category-level deviation;
+- secondary CHAOS variance range;
+- whether secondary variance is strictly within-category or permits tiny bounded category jitter;
 - CHAOS Meter thresholds.
 
 ---
 
-## 16. Required tests
+## 18. Required tests
 
 Automated simulation/property tests must prove at minimum:
 
@@ -548,10 +631,14 @@ Automated simulation/property tests must prove at minimum:
 - all physical instances are unique/accounted for;
 - unavailable family probability is always zero;
 - 6/3/1-copy base availability follows real remaining copies;
-- AdaptiveWeight is calculated before variance;
-- variance remains within configured bounds;
-- the rebalancer prevents variance from breaking category/physical guardrails;
-- the rebalancer does not collapse all variance back to the pre-variance weights;
+- AdaptiveWeight is calculated before primary variance;
+- primary variance remains inside its configured bounds;
+- the rebalancer prevents primary variance from breaking macro/category guardrails;
+- the rebalancer does not collapse all family-level variance back to pre-variance values;
+- secondary variance occurs after rebalancing;
+- secondary variance remains inside its smaller configured bounds;
+- within-category secondary jitter preserves category mass within configured tolerance;
+- the hard safety guard never performs a new soft rebalance;
 - same seed + same authoritative events reproduces draws;
 - different seeds produce varied matches;
 - no player identity/game-position data enters the probability equation;
@@ -570,11 +657,13 @@ Large simulations must measure:
 - opening-hand variety;
 - behavior from 2 through 10 players;
 - late-game composition;
-- predictability/pattern leakage.
+- predictability/pattern leakage;
+- how much entropy is restored by the secondary CHAOS pass;
+- whether the secondary pass materially reintroduces macro imbalance.
 
 ---
 
-## 17. Canonical summary
+## 19. Canonical summary
 
 The Cribbit CHAOS distribution engine is:
 
@@ -589,9 +678,13 @@ LIFECYCLE STATE
         ↓
 ADAPTIVE WEIGHTS
         ↓
-BOUNDED CHAOS VARIANCE
+PRIMARY CHAOS VARIANCE
         ↓
 ADAPTIVE REBALANCER
+        ↓
+SECONDARY CHAOS VARIANCE
+        ↓
+HARD SAFETY GUARD
         ↓
 FINAL NORMALIZED PROBABILITY
         ↓
@@ -602,6 +695,6 @@ STATE CHANGES
 NEXT DRAW USES A NEW EQUATION
 ```
 
-The adaptive system establishes the game's intended rhythm. CHAOS variance destabilizes it. The Adaptive Rebalancer keeps that instability inside fair, physical, game-safe boundaries.
+The adaptive system establishes the intended rhythm. Primary CHAOS destabilizes it. The rebalancer repairs excessive distortion. Secondary CHAOS makes the repaired result unpredictable again. The hard safety guard protects only non-negotiable physical and rule invariants.
 
-That combination is intentionally unpredictable without becoming arbitrary or player-targeted.
+That makes the deck intentionally unstable without making it arbitrary, scripted, or player-targeted.
