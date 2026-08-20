@@ -2,100 +2,107 @@
 
 > **Status:** Product rule specification for the authoritative card-distribution system.
 >
-> This document defines how Cribbit CHAOS should deal opening hands and select post-start draws without repeating fixed hand patterns, without targeting individual players, and without violating the physical CHAOS-133-V1 card inventory.
+> This document defines how Cribbit CHAOS deals opening hands and selects post-start draws without repeating fixed patterns, targeting individual players, or violating the physical `CHAOS-133-V1` inventory.
 >
-> `Game_rules.md` remains the consolidated living rulebook. This document is the detailed implementation authority for the adaptive distribution mechanic and must be kept synchronized with the consolidated rulebook when the mechanic is integrated.
+> `Game_rules.md` remains the consolidated living rulebook. This document is the detailed implementation authority for the adaptive-distribution mechanic.
 
 ---
 
-## 1. Design goal
+## 1. Core design rule
 
-Cribbit CHAOS must feel random, fair, social, and unstable without feeling secretly rigged.
+Cribbit CHAOS uses **adaptive probability with bounded CHAOS variance**.
 
-The distribution system must avoid two bad extremes:
+The system must feel unpredictable without becoming unfair or mathematically uncontrolled.
 
-- **pure uncontrolled randomness**, which can create boring droughts or exhausting clusters;
-- **fixed scripted distribution**, which players can learn and predict.
+The important ordering is:
 
-The game therefore uses **adaptive probability**.
+```text
+PHYSICAL AVAILABILITY
+        +
+MATCH MEMORY / FRESHNESS
+        +
+INTERACTION PRESSURE
+        +
+TIER / LIFECYCLE STATE
+        ↓
+ADAPTIVE WEIGHTS
+        ↓
+CHAOS VARIANCE
+        ↓
+ADAPTIVE REBALANCER / GUARDRAILS
+        ↓
+NORMALIZED FINAL PROBABILITIES
+        ↓
+SELECT ONE REAL PHYSICAL CARD
+```
 
-The probability of every drawable card family changes continuously during the match according to:
+**Adaptive weights are calculated before CHAOS variance.**
 
-1. how many real physical copies remain drawable;
-2. how recently that family has appeared or been played;
-3. how much immediate-interaction activity has recently occurred;
-4. family/tier lifecycle rules;
-5. a bounded random CHAOS variance that prevents the equation from becoming mechanically predictable.
+The variance is then allowed to disturb those weights so the next card cannot be predicted mechanically.
 
-The system adapts to the **shared match state**, never to the identity or success of the player who is about to draw.
+After variance, a final **Adaptive Rebalancer** checks the disturbed weights against the adaptive intent and physical rules. It corrects excessive distortion without removing the uncertainty that variance introduced.
+
+This means CHAOS is allowed to bend the equation, but it is not allowed to take control of the equation.
 
 ---
 
-## 2. Canonical physical deck authority
+## 2. Physical-card authority
 
-Every normal game begins from the canonical `CHAOS-133-V1` physical deck.
+Every normal match begins with the canonical 133 physical cards from `CHAOS-133-V1`.
 
-No adaptive probability rule may create, duplicate, erase, or resurrect a physical starting-deck card.
+Adaptive probability never creates, duplicates, deletes, resurrects, or replaces a physical card merely to obtain a desired probability result.
 
-At all times, every physical card instance must exist in exactly one authoritative location such as:
+Every physical instance must exist in exactly one authoritative location:
 
-- a player's hand;
-- the drawable pool;
+- player hand;
+- drawable pool;
 - discard;
 - exhausted;
 - persistent/active area;
 - permanently removed.
 
-Machiavelli-generated runtime instances remain the explicitly approved exception and receive unique authoritative instance IDs.
+Machiavelli-generated runtime instances remain the explicitly approved exception and receive unique authoritative IDs.
 
-If a family has zero drawable physical copies, its draw probability is exactly zero regardless of every other multiplier.
+If a family has zero drawable instances, its probability is always zero.
 
 ---
 
-## 3. Card rarity groups
+## 3. Rarity groups
 
-Rarity and gameplay behavior are separate properties.
+Rarity and runtime behavior are separate properties.
 
-### 3.1 Number / baseline pool
+### Number / baseline
 
 - Number x76
 
-### 3.2 Common action families
-
-Six copies per family:
+### Common action — six-copy families
 
 - Skip x6
 - Reverse x6
 - Draw x6
 
-These are common tactical actions.
+### Three-copy families
 
-### 3.3 Three-copy families
+- Wild x3
+- Truth x3
+- Dare x3
+- Paranoia x3
+- Chaos x3
+- Duel x3
+- Nope x3
+- TAG x3
+- Truth or Chaos x3
+- Hijack x3
+- Taboo x3
+- Reverse Confession x3
 
-Three copies per family:
-
-- Wild
-- Truth
-- Dare
-- Paranoia
-- Chaos
-- Duel
-- Nope
-- TAG
-- Truth or Chaos
-- Hijack
-- Taboo
-- Reverse Confession
-
-### 3.4 One-copy rare families
+### One-copy rare families
 
 - Machiavelli x1
 - Ghost x1
 - DIG ME x1
 
-The rarity system begins from real physical availability rather than an arbitrary fixed rarity percentage.
-
-Conceptual base family weights therefore naturally look like:
+Base availability is derived from the real number of drawable copies:
 
 ```text
 6 drawable copies -> base weight 60
@@ -107,15 +114,11 @@ Conceptual base family weights therefore naturally look like:
 0 drawable copies -> base weight 0
 ```
 
-The scale `10 x remaining copies` is a weight scale, not a literal percentage.
-
-Actual probabilities are produced only after all eligible family weights are normalized against one another.
+These are weights, not literal percentages.
 
 ---
 
 ## 4. Behavior groups
-
-Rarity does not decide whether a card auto-plays.
 
 ### Immediate interaction on post-start draw
 
@@ -132,15 +135,15 @@ Rarity does not decide whether a card auto-plays.
 - Machiavelli
 - DIG ME
 
-These 32 physical starting-deck cards use the existing locked rule:
+Locked behavior:
 
 ```text
 INITIAL DEAL
--> interaction card remains in hand
+-> interaction card stays in hand
 -> player may voluntarily play it later
 
 POST-START DRAW
--> interaction card activates immediately
+-> interaction card resolves immediately
 -> it cannot remain dormant for later voluntary play
 ```
 
@@ -158,368 +161,313 @@ Ghost remains the delayed/persistent exception.
 
 ---
 
-## 5. New-match randomness and deterministic replay
+## 5. Opening-hand rule
 
-Every new production match receives a fresh authoritative server-generated seed.
+Each player starts with exactly seven physical cards.
 
-Therefore two new matches should not repeat the same opening hands or probability history merely because they use the same player count.
-
-The seed and all adaptive probability state transitions must be recorded sufficiently for deterministic replay/debugging.
-
-```text
-same match seed + same authoritative commands
--> reproducible result
-
-new match
--> new seed
--> new probability evolution
-```
-
-The UI must never generate or own the authoritative randomness.
-
----
-
-## 6. Opening-hand rule
-
-Each player starts with seven physical cards.
-
-The production dealer must never use the old QA/demo hand that intentionally served many special families together.
-
-### Hard opening-hand bounds
-
-Every player must receive:
+Every opening hand must contain:
 
 - **minimum 1 high-impact/special card**;
 - **maximum 2 high-impact/special cards**.
 
-The remainder of the seven-card hand is filled from eligible normal/common-action cards according to the authoritative weighted dealer.
+The remaining slots are filled through the authoritative weighted opening dealer.
 
-A starting interaction card remains dormant in hand until voluntarily played; the post-start immediate-draw rule does not run during setup.
+The dealer must not use one repeated template such as exactly `4 Number + 1 Action + 2 Special` for every player. Multiple legal hand shapes must remain possible.
 
-### Opening variety
+The probability of receiving one versus two specials is itself adaptive to:
 
-The dealer must not use one fixed recipe such as exactly `4 Numbers + 1 Action + 2 Specials` for every player.
+- player count;
+- real remaining physical inventory;
+- the requirement that every later player can still receive 1–2 specials;
+- the desired health of the remaining drawable pool.
 
-Different legal shapes must remain possible while preserving the 1–2 special bound.
+It must never depend on player identity, skill, score, winning position, or account history.
 
-Examples of acceptable variety include:
-
-```text
-Number, Number, Number, Number, Reverse, Truth, Nope
-
-Number, Number, Number, Skip, Draw, Duel, Taboo
-
-Number, Number, Number, Number, Number, Dare, Machiavelli
-```
-
-Subject to any later explicitly locked opening restriction on a specific family.
-
-### Adaptive special-count choice
-
-The probability of receiving one versus two opening specials is not a permanently fixed `60/40` or `70/30` constant.
-
-It must be calculated from the real physical inventory still available during the deal so that:
-
-- early hands cannot drain the special pool unfairly;
-- later hands still satisfy the same 1–2 bound;
-- remaining draw-pool composition stays healthy;
-- every player is governed by the same rule.
-
-The algorithm may consider player count and remaining pool composition but not player identity, skill, score, historical performance, or seat-specific favoritism.
+Every new production match receives a fresh authoritative server seed, so new matches do not repeat fixed opening hands.
 
 ---
 
-## 7. CHAOS Pulse adaptive draw equation
+## 6. Stage 1 — Adaptive Weights
 
-For every eligible drawable family `f`, the authoritative server computes an effective weight:
-
-```text
-W(f) = BaseAvailability(f)
-       x Freshness(f)
-       x InteractionPressure(f)
-       x TierLifecycle(f)
-       x ChaosVariance(f)
-```
-
-Then:
+Before random CHAOS variance is applied, the server calculates the intended adaptive weight for every eligible family `f`:
 
 ```text
-P(f) = W(f) / sum(W(all eligible families))
+AdaptiveWeight(f)
+=
+BaseAvailability(f)
+x Freshness(f)
+x InteractionPressure(f)
+x TierLifecycle(f)
 ```
 
-After a family is selected, one real remaining physical instance from that family is selected and removed from the drawable pool.
-
-### 7.1 BaseAvailability
+### BaseAvailability
 
 ```text
 BaseAvailability(f) = 10 x drawablePhysicalCopies(f)
 ```
 
-Examples:
+Physical scarcity therefore remains the first source of rarity.
+
+### Freshness
+
+When a family appears or resolves, its short-term freshness multiplier falls.
+
+As unrelated game events occur, it recovers toward its natural value.
+
+Example:
 
 ```text
-Skip with 6 drawable copies        -> 60
-Skip with 5 drawable copies        -> 50
-Truth with 3 drawable copies       -> 30
-Truth with 1 drawable copy         -> 10
-Machiavelli with 1 drawable copy   -> 10
-family with no drawable copies     -> 0
+Skip appears
+-> Skip freshness falls
+
+later unrelated draws/events
+-> Skip freshness gradually recovers
 ```
 
-This preserves real physical rarity.
+A recent family becomes less likely, never automatically impossible.
 
-### 7.2 Freshness
+### InteractionPressure
 
-Freshness reduces the short-term probability of a family that has just appeared or been resolved, then gradually returns that family toward its natural weight.
-
-Conceptual behavior:
+Immediate-interaction families share global pacing pressure.
 
 ```text
-family just appeared
--> freshness drops
-
-subsequent unrelated draws/events
--> freshness recovers gradually
-
-family not seen recently
--> freshness approaches 1.0
-```
-
-A recently seen card is **less likely**, not forbidden.
-
-This prevents a rigid rotation while reducing repetitive patterns such as repeated Truth, repeated Skip, or repeated Duel sequences.
-
-### 7.3 InteractionPressure
-
-The twelve immediate-interaction families share a global pacing state.
-
-Conceptual behavior:
-
-```text
-several non-interaction draws
--> interaction pressure rises gradually
+quiet/non-interaction draws
+-> interaction pressure rises
 
 interaction resolves
 -> interaction pressure falls
-
-more quiet draws
--> pressure rebuilds
 ```
 
-This controls droughts and clustering without fixed `2 cards every 8 draws` blocks.
+This reduces extreme droughts and clusters without a fixed `2 per 8` pattern.
 
-Interaction pressure is global to the match, not assigned to a player.
+### TierLifecycle
 
-### 7.4 TierLifecycle
-
-This modifier handles explicitly approved family/tier behavior that cannot be represented by physical availability alone.
-
-Examples may include:
-
-- stronger temporary spacing after an exceptionally disruptive rare event;
-- permanent probability zero after a one-use card is exhausted and no drawable copy remains;
-- immediate recalculation after Machiavelli converts, removes, duplicates, or generates approved cards.
-
-Tier/lifecycle modifiers must never silently contradict a locked card rule.
-
----
-
-## 8. CHAOS Variance — bounded room for error
-
-The adaptive equation must intentionally contain a bounded random variance so that players cannot reverse-engineer the next draw from visible match history.
-
-This is the game's controlled **room for error**.
-
-It is not an implementation mistake and it is not permission to violate physical inventory or target players.
-
-For every draw evaluation, eligible family weights receive a fresh server-seeded variance multiplier around their calculated adaptive value.
-
-Conceptual model:
-
-```text
-ChaosVariance(f) = random bounded multiplier around 1.0
-```
-
-Initial simulation range to test:
-
-```text
-normal CHAOS variance: approximately 0.85 to 1.15
-```
-
-Example:
-
-```text
-Truth calculated weight before variance = 24
-current variance multiplier = 1.11
-final draw weight = 26.64
-
-Skip calculated weight before variance = 35
-current variance multiplier = 0.88
-final draw weight = 30.8
-```
-
-The variance is regenerated from the authoritative server RNG and is included in deterministic replay state.
-
-### Why variance exists
-
-Without variance, sufficiently observant players could estimate:
-
-- which family was recently suppressed;
-- when interaction pressure has risen;
-- when a family has recovered;
-- and therefore approximate the next family too accurately.
-
-Bounded variance creates deliberate uncertainty:
-
-```text
-high probability != guarantee
-low probability  != impossible
-```
-
-unless physical availability or an explicit game rule makes a result impossible.
-
-### Hard limits that variance cannot override
-
-CHAOS variance may never:
-
-- draw a family with zero drawable instances;
-- clone a physical card;
-- ignore permanent removal/exhaustion;
-- break the opening-hand 1–2 special bound;
-- bypass an immediate-interaction flow;
-- target a specific player;
-- change a card after the player has already been told what was drawn;
-- rewrite an authoritative completed result.
-
-### Soft chaos rather than hard patterns
-
-The system should prefer **soft probability pressure** over rigid spacing rules.
-
-Therefore:
-
-- back-to-back interactions remain possible, just less likely after an interaction;
-- the same family may repeat, just less likely while freshness is low;
-- a quiet stretch remains possible, but interaction pressure increasingly resists extreme droughts;
-- rare cards may appear surprisingly early, but their low physical availability keeps them scarce.
-
-This intentional possibility of unusual outcomes is part of Cribbit CHAOS.
-
----
-
-## 9. Event-driven probability updates
-
-The adaptive state recalculates after authoritative events that change either physical availability or match memory.
+This modifier represents approved lifecycle effects that change a family's legitimate availability or pacing.
 
 Examples:
 
-### Card enters a hand from opening deal
-
-- remove that physical instance from drawable inventory;
-- recalculate family base availability.
-
-### Card is drawn post-start
-
-- remove that physical instance from drawable inventory;
-- recalculate family base availability;
-- update family freshness;
-- update interaction pressure if applicable;
-- route the card according to immediate-interaction vs hand-resident behavior.
-
-### Card is played from a player's hand
-
-Playing the card does not remove it from the draw pool a second time because it left that pool when originally dealt/drawn.
-
-However, its family appearance/resolution may update freshness and match-memory state.
-
-### Reusable discard is recycled
-
-When reusable physical cards legitimately return to drawable inventory, their available-copy counts rise again and their base availability is recalculated.
-
-### Exhaust / permanent removal
-
-When a card becomes exhausted or permanently removed, it cannot contribute to drawable availability unless a later explicit mechanic restores or generates an approved instance.
-
-### Machiavelli
-
-Approved Machiavelli effects may materially change pool composition.
-
-The adaptive system must recalculate affected family counts immediately after the authoritative Machiavelli effect completes.
+- exhausted one-use card with no drawable instance -> zero;
+- reusable discard legitimately returned -> availability rises;
+- Machiavelli conversion/removal/duplication/generation -> affected weights recalculate.
 
 ---
 
-## 10. Shared-match fairness rule
+## 7. Stage 2 — CHAOS Variance
 
-The adaptive engine may react to:
+Only after the adaptive model has established its intended weights does the system add controlled randomness.
 
-- remaining physical family counts;
-- recently drawn families;
-- recently played/resolved families;
-- recent global interaction density;
-- explicitly approved lifecycle changes;
-- the authoritative random seed/variance stream.
-
-It may **not** react to:
-
-- which player is about to draw;
-- which player is winning;
-- which player has the fewest cards;
-- player skill/MMR;
-- a desire to punish a specific player;
-- a desire to rescue a losing player;
-- player identity or account history.
-
-Correct:
+For every eligible family:
 
 ```text
-Truth just resolved
--> Truth freshness falls globally
+NoisyWeight(f)
+=
+AdaptiveWeight(f)
+x ChaosVariance(f)
 ```
 
-Incorrect:
+`ChaosVariance(f)` is a server-seeded bounded random multiplier around `1.0`.
+
+Initial simulation candidate:
 
 ```text
-Player A is winning
--> increase Chaos probability for Player A
+approximately 0.85 to 1.15
 ```
 
-All players draw from the same shared adaptive match state.
-
----
-
-## 11. Multi-card draws and forced-interaction queue
-
-Every card in a multi-card draw is selected sequentially from the authoritative adaptive state.
-
-After each physical card is selected, the physical pool and adaptive state update before selecting the next card.
+This range is not production-final.
 
 Example:
 
 ```text
-Draw 2 penalty
+Truth adaptive weight = 24
+variance = 1.11
+noisy weight = 26.64
 
-select physical card 1
--> Number
--> availability/pacing state updates
-
-select physical card 2 using new state
--> Taboo
--> availability/pacing state updates
-
-Number stays in hand
-Taboo enters forced-interaction FIFO queue
+Skip adaptive weight = 35
+variance = 0.88
+noisy weight = 30.80
 ```
 
-If two immediate interactions are drawn, they resolve FIFO according to physical draw order.
+This is intentional. A lower adaptive-weight family can occasionally overtake a higher adaptive-weight family.
 
-The adaptive probability system must not overlap or replace the existing authoritative forced-interaction queue.
+That prevents the adaptive system from becoming predictable.
 
 ---
 
-## 12. Player-facing CHAOS Meter
+## 8. Stage 3 — Adaptive Rebalancer
 
-The application may expose the adaptive interaction pressure through a non-exact player-facing meter.
+CHAOS variance is **not** the final authority.
 
-Recommended states:
+After variance perturbs the adaptive weights, the server runs an Adaptive Rebalancer before final normalization.
+
+The rebalancer is deliberately lighter than the main adaptive calculation. Its job is to correct excessive distortion while preserving the random surprise.
+
+Conceptually:
+
+```text
+CorrectedWeight(f)
+=
+Rebalance(
+  AdaptiveWeight(f),
+  NoisyWeight(f),
+  category totals,
+  hard physical rules
+)
+```
+
+### The rebalancer must preserve
+
+- zero probability for unavailable families;
+- physical-card integrity;
+- opening-hand special bounds;
+- lifecycle/exhaustion/removal rules;
+- global interaction pacing established by InteractionPressure;
+- broad rarity relationships established by physical availability.
+
+### The rebalancer must NOT erase
+
+- legitimate family-to-family variance;
+- occasional back-to-back interactions;
+- occasional repeated families;
+- surprising rare appearances;
+- legal quiet stretches.
+
+### Recommended mathematical strategy
+
+The adaptive model establishes **category probability mass** first.
+
+Examples of categories may include:
+
+- baseline Number;
+- common actions;
+- immediate interactions;
+- retained tactical specials;
+- one-copy rare tier.
+
+CHAOS variance may redistribute weight **inside** those categories.
+
+After variance, the rebalancer can renormalize family weights inside a category back toward that category's adaptive probability mass.
+
+Example:
+
+```text
+Adaptive interaction category mass = 28%
+
+CHAOS variance temporarily favors:
+Truth up
+Duel down
+Taboo up
+Paranoia down
+
+Rebalancer:
+-> preserves most of those internal family changes
+-> keeps total interaction mass near the adaptive 28% target
+```
+
+This prevents random noise from accidentally turning a carefully calculated interaction probability into an uncontrolled 45% interaction spike.
+
+A small bounded category-level deviation may later be allowed if simulation shows it improves game feel, but it must itself have hard limits.
+
+---
+
+## 9. Final probability
+
+After rebalancing:
+
+```text
+P(f)
+=
+CorrectedWeight(f)
+/
+sum(CorrectedWeight(all eligible families))
+```
+
+The server then selects exactly one eligible family from that probability distribution and then selects one real drawable physical instance from that family.
+
+The selected physical instance is removed from the drawable pool before any subsequent physical draw is calculated.
+
+---
+
+## 10. Event-driven adaptation
+
+The equation changes after authoritative match events.
+
+### Opening deal
+
+A physical card entering a starting hand leaves drawable availability immediately.
+
+### Post-start draw
+
+After a physical card is selected:
+
+- drawable availability changes;
+- family freshness changes;
+- interaction pressure changes where appropriate;
+- the next draw uses the new adaptive state.
+
+### Card played from hand
+
+A played card is not removed from the drawable pool a second time. It already left that pool when it was dealt/drawn.
+
+Its appearance/resolution can still update family freshness and match memory.
+
+### Recycle
+
+Reusable cards legitimately returned from discard increase drawable availability again.
+
+### Exhaust/permanent removal
+
+Unavailable cards cannot be drawn.
+
+### Machiavelli
+
+Any approved Machiavelli deck mutation immediately triggers a complete affected-weight recalculation.
+
+---
+
+## 11. Multi-card draws
+
+Multi-card draws are selected sequentially.
+
+```text
+Draw 2
+-> calculate/select card 1
+-> update physical + adaptive state
+-> calculate/select card 2 from the NEW state
+```
+
+If interaction cards are selected, they enter the existing forced-interaction FIFO queue according to physical selection order.
+
+Probability logic never replaces family-resolution logic.
+
+---
+
+## 12. Shared-match fairness
+
+Allowed inputs:
+
+- remaining physical family counts;
+- recent global card-family history;
+- recent interaction density;
+- approved lifecycle state;
+- authoritative server RNG state.
+
+Forbidden inputs:
+
+- identity of the player about to draw;
+- who is winning;
+- who is losing;
+- who has fewer cards;
+- player skill/MMR;
+- account history;
+- desire to punish or rescue a player.
+
+The system changes the **shared probability environment**, never an individual player's personal odds.
+
+---
+
+## 13. CHAOS Meter
+
+The app may expose the global interaction-pressure state through a non-exact meter:
 
 ```text
 CALM
@@ -529,126 +477,131 @@ HOT
 DANGER
 ```
 
-The meter must represent **pressure/probability**, not a promise about the next card.
+The meter is a pressure signal, not a countdown and not a promise.
 
 Even at `DANGER`, a normal card may still be selected.
 
-The UI must never reveal internal exact family weights or the server RNG result before the physical draw is committed.
-
-This allows strategic tension without making the next card deterministic.
+Exact internal weights, variance rolls, corrected weights, and RNG results remain hidden until a draw is committed.
 
 ---
 
-## 13. Replay and audit requirements
+## 14. Deterministic replay
 
-The authoritative match state must contain enough information to reproduce card selection deterministically for debugging and dispute analysis.
+Every new match receives a fresh authoritative server seed.
 
-At minimum the engine needs a deterministic record of:
+The server must persist enough information to reproduce the same selection sequence from the same authoritative command/event stream.
 
-- initial match seed or equivalent RNG state;
-- physical card locations/availability;
-- family freshness state;
-- interaction pressure state;
-- tier/lifecycle modifiers;
-- authoritative sequence of commands/events;
-- generated-card events;
-- variance/RNG consumption order.
+Replay state includes at minimum:
 
-Replaying the same authoritative event stream must reproduce the same card selections.
+- initial RNG seed/state;
+- physical-card locations;
+- freshness state;
+- interaction pressure;
+- lifecycle modifiers;
+- CHAOS variance RNG consumption;
+- rebalancer configuration;
+- generated-card events.
+
+```text
+same seed + same authoritative events
+-> same result
+
+new match
+-> new seed
+-> different evolution
+```
 
 ---
 
-## 14. Tuning constants are simulation-controlled
+## 15. Tuning constants remain simulation-controlled
 
-The product rule locks the **adaptive model**, not untested magic constants.
+The rule locks the **order and architecture**:
 
-The following remain tuning parameters until simulation and runtime playtesting choose production values:
+```text
+Adaptive Weights
+-> CHAOS Variance
+-> Adaptive Rebalancer
+-> Normalize
+-> Draw
+```
 
-- exact one-vs-two opening-special distribution curve;
-- freshness drop after a family appears;
-- freshness recovery speed;
-- interaction-pressure rise per quiet draw;
-- interaction-pressure reset after an interaction;
-- rare-tier temporary spacing strength;
-- normal CHAOS variance range;
-- any maximum/minimum soft multipliers;
+The following numeric values remain tunable until simulation/playtesting establishes production settings:
+
+- opening 1-vs-2 special curve;
+- freshness drop;
+- freshness recovery;
+- interaction-pressure rise/reset;
+- rare-tier spacing strength;
+- CHAOS variance range;
+- rebalancer tolerance;
+- category-level variance allowance;
 - CHAOS Meter thresholds.
 
-Initial candidate values may be simulated, but they must not be treated as canonical merely because they were convenient test numbers.
-
 ---
 
-## 15. Required deterministic tests
+## 16. Required tests
 
-Before production acceptance, automated simulation/property tests must prove at minimum:
+Automated simulation/property tests must prove at minimum:
 
-- every opening hand contains exactly 7 physical cards;
-- every opening hand contains 1–2 high-impact/special cards;
-- no physical starting-deck instance exists in two places;
-- all 133 physical starting instances are accounted for;
-- zero-availability families have zero draw probability;
-- 6-copy families begin with proportionally greater base availability than 3-copy and 1-copy families;
-- removing a drawable copy reduces that family's base weight correctly;
-- returning a reusable physical card restores availability correctly;
-- recent family appearance suppresses but does not necessarily prohibit that family;
-- freshness recovers according to the configured curve;
-- quiet draws raise global interaction pressure;
-- an interaction reduces global interaction pressure;
-- CHAOS variance remains inside configured bounds;
-- variance never enables an unavailable card;
-- same seed + same authoritative commands reproduces the same draws;
-- different match seeds produce meaningfully different opening hands/draw histories;
-- no draw calculation contains player identity, score, hand advantage, or win position as an input;
-- post-start immediate-interaction draws enter the forced-interaction queue;
-- opening-hand interaction cards remain voluntarily playable instead of auto-triggering during setup;
-- multi-card draws update adaptive state sequentially and preserve FIFO resolution;
-- Machiavelli deck-changing effects cause correct probability-state recalculation.
+- every opening hand has exactly 7 physical cards;
+- every opening hand has 1–2 specials;
+- all physical instances are unique/accounted for;
+- unavailable family probability is always zero;
+- 6/3/1-copy base availability follows real remaining copies;
+- AdaptiveWeight is calculated before variance;
+- variance remains within configured bounds;
+- the rebalancer prevents variance from breaking category/physical guardrails;
+- the rebalancer does not collapse all variance back to the pre-variance weights;
+- same seed + same authoritative events reproduces draws;
+- different seeds produce varied matches;
+- no player identity/game-position data enters the probability equation;
+- multi-card draws recalculate sequentially;
+- post-start interaction cards enter the existing FIFO interaction flow;
+- opening-hand interaction cards remain dormant until voluntarily played;
+- Machiavelli mutations trigger correct recalculation.
 
-Large-run simulations must also measure:
+Large simulations must measure:
 
-- family appearance frequency;
-- interaction drought distribution;
-- interaction cluster distribution;
-- repeated-family frequency;
+- family frequencies;
+- interaction droughts;
+- interaction clusters;
+- repeat-family frequency;
 - rare-event spacing;
 - opening-hand variety;
-- 2 through 10 player behavior;
+- behavior from 2 through 10 players;
 - late-game composition;
-- whether any predictable periodic pattern emerges.
+- predictability/pattern leakage.
 
 ---
 
-## 16. Canonical summary
+## 17. Canonical summary
 
-Cribbit CHAOS uses an **adaptive physical-card probability system** rather than a fixed post-start draw order or fixed interaction windows.
+The Cribbit CHAOS distribution engine is:
 
 ```text
 REAL PHYSICAL AVAILABILITY
-        x
-FAMILY FRESHNESS
-        x
+        +
+MATCH MEMORY
+        +
 GLOBAL INTERACTION PRESSURE
-        x
-TIER / LIFECYCLE STATE
-        x
+        +
+LIFECYCLE STATE
+        ↓
+ADAPTIVE WEIGHTS
+        ↓
 BOUNDED CHAOS VARIANCE
         ↓
-CURRENT FAMILY WEIGHTS
+ADAPTIVE REBALANCER
         ↓
-NORMALIZE
+FINAL NORMALIZED PROBABILITY
         ↓
-SELECT ONE REAL DRAWABLE CARD
+ONE REAL PHYSICAL CARD
         ↓
-UPDATE MATCH STATE
+STATE CHANGES
+        ↓
+NEXT DRAW USES A NEW EQUATION
 ```
 
-The system is intentionally unpredictable but must always remain:
+The adaptive system establishes the game's intended rhythm. CHAOS variance destabilizes it. The Adaptive Rebalancer keeps that instability inside fair, physical, game-safe boundaries.
 
-- physical-card accurate;
-- server authoritative;
-- deterministic for replay;
-- globally fair;
-- non-player-targeted;
-- compatible with existing immediate-interaction and FIFO resolution rules.
-
-The purpose of the adaptive model is not to decide who wins. Its purpose is to make every match develop its own evolving rhythm of probability while preserving fairness, scarcity, surprise, and the identity of Cribbit CHAOS.
+That combination is intentionally unpredictable without becoming arbitrary or player-targeted.
