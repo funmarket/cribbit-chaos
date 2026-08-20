@@ -259,8 +259,6 @@ Examples:
 
 These are **weights**, not literal probabilities.
 
-Actual draw probability is normalized against all eligible drawable families.
-
 ### 6.2 Family freshness
 
 When a family has just appeared or resolved, its short-term weight is reduced. Its weight gradually returns toward natural availability as unrelated draws/events occur.
@@ -305,67 +303,139 @@ Examples:
 
 ---
 
-## 7. CHAOS Variance — bounded unpredictability
+## 7. CHAOS Pulse probability pipeline — LOCKED ARCHITECTURE
 
-The adaptive equation intentionally includes a bounded random variance on every authoritative draw evaluation.
-
-This is the game's controlled **room for error**.
-
-It exists so that the same visible match history does not mechanically imply the same next card.
-
-Conceptually:
+Every authoritative post-start draw uses this order:
 
 ```text
-FinalWeight(f)
+PHYSICAL AVAILABILITY
++
+FAMILY FRESHNESS / MATCH MEMORY
++
+GLOBAL INTERACTION PRESSURE
++
+TIER / LIFECYCLE STATE
+↓
+1. ADAPTIVE WEIGHTS
+↓
+2. PRIMARY CHAOS VARIANCE
+↓
+3. ADAPTIVE REBALANCER
+↓
+4. SECONDARY CHAOS VARIANCE / FINAL JITTER
+↓
+5. HARD SAFETY GUARD
+↓
+6. NORMALIZE FINAL PROBABILITIES
+↓
+SELECT ONE REAL DRAWABLE PHYSICAL CARD
+```
+
+### 7.1 Adaptive weights
+
+Before randomness is injected, the engine establishes the intended current weight for each family:
+
+```text
+AdaptiveWeight(f)
 =
 BaseAvailability(f)
 x Freshness(f)
 x InteractionPressure(f)
 x TierLifecycle(f)
-x ChaosVariance(f)
 ```
 
-Then:
+This is the balancing layer. It defines what the shared match rhythm currently wants.
+
+### 7.2 Primary CHAOS variance
+
+The first variance pass deliberately disturbs those adaptive weights so the equation cannot become mechanically predictable.
+
+Conceptually:
 
 ```text
-P(f) = FinalWeight(f) / sum(FinalWeight(all eligible families))
+PrimaryNoisyWeight(f)
+=
+AdaptiveWeight(f)
+x PrimaryChaosVariance(f)
 ```
 
-Initial simulation target for normal CHAOS variance:
+Initial simulation candidate:
 
 ```text
-approximately 0.85 to 1.15 around the calculated weight
+approximately 0.85 to 1.15
 ```
 
-That exact range is a tuning value and must be simulation-tested before production lock.
+The exact range is not production-final.
 
-### 7.1 Meaning of CHAOS Variance
+### 7.3 Adaptive Rebalancer
+
+The rebalancer runs after the primary disturbance. Its job is to correct excessive macro/category distortion without erasing useful family-level chaos.
+
+Examples of broad categories include:
+
+- Number/baseline;
+- common actions;
+- immediate interactions;
+- retained tactical specials;
+- rare tier where applicable.
+
+If primary CHAOS temporarily pushes the total interaction probability far outside the intended adaptive range, the rebalancer may pull that category back toward its target while preserving relative family changes inside it.
+
+The rebalancer must **not** make outcomes deterministic or forbid legal unusual sequences.
+
+### 7.4 Secondary CHAOS variance / final jitter
+
+Because rebalancing can make the output too mathematically clean, a second smaller CHAOS pass runs afterward.
+
+Conceptually:
+
+```text
+FinalNoisyWeight(f)
+=
+RebalancedWeight(f)
+x SecondaryChaosVariance(f)
+```
+
+Initial simulation candidate:
+
+```text
+approximately 0.97 to 1.03
+```
+
+The secondary pass is intentionally narrower than the primary pass.
+
+By default it should perturb family probability **inside the rebalanced category mass**, preserving broad pacing while restoring uncertainty about the exact family.
+
+### 7.5 Hard safety guard
+
+The final guard is not another balancing pass. It enforces only non-negotiable invariants such as:
+
+- zero drawable copies -> zero probability;
+- exhausted/permanently removed card -> unavailable;
+- no duplicated physical instance;
+- finite/non-negative weights;
+- opening-hand 1–2 special rule during setup;
+- explicit lifecycle/card exclusions.
+
+It must not undo the secondary CHAOS jitter merely because a legal family became slightly more or less likely.
+
+### 7.6 Meaning of two-stage CHAOS
 
 ```text
 high probability != guaranteed
 low probability  != impossible
 ```
 
-unless physical availability or an explicit game rule makes the result impossible.
+unless physical availability or a hard rule makes the result impossible.
 
 Therefore:
 
-- back-to-back interactions remain possible but less likely after an interaction;
-- the same family may repeat but is temporarily suppressed by freshness;
-- a quiet stretch remains possible but global interaction pressure increasingly resists extreme droughts;
-- a rare card may appear surprisingly early, but its low physical availability keeps it rare.
-
-### 7.2 Variance cannot break hard rules
-
-CHAOS Variance may never:
-
-- select a family with zero drawable physical instances;
-- clone or erase a physical card;
-- bypass exhaustion/permanent removal;
-- violate the opening-hand 1–2 special bound;
-- bypass immediate-interaction resolution;
-- target a player because of their identity or game position;
-- change an already committed draw result.
+- back-to-back interactions remain possible but become less likely after interaction pressure falls;
+- the same family may repeat but freshness usually suppresses it temporarily;
+- quiet stretches remain possible while interaction pressure increasingly resists extreme droughts;
+- rare cards can appear surprisingly early but remain scarce through real physical availability;
+- the Rebalancer protects broad game rhythm;
+- the second CHAOS pass protects unpredictability after that correction.
 
 ---
 
@@ -425,7 +495,7 @@ The meter indicates changing risk, not an exact next-card promise.
 
 Even at `DANGER`, a normal card may still be drawn.
 
-The exact internal family weights and RNG result must remain hidden until the authoritative draw is committed.
+The exact adaptive weights, primary variance, rebalanced weights, secondary variance, and RNG result must remain hidden until the authoritative draw is committed.
 
 ---
 
@@ -850,7 +920,7 @@ No UI action may silently clone, resurrect, discard, or destroy a physical card 
 
 ## 30. Adaptive-distribution tuning still pending
 
-The **adaptive model itself is locked**, but exact tuning constants are not yet production-final.
+The **adaptive model and pipeline order are locked**, but exact tuning constants are not yet production-final.
 
 Simulation/playtesting must choose:
 
@@ -860,7 +930,10 @@ Simulation/playtesting must choose:
 - interaction-pressure rise per quiet draw;
 - interaction-pressure reset after an interaction;
 - rare-tier spacing strength;
-- exact CHAOS variance range;
+- primary CHAOS variance range;
+- Adaptive Rebalancer category tolerance;
+- secondary CHAOS variance range;
+- whether a tiny bounded category-level final jitter is desirable;
 - soft minimum/maximum multipliers;
 - CHAOS Meter thresholds.
 
