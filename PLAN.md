@@ -245,6 +245,98 @@ Effects:
 
 Machiavelli is one-use and moves to Exhausted after resolution.
 
+## CHAOS Pulse adaptive distribution — SOURCE IMPLEMENTED / BROWSER TRIAL PENDING
+
+The product rule is locked in `Game_rules.md` and detailed in `docs/adaptive-card-distribution-rule.md`.
+
+Canonical pipeline:
+
+```text
+ADAPTIVE WEIGHTS
+-> PRIMARY CHAOS VARIANCE
+-> ADAPTIVE REBALANCER
+-> SECONDARY CHAOS VARIANCE
+-> HARD SAFETY GUARD
+-> NORMALIZE
+-> SELECT ONE REAL PHYSICAL CARD
+```
+
+### Shared-engine source now implemented
+
+- `packages/contracts/src/index.ts` carries authoritative adaptive probability state.
+- `packages/game-engine/src/adaptive-distribution.ts` owns one shared implementation of opening dealing, family classification, freshness, interaction pressure, two-stage variance, category rebalancing, and real physical-card selection.
+- `packages/game-engine/src/setup.ts` deals adaptive 7-card opening hands with exactly 1–2 high-impact/special cards per player and reserves the existing deterministic starter-card strategy without consuming the starter during the adaptive deal.
+- `packages/game-engine/src/deck.ts` routes authoritative `drawCards()` through the adaptive selector.
+- `packages/game-engine/src/index.ts` exports the shared helpers; no second adaptive algorithm is allowed in the UI or compatibility runtime.
+
+### Current source tuning candidates
+
+These are trial values, not production-final constants:
+
+- family freshness: `0.55 -> 0.66 -> 0.77 -> 0.86 -> 0.94 -> 1.0`
+- interaction after interaction: `pressure x 0.62`, bounded to `0.55..1.9`
+- quiet/non-interaction draw: `pressure x 1.08 + 0.02`, same bounds
+- primary CHAOS variance: `0.85..1.15`
+- secondary CHAOS jitter: `0.97..1.03`
+- one-copy rare tier currently receives a mild `0.9` trial multiplier after physical availability
+
+These constants must be tuned from browser experience and larger simulations rather than treated as permanent product rules.
+
+### Deterministic tests
+
+`packages/game-engine/test/adaptive-distribution.test.ts` covers:
+
+- 2–10 player opening deals;
+- every opening hand exactly 7 cards;
+- every opening hand exactly 1–2 high-impact specials;
+- all 133 physical IDs conserved and unique;
+- same seed replay determinism;
+- different-seed opening variety;
+- 6/3/1-copy physical weighting;
+- freshness suppression without hard bans;
+- primary variance;
+- category rebalancing;
+- secondary jitter;
+- zero-availability protection;
+- real-card removal;
+- sequential multi-card recalculation;
+- interaction-pressure rise/reset.
+
+CI for shared-engine source commit `c18b431e24d7bac53fba1c627d404fea770b59b4` is **GREEN**: typecheck, Web build, Telegram build, API build, and tests pass.
+
+### Web trial surface
+
+The Web lobby now mounts a **Try CHAOS Pulse** panel using the real shared engine directly.
+
+Files:
+
+- `apps/web/src/chaos-pulse-lab.ts`
+- `apps/web/src/chaos-pulse-lab.css`
+- `apps/web/src/main.ts`
+
+The panel lets us:
+
+- choose 2–10 players;
+- create a fresh-seeded random match;
+- inspect each opening hand and its special/interaction count;
+- generate 12 sequential adaptive physical draws;
+- observe global interaction pressure before and after each draw;
+- reroll repeatedly to judge whether hands/pacing feel repetitive or appropriately chaotic.
+
+Status: **SOURCE BUILDS — manual browser trial still required.**
+
+### Compatibility-runtime migration boundary
+
+The main visible gameplay board still boots with:
+
+```text
+runtimeMode: legacy-compatibility
+```
+
+That legacy runtime still owns an obsolete local deck/deal/draw implementation. Do **not** copy CHAOS Pulse into it as a second algorithm.
+
+The next convergence step is to bridge/remove the legacy deck/deal/draw seam so the main board consumes the shared authoritative CHAOS Pulse engine. Until that migration is browser-verified, the lobby trial panel is the correct place to evaluate the new distribution itself.
+
 ## Locked game-feel rule — opening hand is free, later interaction draws auto-play
 
 Cribbit CHAOS should become more active and less passive whenever the deck produces a social/player-interaction card after play has begun.
@@ -255,32 +347,11 @@ Interaction cards dealt as part of the player's **initial starting hand** are no
 
 They do **not** auto-trigger merely because they were part of the opening deal.
 
-This opening-hand exception is important: players begin with strategic choice, but subsequent interaction draws create immediate table activity.
-
 ### Post-start draw rule
 
-After the initial deal is complete, **any card whose primary purpose is immediate player-to-player, player-to-group, or group-wide interaction must auto-play as soon as it is drawn from the authoritative draw pile.** It cannot be stored for a later voluntary turn.
+After the initial deal is complete, any immediate-interaction card drawn from the authoritative draw source must auto-play immediately and cannot be stored for later voluntary play.
 
-This applies to every post-start authoritative draw source, including:
-
-- normal voluntary draw
-- forced draw / Draw penalties
-- Truth/Dare refusal Draw 2
-- Paranoia penalties
-- any future authoritative effect that explicitly draws from the draw pile
-
-The source of the card therefore matters:
-
-```text
-INITIAL DEAL -> interaction card stays in hand -> player may play it later
-POST-START DRAW -> interaction card auto-plays immediately
-```
-
-Cards granted or generated directly into a hand are not treated as draws unless the granting effect explicitly defines them as drawn. They follow the semantics of the granting effect.
-
-### Immediate interaction families
-
-Current canonical classification:
+Immediate interaction families:
 
 - Truth
 - Dare
@@ -295,11 +366,7 @@ Current canonical classification:
 - Chaos
 - Machiavelli
 
-These families auto-trigger when drawn after the opening deal because they create an immediate social choice, target, challenge, confession, group effect, or rule-changing interaction.
-
-### Non-immediate / hand-resident families
-
-These stay in hand when drawn unless another rule explicitly consumes them:
+Hand-resident families:
 
 - Number
 - Skip
@@ -309,108 +376,52 @@ These stay in hand when drawn unless another rule explicitly consumes them:
 - Nope
 - Ghost
 
-Ghost remains the explicit exception because its canonical identity is a delayed/persistent threat rather than an immediate social-resolution card.
-
-### Auto-play lifecycle for a drawn interaction card
-
-A post-start drawn interaction card must use its real physical card identity and enter the same authoritative flow as if that card had been legally played from hand.
-
-Conceptually:
-
-```text
-post-start draw interaction card
--> card is identified as immediate-interaction
--> card is committed to play immediately
--> existing family flow opens
--> card follows its normal discard/exhaust/persistent lifecycle
--> it does not remain available in hand for later play
-```
-
-No duplicate special copy of the card is created.
-
 ### Chained draw behavior
 
-If resolving one effect draws multiple cards and one or more of those cards are immediate-interaction families, they must be queued and resolved **one at a time in draw order**.
+If a draw effect yields several immediate interactions, they resolve FIFO in physical selection order, with no overlapping social flows.
 
-Example:
+## Active gameplay slice — convergence of adaptive draw + interaction-on-draw
 
-```text
-Truth refusal
--> Draw 2
--> first drawn card = Number -> stays in hand
--> second drawn card = Taboo -> queue Taboo interaction
--> finish the current Truth refusal resolution boundary
--> immediately enter queued Taboo flow
--> resolve Taboo
--> only then resume normal turn progression
-```
-
-If both drawn cards are interaction cards, the first drawn interaction resolves first, then the second. No overlapping modals, no parallel social flows, and no interaction card silently left dormant because another flow was already active.
-
-## Active gameplay slice — authoritative post-start interaction-on-draw dispatcher
-
-One authoritative draw dispatcher/queue must distinguish initial dealing from later draws and decide whether each post-start drawn physical card stays in hand or immediately enters its existing family flow.
+The shared engine now owns adaptive physical-card selection. The remaining gameplay integration is to connect selected post-start interaction cards to the one authoritative forced-interaction dispatcher/queue and migrate the current Web compatibility board away from its duplicate local deck seam.
 
 Architecture requirement:
 
 ```text
 INITIAL DEAL
--> deal cards directly into starting hands
--> do NOT run interaction auto-play
+-> shared adaptive dealer
+-> opening interactions remain in hand
 
 POST-START AUTHORITATIVE DRAW
--> remove physical card from draw pile
--> inspect drawn family
+-> shared CHAOS Pulse selects one real physical card
 -> hand-resident family: add/keep in hand
 -> immediate-interaction family: commit/enqueue immediate play
--> resolve queued interactions sequentially
--> after queue is empty, continue the original turn/effect boundary
+-> resolve queued interactions FIFO
+-> resume original effect/turn only when queue is empty
 ```
 
-Do not build a second Truth/Dare/Paranoia/Duel implementation for drawn cards.
+Implementation requirements:
 
-### Implementation requirements
+- one central family classification and adaptive selector only;
+- one forced-interaction queue only;
+- no copy of CHAOS Pulse in `legacy-runtime`;
+- migrate/bridge the legacy board to shared deck/deal/draw authority;
+- initial deal explicitly bypasses auto-play;
+- applies to normal draws and every penalty/effect draw path;
+- real physical card identity remains authoritative;
+- replay/idempotency cannot select or trigger the same card twice;
+- bots use the same shared path;
+- turn advancement and win checks wait for queued interactions.
 
-- one central classification source and one dispatcher/queue only
-- initial deal is explicitly distinguishable from post-start draws
-- opening-hand interaction cards never auto-trigger during setup
-- family classification is explicit and testable
-- applies to every post-start authoritative draw path, not only the visible Draw button
-- drawn physical card identity remains authoritative
-- no fake replacement card is created
-- post-start drawn interaction card cannot become a dormant later-play card
-- forced interaction uses the same family flow as normal voluntary play wherever that flow exists
-- unresolved interactions block normal play/draw
-- queued interactions resolve FIFO in draw order
-- final win checks and turn advancement happen only after the originating effect and forced-interaction queue are complete
-- command replay/idempotency must not trigger the same drawn interaction twice
-- bots traverse the same queue and family flows
-- no UI-only forced resolution state
-- direct-to-hand generated/granted cards follow their granting effect and are not silently reclassified as draws
+### First dispatcher verification set
 
-### First implementation/verification set
-
-Start with families whose normal flows are already accepted:
+Begin with already-accepted family flows:
 
 1. Truth
 2. Dare
 3. Paranoia
 4. Duel
 
-Then connect Taboo, Reverse Confession, TAG, Truth or Chaos, Hijack, DIG ME, Chaos, and Machiavelli as each authoritative family flow is completed or confirmed reusable.
-
-Tests must include at minimum:
-
-- opening deal contains interaction card -> it stays in starting hand and does not auto-trigger
-- player later voluntarily plays that opening-hand interaction card -> normal family flow
-- normal post-start draw -> interaction auto-triggers
-- penalty Draw 2 -> interaction card auto-triggers
-- two interaction cards drawn together -> FIFO sequential resolution
-- normal/basic card drawn -> remains in hand
-- command replay -> no duplicate forced interaction
-- bot draw -> same forced path
-- original turn does not advance until forced queue empties
-- win check cannot bypass unresolved queued interaction
+Then connect remaining families as their shared authoritative flows are completed/verified.
 
 ## Remaining special-card mechanics after interaction-on-draw foundation
 
@@ -429,13 +440,14 @@ Complete and verify the still-incomplete families using one authoritative implem
 
 ## Cleanup / convergence after mechanics are stable
 
-- make every visible gameplay button map to one implemented command
-- remove duplicate command aliases and stale variants
-- derive enabled/disabled controls from authoritative legal state
-- remove client-local rule implementations made obsolete by shared ownership
-- add deterministic complete-turn tests for every family
-- verify reconnect/timeout behavior against authoritative state
-- keep Telegram synchronized at the contract/state level without diverting from Web-first stabilization
+- remove the obsolete legacy local deck authority once the board consumes shared CHAOS Pulse;
+- make every visible gameplay button map to one implemented command;
+- remove duplicate command aliases and stale variants;
+- derive enabled/disabled controls from authoritative legal state;
+- remove client-local rule implementations made obsolete by shared ownership;
+- add deterministic complete-turn tests for every family;
+- verify reconnect/timeout behavior against authoritative state;
+- keep Telegram synchronized at the contract/state level without diverting from Web-first stabilization.
 
 ## Validation rules
 
@@ -464,13 +476,12 @@ Do not silently mark these complete while working on gameplay:
 
 ## Current Next Task
 
-**Implement the single authoritative post-start interaction-on-draw dispatcher/queue, beginning with the already-accepted Truth, Dare, Paranoia, and Duel family flows while explicitly exempting the opening deal.**
+**Browser-test the new `Try CHAOS Pulse` shared-engine trial surface, then migrate the legacy Web board's deck/deal/draw seam to the shared adaptive engine without duplicating CHAOS Pulse.**
 
-1. Audit initial-deal code separately from every post-start authoritative draw path in the shared reducer and legacy Web runtime.
-2. Add one central immediate-interaction family classification.
-3. Add one FIFO forced-interaction queue for post-start draws only.
-4. Route post-start drawn Truth/Dare/Paranoia/Duel cards into their existing entry flows.
-5. Ensure identical cards received in the initial deal remain normal voluntarily playable hand cards.
-6. Preserve hand behavior for Number, Skip, Reverse, Draw, Wild, Nope, and Ghost.
-7. Add deterministic tests for the opening-hand exemption, voluntary later play, post-start draw, penalty draws, multi-interaction draws, replay safety, bot traversal, turn ordering, and win ordering.
-8. Validate source, then browser-test the Web runtime before marking interaction-on-draw accepted.
+1. Pull the branch and run Web locally.
+2. Use `Try CHAOS Pulse` for 2, 5, and 10 players; reroll several matches and inspect opening-hand variety and adaptive draw pressure.
+3. Tune only if the observed distribution feels too calm, too repetitive, or too interaction-heavy.
+4. Audit the exact compatibility-runtime deck/deal/draw boundary.
+5. Bridge that seam to the shared canonical 133-card/dealer/draw authority.
+6. Connect post-start selected interaction cards to the existing forced family flows through one FIFO dispatcher.
+7. Browser-verify the actual game board before marking CHAOS Pulse gameplay accepted.
