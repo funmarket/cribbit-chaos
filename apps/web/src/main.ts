@@ -165,15 +165,19 @@ function removeLegacyQaOpeningHandControl(): void {
   qaToggle.closest<HTMLElement>('.knob-row')?.remove();
 }
 
+type PublicSocialCandidate = {
+  actor: string;
+  family: 'truth' | 'dare';
+  prompt: string;
+};
+
 function startPublicSocialMomentNarration(): void {
   const eventList = document.querySelector<HTMLElement>('#eventList');
   const activeTitle = document.querySelector<HTMLElement>('#activeChallengeTitle');
   const activeCopy = document.querySelector<HTMLElement>('#activeChallengeCopy');
+  const currentTurnName = document.querySelector<HTMLElement>('#currentTurnName');
 
-  if (!eventList || !activeTitle || !activeCopy) return;
-
-  const challengePane = activeCopy.closest<HTMLElement>('.board-challenge');
-  if (!challengePane) return;
+  if (!eventList || !activeTitle || !activeCopy || !currentTurnName) return;
 
   const recap = document.createElement('div');
   recap.id = 'publicSocialMomentRecap';
@@ -183,71 +187,122 @@ function startPublicSocialMomentNarration(): void {
   recap.setAttribute('aria-live', 'polite');
   activeCopy.insertAdjacentElement('afterend', recap);
 
-  const remembered = new Map<string, string>();
+  let candidate: PublicSocialCandidate | null = null;
+  let lastSummary = '';
+  let lastActor = '';
   let processing = false;
 
-  const sync = (): void => {
+  const readCandidateFromBoard = (): void => {
+    const title = activeTitle.textContent?.trim().toLowerCase() ?? '';
+    const family: 'truth' | 'dare' | null = title.includes('truth resolution')
+      ? 'truth'
+      : title.includes('dare resolution')
+        ? 'dare'
+        : null;
+
+    if (!family) return;
+
+    const actor = currentTurnName.textContent?.trim() ?? '';
+    const prompt = activeCopy.textContent?.trim() ?? '';
+
+    if (
+      !actor ||
+      !prompt ||
+      prompt === 'Complete the active authoritative flow.' ||
+      prompt.startsWith('Match the active color')
+    ) {
+      return;
+    }
+
+    // Keep this only as an internal candidate. It is not exposed until the
+    // authoritative activity stream confirms PROMPT_REVEALED.
+    candidate = { actor, family, prompt };
+  };
+
+  const publishCandidate = (actor: string, family: 'truth' | 'dare'): string | null => {
+    if (!candidate || candidate.actor !== actor || candidate.family !== family) {
+      return null;
+    }
+
+    const label = family === 'dare' ? 'Challenge' : 'Question';
+    const obligation = family === 'dare' ? 'must complete' : 'must answer';
+    const summary = `${actor} played ${family.toUpperCase()} → ${actor} ${obligation}. ${label}: “${candidate.prompt}”`;
+
+    lastSummary = summary;
+    lastActor = actor;
+    recap.hidden = false;
+    recap.textContent = summary;
+    recap.dataset.tone = family;
+
+    return summary;
+  };
+
+  const syncEvents = (): void => {
     if (processing) return;
     processing = true;
 
     try {
+      readCandidateFromBoard();
+
       const items = Array.from(eventList.querySelectorAll<HTMLElement>('.event-item'));
 
       for (const item of items) {
-        const type = item.querySelector<HTMLElement>('.event-item__top b')?.textContent?.trim();
-        if (type !== 'PROMPT REVEALED') continue;
-
+        const type = item.querySelector<HTMLElement>('.event-item__top b')?.textContent?.trim() ?? '';
         const messageNode = item.querySelector<HTMLParagraphElement>('p');
-        const time = item.querySelector<HTMLTimeElement>('time')?.textContent?.trim() ?? '';
-        const originalMessage = messageNode?.textContent?.trim() ?? '';
-        const match = originalMessage.match(/^(.+?) received the public (truth|dare) prompt\.$/i);
+        const message = messageNode?.textContent?.trim() ?? '';
 
-        if (!messageNode || !match) continue;
+        if (!messageNode) continue;
 
-        const actor = match[1].trim();
-        const family = match[2].toLowerCase() as 'truth' | 'dare';
-        const key = `${time}|${actor}|${family}`;
-        let summary = remembered.get(key);
+        if (type === 'PROMPT REVEALED') {
+          const match = message.match(/^(.+?) received the public (truth|dare) prompt\.$/i);
+          if (!match) continue;
 
-        if (!summary) {
-          const currentTitle = activeTitle.textContent?.trim().toLowerCase() ?? '';
-          const prompt = activeCopy.textContent?.trim() ?? '';
-          const familyVisible = currentTitle.includes(`${family} resolution`);
+          const actor = match[1].trim();
+          const family = match[2].toLowerCase() as 'truth' | 'dare';
+          const summary = publishCandidate(actor, family);
 
-          // Capture only after the runtime has emitted PROMPT_REVEALED. This avoids
-          // exposing the sealed/private-preview text before it is public to the room.
-          if (!familyVisible || !prompt || prompt === 'Complete the active authoritative flow.') {
-            continue;
+          if (summary && messageNode.textContent !== summary) {
+            messageNode.textContent = summary;
           }
 
-          const label = family === 'dare' ? 'Challenge' : 'Question';
-          const obligation = family === 'dare' ? 'must complete' : 'must answer';
-          summary = `${actor} played ${family.toUpperCase()} → ${actor} ${obligation}. ${label}: “${prompt}”`;
-          remembered.set(key, summary);
+          continue;
         }
 
-        if (messageNode.textContent !== summary) {
-          messageNode.textContent = summary;
+        if (lastSummary && lastActor && type === 'ANSWER REGISTERED' && message.startsWith(lastActor)) {
+          const resolved = `${lastSummary} ✓ ${lastActor} completed the response.`;
+          recap.hidden = false;
+          recap.textContent = resolved;
         }
 
-        recap.hidden = false;
-        recap.textContent = summary;
-        recap.dataset.tone = family;
-        break;
+        if (lastSummary && lastActor && type === 'PROMPT PASSED' && message.startsWith(lastActor)) {
+          const passed = `${lastSummary} ${lastActor} passed / Not for Me.`;
+          recap.hidden = false;
+          recap.textContent = passed;
+        }
       }
     } finally {
       processing = false;
     }
   };
 
-  const observer = new MutationObserver(sync);
-  observer.observe(eventList, {
+  const boardObserver = new MutationObserver(() => {
+    readCandidateFromBoard();
+    syncEvents();
+  });
+
+  boardObserver.observe(activeTitle, { childList: true, subtree: true, characterData: true });
+  boardObserver.observe(activeCopy, { childList: true, subtree: true, characterData: true });
+  boardObserver.observe(currentTurnName, { childList: true, subtree: true, characterData: true });
+
+  const eventObserver = new MutationObserver(syncEvents);
+  eventObserver.observe(eventList, {
     childList: true,
     subtree: true,
     characterData: true,
   });
 
-  sync();
+  readCandidateFromBoard();
+  syncEvents();
 }
 
 function setupHomepageHeaderScroll(): void {
