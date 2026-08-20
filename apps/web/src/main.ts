@@ -1,6 +1,7 @@
 import { BrowserPlatform } from '../../../packages/platform/src/browser.ts';
 import { bootstrap, mountSharedTemplate } from '../../../packages/ui/src/bootstrap.ts';
 import { startCanonicalBoardCardHydration } from './canonical-board-cards.ts';
+import { startDiscardStateNarration } from './discard-state-narration.ts';
 import './web-game.css';
 import './web-compact.css';
 import './canonical-hero-cards.css';
@@ -226,7 +227,7 @@ function startPublicSocialMomentNarration(): void {
 
     const label = family === 'dare' ? 'Challenge' : 'Question';
     const obligation = family === 'dare' ? 'must complete' : 'must answer';
-    const summary = `${actor} played ${family.toUpperCase()} → ${actor} ${obligation}. ${label}: “${candidate.prompt}”`;
+    const summary = `Last social moment · ${actor} played ${family.toUpperCase()} → ${actor} ${obligation}. ${label}: “${candidate.prompt}”`;
 
     lastSummary = summary;
     lastActor = actor;
@@ -374,6 +375,7 @@ async function startWeb(): Promise<void> {
 
   startCanonicalBoardCardHydration();
   startPublicSocialMomentNarration();
+  startDiscardStateNarration();
   setupHomepageHeaderScroll();
 }
 
