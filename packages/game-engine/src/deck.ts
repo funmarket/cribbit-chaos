@@ -9,6 +9,7 @@ import type { RandomSource } from './rng.ts';
 import { createDeterministicId, createSeededRandom, shuffle, toSeedString } from './rng.ts';
 import { createEngineError } from './errors.ts';
 import { makeEvent } from './events.ts';
+import { selectAdaptiveDrawCard } from './adaptive-distribution.ts';
 
 export const CANONICAL_DECK_COUNTS = CARD_COPY_COUNTS;
 export const CANONICAL_DECK_SIZE = CHAOS_133_DECK_SIZE;
@@ -56,7 +57,7 @@ export function drawCards(state: GameState, count: number, events: GameEvent[] =
     if (!state.drawPile.length && !recycleDiscardPile(state, events)) {
       throw createEngineError('DRAW_PILE_EMPTY', 'No cards are available to draw.');
     }
-    const card = state.drawPile.pop();
+    const card = selectAdaptiveDrawCard(state);
     if (!card) {
       throw createEngineError('DRAW_PILE_EMPTY', 'No cards are available to draw.');
     }
