@@ -1,11 +1,9 @@
 import { BrowserPlatform } from '../../../packages/platform/src/browser.ts';
 import { bootstrap, mountSharedTemplate } from '../../../packages/ui/src/bootstrap.ts';
 import { startCanonicalBoardCardHydration } from './canonical-board-cards.ts';
-import { mountChaosPulseLab } from './chaos-pulse-lab.ts';
 import './web-game.css';
 import './web-compact.css';
 import './canonical-hero-cards.css';
-import './chaos-pulse-lab.css';
 
 const CANONICAL_HERO_CARDS = [
   {
@@ -226,7 +224,6 @@ async function startWeb(): Promise<void> {
 
   startCanonicalBoardCardHydration();
   setupHomepageHeaderScroll();
-  mountChaosPulseLab();
 }
 
 void startWeb();
