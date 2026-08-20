@@ -1,0 +1,238 @@
+.chaos-pulse-lab__open {
+  margin-left: .6rem;
+}
+
+.chaos-pulse-lab {
+  width: min(1040px, calc(100vw - 28px));
+  max-height: min(88vh, 900px);
+  padding: 0;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 22px;
+  background: Canvas;
+  color: CanvasText;
+  box-shadow: 0 24px 80px rgb(0 0 0 / .38);
+}
+
+.chaos-pulse-lab::backdrop {
+  background: rgb(0 0 0 / .64);
+  backdrop-filter: blur(8px);
+}
+
+.chaos-pulse-lab__shell {
+  padding: clamp(18px, 3vw, 30px);
+}
+
+.chaos-pulse-lab__header,
+.chaos-pulse-lab__controls,
+.chaos-pulse-lab__hand header,
+.chaos-pulse-lab__draw-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.chaos-pulse-lab__header {
+  align-items: flex-start;
+}
+
+.chaos-pulse-lab__header h2 {
+  margin: .2rem 0 .15rem;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+}
+
+.chaos-pulse-lab__header p,
+.chaos-pulse-lab__hint {
+  margin: 0;
+  opacity: .72;
+}
+
+.chaos-pulse-lab__eyebrow {
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  opacity: .62;
+}
+
+.chaos-pulse-lab__close {
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 50%;
+  font-size: 1.7rem;
+  cursor: pointer;
+}
+
+.chaos-pulse-lab__controls {
+  margin: 22px 0 14px;
+  padding: 14px;
+  border-radius: 16px;
+  background: color-mix(in srgb, CanvasText 6%, Canvas);
+}
+
+.chaos-pulse-lab__controls label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+}
+
+.chaos-pulse-lab__players {
+  width: 74px;
+  padding: 9px 10px;
+  border-radius: 10px;
+}
+
+.chaos-pulse-lab__notice {
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, #ffb000 35%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, #ffb000 10%, Canvas);
+  font-size: .9rem;
+  line-height: 1.45;
+}
+
+.chaos-pulse-lab__summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.chaos-pulse-lab__summary > div {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: color-mix(in srgb, CanvasText 6%, Canvas);
+}
+
+.chaos-pulse-lab__summary span,
+.chaos-pulse-lab__summary strong {
+  display: block;
+}
+
+.chaos-pulse-lab__summary span {
+  margin-bottom: 4px;
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  opacity: .58;
+}
+
+.chaos-pulse-lab__summary strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chaos-pulse-lab__content section {
+  margin-top: 24px;
+}
+
+.chaos-pulse-lab__content h3 {
+  margin: 0 0 4px;
+}
+
+.chaos-pulse-lab__hands {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.chaos-pulse-lab__hand {
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, CanvasText 11%, transparent);
+  border-radius: 14px;
+}
+
+.chaos-pulse-lab__hand header span {
+  font-size: .76rem;
+  opacity: .62;
+}
+
+.chaos-pulse-lab__cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.chaos-pulse-lab__card {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 9px;
+  border: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
+  border-radius: 999px;
+  font-size: .76rem;
+  font-weight: 750;
+  background: color-mix(in srgb, CanvasText 5%, Canvas);
+}
+
+.chaos-pulse-lab__card.is-action {
+  outline: 1px dashed color-mix(in srgb, #44aaff 46%, transparent);
+}
+
+.chaos-pulse-lab__card.is-special {
+  outline: 1px solid color-mix(in srgb, #ba69ff 55%, transparent);
+}
+
+.chaos-pulse-lab__card.is-interaction {
+  outline: 2px solid color-mix(in srgb, #ff4e9d 62%, transparent);
+}
+
+.chaos-pulse-lab__draws {
+  margin-top: 12px;
+  border: 1px solid color-mix(in srgb, CanvasText 11%, transparent);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.chaos-pulse-lab__draw-row {
+  justify-content: flex-start;
+  padding: 9px 12px;
+  border-bottom: 1px solid color-mix(in srgb, CanvasText 8%, transparent);
+}
+
+.chaos-pulse-lab__draw-row:last-child {
+  border-bottom: 0;
+}
+
+.chaos-pulse-lab__draw-index {
+  width: 22px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  opacity: .48;
+}
+
+.chaos-pulse-lab__pressure {
+  margin-left: auto;
+  font-size: .78rem;
+  font-variant-numeric: tabular-nums;
+  opacity: .64;
+}
+
+.chaos-pulse-lab__error {
+  padding: 16px;
+  border-radius: 12px;
+  background: color-mix(in srgb, #ff3b4d 14%, Canvas);
+}
+
+@media (max-width: 720px) {
+  .chaos-pulse-lab__summary,
+  .chaos-pulse-lab__hands {
+    grid-template-columns: 1fr;
+  }
+
+  .chaos-pulse-lab__controls,
+  .chaos-pulse-lab__draw-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .chaos-pulse-lab__pressure {
+    width: 100%;
+    margin-left: 32px;
+  }
+}
