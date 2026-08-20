@@ -156,6 +156,15 @@ function mountCribbitChaosHero(): void {
   }
 }
 
+function removeLegacyQaOpeningHandControl(): void {
+  const qaToggle = document.querySelector<HTMLInputElement>('#qaHandToggle');
+  if (!qaToggle) return;
+
+  // Normal Web gameplay must never opt into the old all-special QA opening hand.
+  qaToggle.checked = false;
+  qaToggle.closest<HTMLElement>('.knob-row')?.remove();
+}
+
 function setupHomepageHeaderScroll(): void {
   const header = document.querySelector<HTMLElement>('.app-header');
   const lobbyView = document.querySelector<HTMLElement>('[data-view="lobby"]');
@@ -216,6 +225,7 @@ async function startWeb(): Promise<void> {
   // Compatibility composition is explicit while each surface is transferred.
   // bootstrap() no longer injects the historical application DOM implicitly.
   mountSharedTemplate();
+  removeLegacyQaOpeningHandControl();
   mountCribbitChaosHero();
 
   await bootstrap(platform, {
