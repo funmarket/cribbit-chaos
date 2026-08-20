@@ -18,14 +18,22 @@
     flex-direction: column;
   }
 
+  /*
+   * Keep the controls in the visual middle of the unused rail area rather
+   * than pinning them to the bottom edge. This keeps all four actions visible
+   * and makes use of the large empty space below Session Stats.
+   */
   body.is-game-view .cc-web-safety-rail {
-    position: sticky;
-    bottom: 0;
+    position: relative;
     z-index: 3;
+    flex: 0 0 auto;
+    width: 100%;
     margin-top: auto;
-    padding-top: 12px;
+    margin-bottom: auto;
+    padding: 14px 0;
     border-top: 1px solid rgba(255, 255, 255, .08);
-    background: linear-gradient(180deg, rgba(8, 10, 17, 0), rgba(8, 10, 17, .96) 14px);
+    border-bottom: 1px solid rgba(255, 255, 255, .055);
+    background: transparent;
   }
 
   body.is-game-view .cc-web-safety-rail__header {
@@ -33,7 +41,7 @@
     align-items: end;
     justify-content: space-between;
     gap: 8px;
-    margin-bottom: 8px;
+    margin-bottom: 9px;
   }
 
   body.is-game-view .cc-web-safety-rail__header b {
@@ -72,5 +80,21 @@
     line-height: 1.15;
     white-space: normal;
     text-align: center;
+  }
+
+  /* Short desktop windows still keep the full 2x2 grid inside the rail. */
+  @media (max-height: 720px) {
+    body.is-game-view .cc-web-safety-rail {
+      padding-block: 8px;
+    }
+
+    body.is-game-view .cc-web-safety-rail__header {
+      margin-bottom: 6px;
+    }
+
+    body.is-game-view .desktop-safety-bar.cc-web-safety-rail__grid .button {
+      min-height: 40px;
+      padding-block: 5px;
+    }
   }
 }
