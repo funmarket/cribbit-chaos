@@ -1,3 +1,5 @@
+import './web-safety-rail.css';
+
 const DESKTOP_RAIL_QUERY = '(min-width: 901px)';
 
 let originalParent: HTMLElement | null = null;
