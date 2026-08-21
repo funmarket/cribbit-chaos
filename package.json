@@ -5,6 +5,9 @@
   "type": "module",
   "workspaces": ["apps/*", "packages/*"],
   "packageManager": "npm@10.9.2",
+  "engines": {
+    "node": ">=24.7.0"
+  },
   "scripts": {
     "dev:web": "vite --config apps/web/vite.config.ts",
     "dev:telegram": "vite --config apps/telegram/vite.config.ts",
