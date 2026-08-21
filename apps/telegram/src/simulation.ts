@@ -1,5 +1,6 @@
 import type { CardColor, GameCommand, GameState, GameTransition } from '../../../packages/contracts/src/index.ts';
 import { applyCommand, createGame } from '../../../packages/game-engine/src/index.ts';
+import type { TelegramBackendGame } from './backendGame.ts';
 import type { TelegramRoomDraft } from './roomSetup.ts';
 
 export interface TelegramSimulationPlayer {
@@ -18,6 +19,8 @@ export interface TelegramSimulation {
   passPrompt(): GameTransition<GameState>;
   rewindPrompt(): GameTransition<GameState>;
   flagPrompt(reasonCode?: string): GameTransition<GameState>;
+  send(command: Omit<GameCommand, 'commandId' | 'playerId' | 'expectedRevision' | 'sessionId'>): GameTransition<GameState>;
+  subscribe(onUpdate: () => void): () => void;
 }
 
 const HUMAN_PLAYER_ID = 'telegram-sim-human';
@@ -62,16 +65,22 @@ export function createTelegramSimulation(draft: TelegramRoomDraft): TelegramSimu
 
   let state = created.state;
   let commandSequence = 0;
+  const listeners = new Set<() => void>();
 
   function commandId(type: GameCommand['type'], playerId: string): string {
     commandSequence += 1;
     return `${state.id}:telegram:${state.revision}:${playerId}:${type}:${commandSequence}`;
   }
 
+  function notify(): void {
+    listeners.forEach(listener => listener());
+  }
+
   function apply(command: GameCommand): GameTransition<GameState> {
     const transition = applyCommand(state, command, { now: Date.now() });
     state = transition.state;
     if (transition.ok) runAutomatedTurns();
+    notify();
     return { ...transition, state };
   }
 
@@ -114,22 +123,59 @@ export function createTelegramSimulation(draft: TelegramRoomDraft): TelegramSimu
     } as T;
   }
 
+  function send(command: Omit<GameCommand, 'commandId' | 'playerId' | 'expectedRevision' | 'sessionId'>): GameTransition<GameState> {
+    return apply(humanCommand(command as never));
+  }
+
   return {
     humanPlayerId: HUMAN_PLAYER_ID,
     players,
     getState: () => state,
-    playCard: cardId => apply(humanCommand<GameCommand & { type: 'PLAY_CARD'; cardId: string }>({ type: 'PLAY_CARD', cardId })),
-    drawCard: () => apply(humanCommand<GameCommand & { type: 'DRAW_CARD' }>({ type: 'DRAW_CARD' })),
-    selectWildColor: color => apply(humanCommand<GameCommand & { type: 'SELECT_WILD_COLOR'; color: CardColor }>({ type: 'SELECT_WILD_COLOR', color })),
-    passPrompt: () => apply(humanCommand<GameCommand & { type: 'PASS_PROMPT' }>({ type: 'PASS_PROMPT' })),
-    rewindPrompt: () => apply(humanCommand<GameCommand & { type: 'REWIND_PROMPT' }>({ type: 'REWIND_PROMPT' })),
+    playCard: cardId => send({ type: 'PLAY_CARD', cardId } as never),
+    drawCard: () => send({ type: 'DRAW_CARD' } as never),
+    selectWildColor: color => send({ type: 'SELECT_WILD_COLOR', color } as never),
+    passPrompt: () => send({ type: 'PASS_PROMPT' } as never),
+    rewindPrompt: () => send({ type: 'REWIND_PROMPT' } as never),
     flagPrompt: reasonCode => {
       const promptId = state.social?.prompt?.id ?? '';
-      return apply(humanCommand<GameCommand & { type: 'FLAG_PROMPT'; promptId: string; reasonCode?: string }>({
+      return send({
         type: 'FLAG_PROMPT',
         promptId,
         ...(reasonCode ? { reasonCode } : {}),
-      }));
+      } as never);
     },
+    send,
+    subscribe: onUpdate => {
+      listeners.add(onUpdate);
+      return () => listeners.delete(onUpdate);
+    },
+  };
+}
+
+function transitionResult(transition: GameTransition<GameState>): { ok:boolean; error?:{ message:string } } {
+  return transition.ok
+    ? { ok:true }
+    : { ok:false, error:{ message:transition.error?.message ?? 'The simulation rejected that action.' } };
+}
+
+export function createTelegramSimulationGame(draft: TelegramRoomDraft): TelegramBackendGame {
+  const simulation = createTelegramSimulation(draft);
+  const sessionId = simulation.getState().id;
+
+  return {
+    humanPlayerId: simulation.humanPlayerId,
+    players: simulation.players,
+    sessionId,
+    joinCode: 'SIMULATION',
+    getState: simulation.getState,
+    refresh: async () => undefined,
+    playCard: async cardId => transitionResult(simulation.playCard(cardId)),
+    drawCard: async () => transitionResult(simulation.drawCard()),
+    selectWildColor: async color => transitionResult(simulation.selectWildColor(color)),
+    passPrompt: async () => transitionResult(simulation.passPrompt()),
+    rewindPrompt: async () => transitionResult(simulation.rewindPrompt()),
+    flagPrompt: async reasonCode => transitionResult(simulation.flagPrompt(reasonCode)),
+    send: async command => transitionResult(simulation.send(command)),
+    subscribe: simulation.subscribe,
   };
 }
