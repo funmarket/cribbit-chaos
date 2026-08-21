@@ -10,8 +10,10 @@ export interface ValidationResult {
 }
 
 function activeCardMatches(state: GameState, card: Card): boolean {
-  // Cribbit rule: normal turn-playable specials may be played on your own turn
-  // without matching the current color or symbol. Nope remains reaction-only.
+  // Canonical Cribbit rule: every normal turn-playable special may be played on
+  // the owner's turn without matching color/symbol. Nope remains reaction-only.
+  // TAG is the only nested-special restriction: a TAG bonus action cannot TAG
+  // another player and recursively grow the bonus-turn stack.
   switch (card.kind) {
     case 'skip':
     case 'reverse':
@@ -22,12 +24,6 @@ function activeCardMatches(state: GameState, card: Card): boolean {
     case 'paranoia':
     case 'chaos':
     case 'duel':
-      return true;
-    case 'number':
-      return Boolean(card.color && card.color === state.activeColor) || String(card.value) === state.activeSymbol;
-    case 'nope':
-      return false;
-    case 'tag':
     case 'truth_or_chaos':
     case 'hijack':
     case 'taboo':
@@ -35,8 +31,12 @@ function activeCardMatches(state: GameState, card: Card): boolean {
     case 'ghost':
     case 'reverse_confession':
     case 'dig_me':
-      // These families are present in the physical deck but their reducer handlers
-      // are not migrated yet. Do not remove a card from hand only to fail later.
+      return true;
+    case 'tag':
+      return !(state.bonusTurnStack ?? []).some(frame => frame.kind === 'TAG');
+    case 'number':
+      return Boolean(card.color && card.color === state.activeColor) || String(card.value) === state.activeSymbol;
+    case 'nope':
       return false;
   }
 }
@@ -50,7 +50,10 @@ export function validatePlay(state: GameState, playerId: string, cardId: string)
     return { ok: false, error: createEngineError('GAME_ALREADY_FINISHED', 'The game has already finished.') };
   }
   if (state.social && !state.social.resolutionComplete) {
-    return { ok: false, error: createEngineError('PENDING_SOCIAL_EFFECT', 'Resolve the active social effect before continuing.') };
+    return { ok: false, error: createEngineError('PENDING_SOCIAL_EFFECT', 'Resolve the active interaction before continuing.') };
+  }
+  if ((state.forcedQueue?.length ?? 0) > 0) {
+    return { ok: false, error: createEngineError('PENDING_SOCIAL_EFFECT', 'Resolve the forced-draw queue before playing another card.') };
   }
   if (state.pendingEffect?.type === 'WILD_COLOR') {
     return { ok: false, error: createEngineError('PENDING_WILD_COLOR', 'Choose the active color before any other gameplay command can continue.') };
@@ -78,7 +81,10 @@ export function validateDraw(state: GameState, playerId: string): ValidationResu
     return { ok: false, error: createEngineError('GAME_ALREADY_FINISHED', 'The game has already finished.') };
   }
   if (state.social && !state.social.resolutionComplete) {
-    return { ok: false, error: createEngineError('PENDING_SOCIAL_EFFECT', 'Resolve the active social effect before continuing.') };
+    return { ok: false, error: createEngineError('PENDING_SOCIAL_EFFECT', 'Resolve the active interaction before continuing.') };
+  }
+  if ((state.forcedQueue?.length ?? 0) > 0) {
+    return { ok: false, error: createEngineError('PENDING_SOCIAL_EFFECT', 'Resolve the forced-draw queue before drawing again.') };
   }
   if (state.pendingEffect?.type === 'WILD_COLOR') {
     return { ok: false, error: createEngineError('PENDING_WILD_COLOR', 'Choose the active color before any other gameplay command can continue.') };
@@ -91,6 +97,12 @@ export function validateDraw(state: GameState, playerId: string): ValidationResu
   if (!player) {
     return { ok: false, error: createEngineError('INVALID_COMMAND', 'The player does not exist in the current session.') };
   }
+  if ((player.ghostTurnsRemaining ?? 0) > 0) {
+    return { ok: false, error: createEngineError('ILLEGAL_PLAY', 'Ghost turns do not allow the normal draw.') };
+  }
+  if (!state.config.allowVoluntaryDraw && player.hand.some(card => activeCardMatches(state, card))) {
+    return { ok: false, error: createEngineError('ILLEGAL_PLAY', 'A legal card is available; normal draw is not allowed.') };
+  }
   return { ok: true, player };
 }
 
@@ -99,7 +111,7 @@ export function validateWildColor(state: GameState, playerId: string, color: Car
     return { ok: false, error: createEngineError('GAME_ALREADY_FINISHED', 'The game has already finished.') };
   }
   if (state.social && !state.social.resolutionComplete) {
-    return { ok: false, error: createEngineError('PENDING_SOCIAL_EFFECT', 'Resolve the active social effect before continuing.') };
+    return { ok: false, error: createEngineError('PENDING_SOCIAL_EFFECT', 'Resolve the active interaction before continuing.') };
   }
   if (state.pendingEffect?.type !== 'WILD_COLOR') {
     return { ok: false, error: createEngineError('NO_PENDING_WILD', 'No Wild color selection is currently pending.') };
