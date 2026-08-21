@@ -36,12 +36,13 @@ test('Taboo anything except YES gives target Draw2 before turn resumes',()=>{
   assert.equal(s.players.find(p=>p.id==='p2')?.hand.length,3);assert.equal(s.social,null);assert.equal(s.currentPlayerId,'p2');
 });
 
-test('Truth or Chaos disagreement becomes a whole-group Dare and waits for all targets',()=>{
+test('Truth or Chaos disagreement becomes a whole-group Dare including the holder',()=>{
   let s=state(3);hands(s,{p1:[card('toc','truth_or_chaos'),card('keep','number')],p2:[card('p2','number')],p3:[card('p3','number')]});
-  s=play(s,'p1','toc');assert.equal(s.social?.canonicalStep,'GROUP_QUESTION');
+  s=play(s,'p1','toc');assert.equal(s.social?.canonicalStep,'GROUP_QUESTION');assert.deepEqual(s.social?.pendingTargetIds,['p1','p2','p3']);
   s=send(s,'p1',{type:'SUBMIT_GROUP_QUESTION',text:'Pick one.',options:['A','B']});
-  s=send(s,'p2',{type:'SUBMIT_GROUP_ANSWER',choice:'A'});s=send(s,'p3',{type:'SUBMIT_GROUP_ANSWER',choice:'B'});assert.equal(s.social?.canonicalStep,'GROUP_DARE');
+  s=send(s,'p1',{type:'SUBMIT_GROUP_ANSWER',choice:'A'});s=send(s,'p2',{type:'SUBMIT_GROUP_ANSWER',choice:'A'});s=send(s,'p3',{type:'SUBMIT_GROUP_ANSWER',choice:'B'});assert.equal(s.social?.canonicalStep,'GROUP_DARE');
   s=send(s,'p1',{type:'SUBMIT_GROUP_DARE',text:'Everyone clap once.'});assert.equal(s.social?.canonicalStep,'GROUP_COMPLETE');
+  s=send(s,'p1',{type:'COMPLETE_GROUP_DARE',completion:'DONE'});assert.equal(s.social?.canonicalStep,'GROUP_COMPLETE');
   s=send(s,'p2',{type:'COMPLETE_GROUP_DARE',completion:'DONE'});assert.equal(s.social?.canonicalStep,'GROUP_COMPLETE');
   s=send(s,'p3',{type:'COMPLETE_GROUP_DARE',completion:'DONE'});assert.equal(s.social,null);
 });
@@ -58,4 +59,17 @@ test('Machiavelli Convert Weak changes Skip cards into Draw cards server-side',(
   let s=state(3);hands(s,{p1:[card('mach','machiavelli'),card('keep','number')],p2:[card('skip-hand','skip')],p3:[card('p3','number')]});s.drawPile=[card('skip-deck','skip')];
   s=play(s,'p1','mach');assert.equal(s.social?.canonicalStep,'MACHIAVELLI_CHOICE');s=send(s,'p1',{type:'SELECT_MACHIAVELLI_EFFECT',effect:'CONVERT_WEAK'});
   assert.equal(s.players.find(p=>p.id==='p2')?.hand.find(c=>c.id==='skip-hand')?.kind,'draw');assert.equal(s.drawPile.find(c=>c.id==='skip-deck')?.kind,'draw');
+});
+
+test('Ghost consumes one personal turn after a completed ordinary play',()=>{
+  let s=state(3);hands(s,{p1:[card('skip','skip'),card('keep','number')],p2:[card('p2','number')],p3:[card('p3','number')]});s.players[0].ghostTurnsRemaining=2;
+  const transition=applyCommand(s,command(s,'p1',{type:'PLAY_CARD',cardId:'skip'}),context());s=unwrap(transition);
+  assert.equal(s.players[0].ghostTurnsRemaining,1);assert.ok(transition.events.some(event=>event.type==='GHOST_TURN_ENDED'));
+});
+
+test('Ghost does not consume its personal turn until a social card fully resolves',()=>{
+  let s=state(3);hands(s,{p1:[card('truth-card','truth'),card('keep','number')],p2:[card('p2','number')],p3:[card('p3','number')]});s.players[0].ghostTurnsRemaining=2;
+  s=play(s,'p1','truth-card');assert.equal(s.players[0].ghostTurnsRemaining,2);
+  s=send(s,'p1',{type:'SELECT_PROMPT_SOURCE',source:'ROULETTE'});s=send(s,'p1',{type:'PUBLISH_PROMPT'});assert.equal(s.players[0].ghostTurnsRemaining,2);
+  s=send(s,'p1',{type:'MARK_ANSWERED_LIVE'});assert.equal(s.players[0].ghostTurnsRemaining,1);assert.equal(s.social,null);
 });
