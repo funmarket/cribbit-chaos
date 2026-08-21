@@ -1,0 +1,395 @@
+/* Telegram Mini App presentation for the shared Cribbit CHAOS gameplay DOM.
+ * Gameplay/runtime ownership remains shared with Web; this file only adapts
+ * spacing, visibility and interaction density for the Telegram WebView.
+ */
+
+:root[data-platform="telegram"] {
+  --shell: calc(100vw - 16px);
+}
+
+:root[data-platform="telegram"] body {
+  min-width: 0;
+  min-height: var(--cribbit-platform-height, 100dvh);
+  overflow-x: hidden;
+  background: #05060a;
+}
+
+:root[data-platform="telegram"] #app {
+  min-height: var(--cribbit-platform-height, 100dvh);
+}
+
+:root[data-platform="telegram"] .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+}
+
+:root[data-platform="telegram"] .app-header__inner {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "brand status tools";
+  gap: 8px;
+  padding:
+    max(6px, var(--cribbit-safe-top, 0px))
+    max(8px, var(--cribbit-safe-right, 0px))
+    6px
+    max(8px, var(--cribbit-safe-left, 0px));
+}
+
+:root[data-platform="telegram"] .product-nav,
+:root[data-platform="telegram"] .status-cluster > :not(#connectionPill),
+:root[data-platform="telegram"] .header-tools > :not([data-action="open-profile"]):not([data-action="open-settings"]),
+:root[data-platform="telegram"] .challenge-status-row,
+:root[data-platform="telegram"] .board-callout,
+:root[data-platform="telegram"] .activity-dock,
+:root[data-platform="telegram"] .game-view-controls,
+:root[data-platform="telegram"] .game-rail--right .authority-box,
+:root[data-platform="telegram"] .game-rail--right .next-step-card,
+:root[data-platform="telegram"] .game-rail--right .stats-grid,
+:root[data-platform="telegram"] .game-topbar .phase-track {
+  display: none !important;
+}
+
+:root[data-platform="telegram"] .brand-lockup .brand-type {
+  display: none;
+}
+
+:root[data-platform="telegram"] .status-cluster {
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+}
+
+:root[data-platform="telegram"] main {
+  width: 100%;
+  padding:
+    10px
+    max(8px, var(--cribbit-safe-right, 0px))
+    max(14px, var(--cribbit-safe-bottom, 0px))
+    max(8px, var(--cribbit-safe-left, 0px));
+}
+
+:root[data-platform="telegram"] .lobby-grid,
+:root[data-platform="telegram"] .setup-panel {
+  width: 100%;
+  max-width: 100%;
+}
+
+:root[data-platform="telegram"] .lobby-hero {
+  display: none;
+}
+
+:root[data-platform="telegram"] .setup-panel .panel-header {
+  padding: 16px 14px 0;
+}
+
+:root[data-platform="telegram"] .setup-panel .panel-body {
+  padding: 14px;
+}
+
+:root[data-platform="telegram"] .setup-row,
+:root[data-platform="telegram"] .setup-panel .mode-grid,
+:root[data-platform="telegram"] .setup-panel .source-grid {
+  grid-template-columns: 1fr !important;
+}
+
+:root[data-platform="telegram"] .setup-panel .mode-grid,
+:root[data-platform="telegram"] .setup-panel .source-grid {
+  gap: 7px;
+}
+
+:root[data-platform="telegram"] .setup-panel .mode-card {
+  min-height: 72px;
+}
+
+:root[data-platform="telegram"] .setup-panel .source-toggle {
+  min-height: 54px;
+}
+
+:root[data-platform="telegram"] .setup-panel .start-row {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+:root[data-platform="telegram"] .setup-panel #startGameButton {
+  width: 100%;
+  min-height: 48px;
+}
+
+:root[data-platform="telegram"] body.is-game-view main {
+  padding-top: 6px;
+}
+
+:root[data-platform="telegram"] .game-app-shell,
+:root[data-platform="telegram"] .game-core,
+:root[data-platform="telegram"] .game-layout,
+:root[data-platform="telegram"] .game-stage,
+:root[data-platform="telegram"] .desktop-gameboard {
+  min-width: 0;
+  width: 100%;
+}
+
+:root[data-platform="telegram"] .game-topbar {
+  margin-bottom: 6px;
+}
+
+:root[data-platform="telegram"] .game-heading .eyebrow {
+  display: none;
+}
+
+:root[data-platform="telegram"] .game-heading h1 {
+  font-size: 16px;
+}
+
+:root[data-platform="telegram"] .game-layout {
+  display: block;
+}
+
+:root[data-platform="telegram"] .game-rail--left,
+:root[data-platform="telegram"] .game-rail--right {
+  position: static;
+  width: 100%;
+  max-width: 100%;
+  transform: none !important;
+}
+
+:root[data-platform="telegram"] .game-rail--left {
+  margin-bottom: 7px;
+}
+
+:root[data-platform="telegram"] .game-rail--right {
+  margin-top: 7px;
+}
+
+:root[data-platform="telegram"] .game-rail .panel-header {
+  display: none;
+}
+
+:root[data-platform="telegram"] .game-rail .panel-body {
+  padding: 7px;
+}
+
+:root[data-platform="telegram"] .player-list {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+:root[data-platform="telegram"] .player-list::-webkit-scrollbar,
+:root[data-platform="telegram"] .hand-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+:root[data-platform="telegram"] .player-row {
+  flex: 0 0 124px;
+  min-width: 124px;
+  min-height: 50px;
+}
+
+:root[data-platform="telegram"] .desktop-gameboard {
+  grid-template-rows: auto auto auto auto;
+  gap: 7px;
+}
+
+:root[data-platform="telegram"] .board-session-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "room turn"
+    "timer timer";
+  gap: 6px 10px;
+  padding: 9px 10px;
+}
+
+:root[data-platform="telegram"] .board-room {
+  grid-area: room;
+}
+
+:root[data-platform="telegram"] .board-turn {
+  grid-area: turn;
+}
+
+:root[data-platform="telegram"] .board-phase-mini {
+  display: none;
+}
+
+:root[data-platform="telegram"] .board-timer-track {
+  grid-area: timer;
+}
+
+:root[data-platform="telegram"] .board-room h2 {
+  font-size: 15px;
+}
+
+:root[data-platform="telegram"] .board-room p,
+:root[data-platform="telegram"] .board-turn small {
+  font-size: 8px;
+}
+
+:root[data-platform="telegram"] .board-turn strong {
+  font-size: 14px;
+}
+
+:root[data-platform="telegram"] .timer {
+  width: 48px;
+  height: 48px;
+  font-size: 16px;
+}
+
+:root[data-platform="telegram"] .desktop-play-grid {
+  grid-template-columns: 1fr;
+  gap: 7px;
+}
+
+:root[data-platform="telegram"] .board-challenge {
+  order: 2;
+  padding: 10px;
+}
+
+:root[data-platform="telegram"] .table-zone {
+  order: 1;
+  padding: 8px;
+}
+
+:root[data-platform="telegram"] .active-panel__label {
+  font-size: 8px;
+}
+
+:root[data-platform="telegram"] .board-challenge h3 {
+  margin-top: 3px;
+  font-size: 18px;
+}
+
+:root[data-platform="telegram"] .board-challenge p {
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+:root[data-platform="telegram"] .table-piles {
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+:root[data-platform="telegram"] .desktop-discard .game-card,
+:root[data-platform="telegram"] .table-pile .game-card {
+  width: min(36vw, 132px);
+}
+
+:root[data-platform="telegram"] .desktop-draw-pile {
+  width: min(30vw, 108px);
+  min-height: 150px;
+}
+
+:root[data-platform="telegram"] .table-actions {
+  grid-template-columns: 1fr;
+  margin-top: 6px;
+}
+
+:root[data-platform="telegram"] .table-actions [data-nav="board"] {
+  display: none;
+}
+
+:root[data-platform="telegram"] .hand-zone {
+  min-height: 0;
+  padding: 8px;
+}
+
+:root[data-platform="telegram"] .hand-zone__header {
+  margin-bottom: 4px;
+}
+
+:root[data-platform="telegram"] .hand-scroll {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  padding: 3px 2px 8px;
+}
+
+:root[data-platform="telegram"] .hand-scroll .game-card {
+  flex: 0 0 clamp(92px, 26vw, 108px);
+  width: clamp(92px, 26vw, 108px);
+  scroll-snap-align: start;
+}
+
+:root[data-platform="telegram"] .desktop-safety-bar {
+  position: sticky;
+  bottom: max(5px, var(--cribbit-safe-bottom, 0px));
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 11px;
+  background: rgba(5,6,10,.93);
+  backdrop-filter: blur(9px);
+}
+
+:root[data-platform="telegram"] .desktop-safety-bar .button {
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 3px;
+  font-size: 7px;
+  white-space: normal;
+}
+
+:root[data-platform="telegram"] .board-context--rail {
+  padding: 0;
+}
+
+:root[data-platform="telegram"] .context-title {
+  display: none;
+}
+
+:root[data-platform="telegram"] .active-state-grid--desktop {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+}
+
+:root[data-platform="telegram"] .active-state {
+  min-height: 50px;
+  padding: 6px;
+}
+
+:root[data-platform="telegram"] .active-state span {
+  font-size: 6px;
+}
+
+:root[data-platform="telegram"] .active-state b {
+  font-size: 9px;
+}
+
+:root[data-platform="telegram"] #flowDialog {
+  width: calc(100vw - 16px);
+  max-width: 560px;
+  max-height: calc(var(--cribbit-platform-height, 100dvh) - var(--cribbit-safe-top, 0px) - var(--cribbit-safe-bottom, 0px) - 16px);
+  margin: auto;
+  border-radius: 16px;
+}
+
+:root[data-platform="telegram"] #flowDialog .modal-body,
+:root[data-platform="telegram"] #flowDialog .prompt-display {
+  min-width: 0;
+}
+
+:root[data-platform="telegram"] #flowDialog textarea,
+:root[data-platform="telegram"] #flowDialog input,
+:root[data-platform="telegram"] #flowDialog .button,
+:root[data-platform="telegram"] #flowDialog .target-option {
+  min-height: 44px;
+}
+
+@media (max-width: 359px) {
+  :root[data-platform="telegram"] .desktop-safety-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :root[data-platform="telegram"] .active-state-grid--desktop {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
