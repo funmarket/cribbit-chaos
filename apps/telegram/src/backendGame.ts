@@ -29,8 +29,8 @@ export interface TelegramBackendGame {
   subscribe(onUpdate: () => void): () => void;
 }
 
-function commandId(sessionId: string, type: string): string {
-  return `${sessionId}:${type}:${crypto.randomUUID()}`;
+function commandId(): string {
+  return crypto.randomUUID();
 }
 
 export async function createTelegramBackendGame(
@@ -52,7 +52,7 @@ export async function createTelegramBackendGame(
   const send = async (partial: TelegramGameCommand): Promise<TelegramGameResult> => {
     const command = {
       ...partial,
-      commandId:commandId(room.sessionId, partial.type),
+      commandId:commandId(),
       playerId:humanPlayerId,
       expectedRevision:state.revision,
       sessionId:room.sessionId,
