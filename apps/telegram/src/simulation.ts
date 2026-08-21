@@ -1,6 +1,6 @@
 import type { CardColor, GameCommand, GameState, GameTransition } from '../../../packages/contracts/src/index.ts';
 import { applyCommand, createGame, isLegalPlay } from '../../../packages/game-engine/src/index.ts';
-import { promptDefinitions } from '../../../packages/prompts/src/index.ts';
+import { promptPoolForSources } from '../../../packages/prompts/src/index.ts';
 import type { TelegramBackendGame } from './backendGame.ts';
 import type { TelegramRoomDraft } from './roomSetup.ts';
 
@@ -33,6 +33,7 @@ function simulationSeed(draft: TelegramRoomDraft): string {
     draft.playerCount,
     draft.world,
     draft.ceiling,
+    Object.entries(draft.sources).filter(([,enabled]) => enabled).map(([source]) => source).sort().join(','),
   ].join('|');
 }
 
@@ -60,13 +61,12 @@ export function createTelegramSimulation(draft: TelegramRoomDraft): TelegramSimu
     { now: Date.now() },
   );
 
-  if (!created.ok) {
-    throw created.error ?? new Error('Unable to create Telegram simulation.');
-  }
+  if (!created.ok) throw created.error ?? new Error('Unable to create Telegram simulation.');
 
   let state = created.state;
   let commandSequence = 0;
   const listeners = new Set<() => void>();
+  const promptPool = promptPoolForSources(draft.sources);
 
   function commandId(type: GameCommand['type'], playerId: string): string {
     commandSequence += 1;
@@ -76,19 +76,17 @@ export function createTelegramSimulation(draft: TelegramRoomDraft): TelegramSimu
   function context() {
     return {
       now: Date.now(),
-      promptPool: promptDefinitions,
+      promptPool,
       promptProfile: {
-        stage: Number.MAX_SAFE_INTEGER,
-        intensity: draft.ceiling,
-        language: '*',
-        callSuitability: '*',
+        stage:Number.MAX_SAFE_INTEGER,
+        intensity:draft.ceiling,
+        language:'*',
+        callSuitability:'*',
       },
     };
   }
 
-  function notify(): void {
-    listeners.forEach(listener => listener());
-  }
+  function notify(): void { listeners.forEach(listener => listener()); }
 
   function commandFor<T extends GameCommand>(
     playerId: string,
@@ -96,10 +94,10 @@ export function createTelegramSimulation(draft: TelegramRoomDraft): TelegramSimu
   ): T {
     return {
       ...command,
-      commandId: commandId(command.type, playerId),
+      commandId:commandId(command.type, playerId),
       playerId,
-      expectedRevision: state.revision,
-      sessionId: state.id,
+      expectedRevision:state.revision,
+      sessionId:state.id,
     } as T;
   }
 
@@ -115,7 +113,6 @@ export function createTelegramSimulation(draft: TelegramRoomDraft): TelegramSimu
 
   function runAutomatedTurns(): void {
     let steps = 0;
-
     while (state.status === 'ACTIVE' && steps < 100) {
       steps += 1;
 
@@ -124,8 +121,7 @@ export function createTelegramSimulation(draft: TelegramRoomDraft): TelegramSimu
         if (ownerId === HUMAN_PLAYER_ID) return;
         const owner = state.players.find(player => player.id === ownerId);
         const color = owner?.hand.find(card => card.color)?.color ?? 'lime';
-        const transition = applyEngine(commandFor(ownerId, { type:'SELECT_WILD_COLOR', color } as never));
-        if (!transition.ok) return;
+        if (!applyEngine(commandFor(ownerId, { type:'SELECT_WILD_COLOR', color } as never)).ok) return;
         continue;
       }
 
@@ -234,7 +230,6 @@ export function createTelegramSimulation(draft: TelegramRoomDraft): TelegramSimu
       }
 
       if (state.currentPlayerId === HUMAN_PLAYER_ID) return;
-
       const bot = state.players.find(player => player.id === state.currentPlayerId);
       if (!bot) return;
       const playable = bot.hand.find(card => card.kind !== 'nope' && isLegalPlay(state, bot.id, card.id));
@@ -263,21 +258,17 @@ export function createTelegramSimulation(draft: TelegramRoomDraft): TelegramSimu
   runAutomatedTurns();
 
   return {
-    humanPlayerId: HUMAN_PLAYER_ID,
+    humanPlayerId:HUMAN_PLAYER_ID,
     players,
-    getState: () => state,
-    playCard: cardId => send({ type:'PLAY_CARD', cardId } as never),
-    drawCard: () => send({ type:'DRAW_CARD' } as never),
-    selectWildColor: color => send({ type:'SELECT_WILD_COLOR', color } as never),
-    passPrompt: () => send({ type:'PASS_PROMPT' } as never),
-    rewindPrompt: () => send({ type:'REWIND_PROMPT' } as never),
-    flagPrompt: reasonCode => send({
-      type:'FLAG_PROMPT',
-      promptId: state.social?.prompt?.id ?? '',
-      ...(reasonCode ? { reasonCode } : {}),
-    } as never),
+    getState:() => state,
+    playCard:cardId => send({ type:'PLAY_CARD', cardId } as never),
+    drawCard:() => send({ type:'DRAW_CARD' } as never),
+    selectWildColor:color => send({ type:'SELECT_WILD_COLOR', color } as never),
+    passPrompt:() => send({ type:'PASS_PROMPT' } as never),
+    rewindPrompt:() => send({ type:'REWIND_PROMPT' } as never),
+    flagPrompt:reasonCode => send({ type:'FLAG_PROMPT', promptId:state.social?.prompt?.id ?? '', ...(reasonCode ? { reasonCode } : {}) } as never),
     send,
-    subscribe: onUpdate => {
+    subscribe:onUpdate => {
       listeners.add(onUpdate);
       return () => listeners.delete(onUpdate);
     },
@@ -285,29 +276,26 @@ export function createTelegramSimulation(draft: TelegramRoomDraft): TelegramSimu
 }
 
 function transitionResult(transition: GameTransition<GameState>): { ok:boolean; error?:{ message:string } } {
-  return transition.ok
-    ? { ok:true }
-    : { ok:false, error:{ message:transition.error?.message ?? 'The simulation rejected that action.' } };
+  return transition.ok ? { ok:true } : { ok:false, error:{ message:transition.error?.message ?? 'The simulation rejected that action.' } };
 }
 
 export function createTelegramSimulationGame(draft: TelegramRoomDraft): TelegramBackendGame {
   const simulation = createTelegramSimulation(draft);
   const sessionId = simulation.getState().id;
-
   return {
-    humanPlayerId: simulation.humanPlayerId,
-    players: simulation.players,
+    humanPlayerId:simulation.humanPlayerId,
+    players:simulation.players,
     sessionId,
     joinCode:'SIMULATION',
-    getState: simulation.getState,
-    refresh: async () => undefined,
-    playCard: async cardId => transitionResult(simulation.playCard(cardId)),
-    drawCard: async () => transitionResult(simulation.drawCard()),
-    selectWildColor: async color => transitionResult(simulation.selectWildColor(color)),
-    passPrompt: async () => transitionResult(simulation.passPrompt()),
-    rewindPrompt: async () => transitionResult(simulation.rewindPrompt()),
-    flagPrompt: async reasonCode => transitionResult(simulation.flagPrompt(reasonCode)),
-    send: async command => transitionResult(simulation.send(command)),
-    subscribe: simulation.subscribe,
+    getState:simulation.getState,
+    refresh:async () => undefined,
+    playCard:async cardId => transitionResult(simulation.playCard(cardId)),
+    drawCard:async () => transitionResult(simulation.drawCard()),
+    selectWildColor:async color => transitionResult(simulation.selectWildColor(color)),
+    passPrompt:async () => transitionResult(simulation.passPrompt()),
+    rewindPrompt:async () => transitionResult(simulation.rewindPrompt()),
+    flagPrompt:async reasonCode => transitionResult(simulation.flagPrompt(reasonCode)),
+    send:async command => transitionResult(simulation.send(command)),
+    subscribe:simulation.subscribe,
   };
 }
