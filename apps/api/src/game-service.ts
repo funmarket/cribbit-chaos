@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { AuthUser, CommandResponse, GameCommand, GameEvent, GameState, SessionSnapshot } from '../../../packages/contracts/src/index.ts';
 import { applyCommand, createGame, isLegalPlay } from '../../../packages/game-engine/src/index.ts';
+import { promptDefinitions } from '../../../packages/prompts/src/index.ts';
 import { pool, withTransaction } from './db.ts';
 
 const BOT_NAMES = ['Maya', 'Leo', 'Nina', 'Jordan', 'Sam', 'Alex', 'Zoe', 'Arjun', 'Dev'] as const;
@@ -117,51 +118,164 @@ function engineCommand<T extends GameCommand>(state: GameState, playerId: string
   } as T;
 }
 
+function engineContext(config?: StoredRoomConfig, now = Date.now()) {
+  return {
+    now,
+    promptPool: promptDefinitions,
+    promptProfile: {
+      stage: Number.MAX_SAFE_INTEGER,
+      intensity: Number.isFinite(Number(config?.ceiling)) ? Number(config?.ceiling) : Number.MAX_SAFE_INTEGER,
+      language: '*',
+      callSuitability: '*',
+    },
+  };
+}
+
 function chooseBotColor(state: GameState, playerId: string): 'lime' | 'orange' | 'cyan' | 'purple' {
   const player = state.players.find(item => item.id === playerId);
   const color = player?.hand.find(card => card.color)?.color;
   return color ?? 'lime';
 }
 
-function advanceBots(initialState: GameState, now = Date.now()): { state: GameState; events: GameEvent[] } {
+function firstOtherPlayer(state: GameState, playerId: string): string | null {
+  return state.players.find(player => player.id !== playerId)?.id ?? null;
+}
+
+function advanceBots(initialState: GameState, config?: StoredRoomConfig, now = Date.now()): { state: GameState; events: GameEvent[] } {
   let state = initialState;
   const events: GameEvent[] = [];
   let steps = 0;
 
-  while (state.status === 'ACTIVE' && steps < 40) {
-    if (state.pendingEffect?.type === 'WILD_COLOR' && isBotPlayerId(state.pendingEffect.playerId)) {
-      const command = engineCommand<GameCommand & { type: 'SELECT_WILD_COLOR'; color: 'lime' | 'orange' | 'cyan' | 'purple' }>(
-        state,
-        state.pendingEffect.playerId,
-        { type: 'SELECT_WILD_COLOR', color: chooseBotColor(state, state.pendingEffect.playerId) },
-      );
-      const result = applyCommand(state, command, { now });
-      state = result.state;
-      events.push(...result.events);
-      if (!result.ok) break;
-      steps += 1;
+  const applyBot = (command: GameCommand) => {
+    const result = applyCommand(state, command, engineContext(config, now));
+    state = result.state;
+    events.push(...result.events);
+    return result.ok;
+  };
+
+  while (state.status === 'ACTIVE' && steps < 100) {
+    steps += 1;
+
+    if (state.pendingEffect?.type === 'WILD_COLOR') {
+      const ownerId = state.pendingEffect.playerId;
+      if (!isBotPlayerId(ownerId)) break;
+      if (!applyBot(engineCommand(state, ownerId, { type:'SELECT_WILD_COLOR', color:chooseBotColor(state, ownerId) } as never))) break;
       continue;
     }
 
-    if (state.social && !state.social.resolutionComplete) break;
-    if (!isBotPlayerId(state.currentPlayerId)) break;
+    const social = state.social;
+    if (social && !social.resolutionComplete) {
+      if (social.cardKind === 'truth' || social.cardKind === 'dare') {
+        if (!isBotPlayerId(social.actorId)) break;
+        if (social.answerState.status === 'WAITING') {
+          if (!applyBot(engineCommand(state, social.actorId, { type:'SELECT_ANSWER_MODE', mode:'ANSWERED_LIVE' } as never))) break;
+          continue;
+        }
+        if (social.answerState.mode === 'ANSWERED_LIVE' && social.answerState.status !== 'SUBMITTED') {
+          if (!applyBot(engineCommand(state, social.actorId, { type:'MARK_ANSWERED_LIVE' } as never))) break;
+          continue;
+        }
+        break;
+      }
 
+      if (social.cardKind === 'chaos') {
+        const pendingBotId = social.pendingCompletionPlayerIds.find(
+          playerId => isBotPlayerId(playerId) && !social.completedCompletionPlayerIds.includes(playerId),
+        );
+        if (pendingBotId) {
+          const record = social.completionRecords[pendingBotId];
+          if (!record?.mode) {
+            if (!applyBot(engineCommand(state, pendingBotId, { type:'SELECT_ANSWER_MODE', mode:'ANSWERED_LIVE' } as never))) break;
+            continue;
+          }
+          if (!applyBot(engineCommand(state, pendingBotId, { type:'MARK_ANSWERED_LIVE' } as never))) break;
+          continue;
+        }
+        break;
+      }
+
+      if (social.cardKind === 'paranoia') {
+        if (!social.pendingTargetId) {
+          if (!isBotPlayerId(social.actorId)) break;
+          const targetId = firstOtherPlayer(state, social.actorId);
+          if (!targetId || !applyBot(engineCommand(state, social.actorId, { type:'SELECT_PARANOIA_TARGET', targetId } as never))) break;
+          continue;
+        }
+        if (!social.paranoiaPhase) {
+          if (!isBotPlayerId(social.actorId)) break;
+          if (!applyBot(engineCommand(state, social.actorId, { type:'SELECT_PARANOIA_PHASE', phase:'CLASSIC' } as never))) break;
+          continue;
+        }
+        if (social.paranoiaPhase === 'CLASSIC') {
+          if (!social.classicAnswerPlayerId) {
+            if (!isBotPlayerId(social.pendingTargetId)) break;
+            const answerId = state.players.find(player => player.id !== social.pendingTargetId)?.id;
+            if (!answerId || !applyBot(engineCommand(state, social.pendingTargetId, { type:'SELECT_PARANOIA_CLASSIC_ANSWER', targetId:answerId } as never))) break;
+            continue;
+          }
+          if (!social.classicRevealDecision) {
+            if (!isBotPlayerId(social.classicAnswerPlayerId)) break;
+            if (!applyBot(engineCommand(state, social.classicAnswerPlayerId, { type:'SUBMIT_PARANOIA_CLASSIC_DECISION', decision:'REVEAL' } as never))) break;
+            continue;
+          }
+        } else if (social.paranoiaVote) {
+          const voterId = social.paranoiaVote.eligibleVoterIds.find(
+            playerId => isBotPlayerId(playerId) && !social.paranoiaVote?.votes[playerId],
+          );
+          if (voterId) {
+            if (!applyBot(engineCommand(state, voterId, { type:'SUBMIT_PARANOIA_VOTE', vote:'BELIEVE' } as never))) break;
+            continue;
+          }
+        }
+        break;
+      }
+
+      if (social.cardKind === 'duel') {
+        const duel = social.pendingDuel;
+        if (!duel?.opponentId) {
+          if (!isBotPlayerId(social.actorId)) break;
+          const targetId = firstOtherPlayer(state, social.actorId);
+          if (!targetId || !applyBot(engineCommand(state, social.actorId, { type:'SELECT_DUEL_TARGET', targetId } as never))) break;
+          continue;
+        }
+        if (!duel.initiatorResponse?.submitted) {
+          if (!isBotPlayerId(duel.initiatorId)) break;
+          if (!applyBot(engineCommand(state, duel.initiatorId, { type:'SUBMIT_DUEL_RESPONSE', side:'initiator', completionOnly:true } as never))) break;
+          continue;
+        }
+        if (!duel.opponentResponse?.submitted) {
+          if (!isBotPlayerId(duel.opponentId)) break;
+          if (!applyBot(engineCommand(state, duel.opponentId, { type:'SUBMIT_DUEL_RESPONSE', side:'opponent', completionOnly:true } as never))) break;
+          continue;
+        }
+        const voterId = duel.vote?.eligibleVoterIds.find(
+          playerId => isBotPlayerId(playerId) && !duel.vote?.votes[playerId],
+        );
+        if (voterId) {
+          if (!applyBot(engineCommand(state, voterId, { type:'DUEL_VOTE', winnerId:duel.initiatorId } as never))) break;
+          continue;
+        }
+        break;
+      }
+
+      break;
+    }
+
+    if (state.social?.resolutionComplete) {
+      if (!isBotPlayerId(state.social.actorId)) break;
+      if (!applyBot(engineCommand(state, state.social.actorId, { type:'COMPLETE_FLOW' } as never))) break;
+      continue;
+    }
+
+    if (!isBotPlayerId(state.currentPlayerId)) break;
     const bot = state.players.find(player => player.id === state.currentPlayerId);
     if (!bot) break;
 
-    const playable = bot.hand.find(card =>
-      ['number', 'skip', 'reverse', 'draw', 'wild'].includes(card.kind) && isLegalPlay(state, bot.id, card.id),
-    );
-
+    const playable = bot.hand.find(card => card.kind !== 'nope' && isLegalPlay(state, bot.id, card.id));
     const command = playable
-      ? engineCommand<GameCommand & { type: 'PLAY_CARD'; cardId: string }>(state, bot.id, { type: 'PLAY_CARD', cardId: playable.id })
-      : engineCommand<GameCommand & { type: 'DRAW_CARD' }>(state, bot.id, { type: 'DRAW_CARD' });
-
-    const result = applyCommand(state, command, { now });
-    state = result.state;
-    events.push(...result.events);
-    if (!result.ok) break;
-    steps += 1;
+      ? engineCommand(state, bot.id, { type:'PLAY_CARD', cardId:playable.id } as never)
+      : engineCommand(state, bot.id, { type:'DRAW_CARD' } as never);
+    if (!applyBot(command)) break;
   }
 
   return { state, events };
@@ -310,12 +424,12 @@ export async function processSessionCommand(user: AuthUser, sessionId: string, c
       throw Object.assign(new Error('Authenticated user is not a player in this session.'), { code: 'PLAYER_NOT_IN_SESSION', statusCode: 403 });
     }
 
-    const transition = applyCommand(originalState, command, { now: Date.now() });
+    const transition = applyCommand(originalState, command, engineContext(row.config, Date.now()));
     let finalState = transition.state;
     let allEvents = [...transition.events];
 
     if (transition.ok) {
-      const bots = advanceBots(finalState);
+      const bots = advanceBots(finalState, row.config);
       finalState = bots.state;
       allEvents = [...allEvents, ...bots.events];
       await client.query(
