@@ -3,6 +3,7 @@ import { makeEvent } from './events.ts';
 import { applyCommand as reduceCommand } from './reducer.ts';
 import { createTurnResolution, type GameCommandContext } from './social.ts';
 import { createEngineError } from './errors.ts';
+import { applyCanonicalCommand, reconcileBonusTurnAfterBase, shouldHandleCanonical } from './canonical-flow.ts';
 
 function clone<T>(value: T): T {
   return structuredClone(value);
@@ -70,6 +71,7 @@ function replayIfKnown<TState extends GameState>(
   };
 }
 
+/** Legacy Nope compatibility for states created before the canonical flow marker. */
 function applyPlayNope<TState extends GameState>(
   state: TState,
   command: GameCommand & { type:'PLAY_NOPE' },
@@ -86,9 +88,6 @@ function applyPlayNope<TState extends GameState>(
   if (social.cardKind !== 'truth' && social.cardKind !== 'dare') {
     return failCommand(state, command, createEngineError('INELIGIBLE_NOPE', 'Nope is currently defined only for Truth or Dare.'));
   }
-  // Nope is a server/shared-authority reaction. A bare reducer call without the
-  // authoritative prompt context must fail closed rather than let a client infer
-  // a reaction window on its own. Telegram Simulation and Railway both provide it.
   if (!context.promptPool?.length) {
     return failCommand(state, command, createEngineError('INELIGIBLE_NOPE', 'No authoritative Truth or Dare prompt context is available for this Nope reaction.'));
   }
@@ -126,14 +125,21 @@ function applyPlayNope<TState extends GameState>(
 }
 
 /**
- * Public shared command entrypoint. It owns cross-client command compatibility
- * while the core reducer continues to own normal gameplay transitions.
+ * Public shared command entrypoint. All live interaction families, physical
+ * forced draws, Ghost and bonus-action continuation now route through the
+ * canonical module. The mature reducer remains the authority for stable basic
+ * Number/Skip/Reverse/Wild transitions and for old persisted compatibility
+ * states that do not yet carry canonicalStep.
  */
 export function applyCommand<TState extends GameState>(
   state: TState,
   command: GameCommand,
   context: GameCommandContext = {},
 ): GameTransition<TState> {
+  if (shouldHandleCanonical(state, command)) {
+    return applyCanonicalCommand(state, command, context);
+  }
   if (command.type === 'PLAY_NOPE') return applyPlayNope(state, command, context);
-  return reduceCommand(state, command, context);
+  const reduced = reduceCommand(state, command, context);
+  return reconcileBonusTurnAfterBase(state, command, reduced, context);
 }
