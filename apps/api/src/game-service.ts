@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { AuthUser, CommandResponse, GameCommand, GameEvent, GameState, SessionSnapshot } from '../../../packages/contracts/src/index.ts';
 import { applyCommand, createGame, isLegalPlay } from '../../../packages/game-engine/src/index.ts';
-import { promptDefinitions } from '../../../packages/prompts/src/index.ts';
+import { promptPoolForSources } from '../../../packages/prompts/src/index.ts';
 import { pool, withTransaction } from './db.ts';
 
 const BOT_NAMES = ['Maya', 'Leo', 'Nina', 'Jordan', 'Sam', 'Alex', 'Zoe', 'Arjun', 'Dev'] as const;
@@ -121,7 +121,7 @@ function engineCommand<T extends GameCommand>(state: GameState, playerId: string
 function engineContext(config?: StoredRoomConfig, now = Date.now()) {
   return {
     now,
-    promptPool: promptDefinitions,
+    promptPool: promptPoolForSources(config?.sources),
     promptProfile: {
       stage: Number.MAX_SAFE_INTEGER,
       intensity: Number.isFinite(Number(config?.ceiling)) ? Number(config?.ceiling) : Number.MAX_SAFE_INTEGER,
