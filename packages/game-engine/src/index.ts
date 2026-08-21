@@ -52,7 +52,7 @@ export {
   type AdaptiveOpeningDeal,
   type AdaptiveWeightSnapshot
 } from './adaptive-distribution.ts';
-export { applyCommand } from './reducer.ts';
+export { applyCommand } from './command-router.ts';
 export { createGame } from './setup.ts';
 export { advanceTurn, getCurrentPlayer, getNextPlayerIndex, getPlayerIndex } from './turn.ts';
 export { isLegalPlay, validateDraw, validatePlay, validateWildColor } from './validation.ts';
