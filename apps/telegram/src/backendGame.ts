@@ -1,5 +1,10 @@
 import type { CardColor, GameCommand, GameState } from '../../../packages/contracts/src/index.ts';
-import { CribbitApiClient, CribbitRealtimeClient, type GameSessionSnapshot, type RoomSessionResult } from '../../../packages/api-client/src/index.ts';
+import { CribbitApiClient, CribbitRealtimeClient, type RoomSessionResult } from '../../../packages/api-client/src/index.ts';
+
+type CommandMetaKeys = 'commandId' | 'playerId' | 'expectedRevision' | 'sessionId';
+type StripCommandMeta<T> = T extends GameCommand ? Omit<T, CommandMetaKeys> : never;
+export type TelegramGameCommand = StripCommandMeta<GameCommand>;
+export type TelegramGameResult = { ok:boolean; error?:{message:string} };
 
 export interface TelegramBackendPlayer {
   readonly id: string;
@@ -14,13 +19,13 @@ export interface TelegramBackendGame {
   readonly joinCode: string;
   getState(): GameState;
   refresh(): Promise<void>;
-  playCard(cardId: string): Promise<{ ok:boolean; error?:{message:string} }>;
-  drawCard(): Promise<{ ok:boolean; error?:{message:string} }>;
-  selectWildColor(color: CardColor): Promise<{ ok:boolean; error?:{message:string} }>;
-  passPrompt(): Promise<{ ok:boolean; error?:{message:string} }>;
-  rewindPrompt(): Promise<{ ok:boolean; error?:{message:string} }>;
-  flagPrompt(reasonCode?: string): Promise<{ ok:boolean; error?:{message:string} }>;
-  send(command: Omit<GameCommand, 'commandId' | 'playerId' | 'expectedRevision' | 'sessionId'>): Promise<{ ok:boolean; error?:{message:string} }>;
+  playCard(cardId: string): Promise<TelegramGameResult>;
+  drawCard(): Promise<TelegramGameResult>;
+  selectWildColor(color: CardColor): Promise<TelegramGameResult>;
+  passPrompt(): Promise<TelegramGameResult>;
+  rewindPrompt(): Promise<TelegramGameResult>;
+  flagPrompt(reasonCode?: string): Promise<TelegramGameResult>;
+  send(command: TelegramGameCommand): Promise<TelegramGameResult>;
   subscribe(onUpdate: () => void): () => void;
 }
 
@@ -44,21 +49,19 @@ export async function createTelegramBackendGame(
     players = snapshot.players.length ? snapshot.players : players;
   };
 
-  const send = async (
-    partial: Omit<GameCommand, 'commandId' | 'playerId' | 'expectedRevision' | 'sessionId'>,
-  ): Promise<{ ok:boolean; error?:{message:string} }> => {
+  const send = async (partial: TelegramGameCommand): Promise<TelegramGameResult> => {
     const command = {
       ...partial,
-      commandId: commandId(room.sessionId, partial.type),
-      playerId: humanPlayerId,
-      expectedRevision: state.revision,
-      sessionId: room.sessionId,
+      commandId:commandId(room.sessionId, partial.type),
+      playerId:humanPlayerId,
+      expectedRevision:state.revision,
+      sessionId:room.sessionId,
     } as GameCommand;
 
     const response = await api.sendCommand<GameState>(command);
     if (response.state) state = response.state;
     else await refresh();
-    return { ok: response.ok, ...(response.error ? { error: response.error } : {}) };
+    return { ok:response.ok, ...(response.error ? { error:{ message:response.error.message } } : {}) };
   };
 
   const subscribe = (onUpdate: () => void): (() => void) => {
@@ -83,18 +86,18 @@ export async function createTelegramBackendGame(
   return {
     humanPlayerId,
     get players() { return players; },
-    sessionId: room.sessionId,
-    joinCode: room.joinCode,
-    getState: () => state,
+    sessionId:room.sessionId,
+    joinCode:room.joinCode,
+    getState:() => state,
     refresh,
-    playCard: cardId => send({ type:'PLAY_CARD', cardId }),
-    drawCard: () => send({ type:'DRAW_CARD' }),
-    selectWildColor: color => send({ type:'SELECT_WILD_COLOR', color }),
-    passPrompt: () => send({ type:'PASS_PROMPT' }),
-    rewindPrompt: () => send({ type:'REWIND_PROMPT' }),
-    flagPrompt: reasonCode => send({
+    playCard:cardId => send({ type:'PLAY_CARD', cardId }),
+    drawCard:() => send({ type:'DRAW_CARD' }),
+    selectWildColor:color => send({ type:'SELECT_WILD_COLOR', color }),
+    passPrompt:() => send({ type:'PASS_PROMPT' }),
+    rewindPrompt:() => send({ type:'REWIND_PROMPT' }),
+    flagPrompt:reasonCode => send({
       type:'FLAG_PROMPT',
-      promptId: state.social?.prompt?.id ?? '',
+      promptId:state.social?.prompt?.id ?? '',
       ...(reasonCode ? { reasonCode } : {}),
     }),
     send,
