@@ -127,7 +127,7 @@ export function openWebAuthDialog(api:CribbitApiClient): void {
 
   backdrop.querySelector<HTMLFormElement>('[data-web-login-form]')?.addEventListener('submit', event => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(event.currentTarget as HTMLFormElement);
     setMessage('Signing in…');
     void api.webLogin({
       loginUsername:String(form.get('loginUsername') || ''),
@@ -140,7 +140,7 @@ export function openWebAuthDialog(api:CribbitApiClient): void {
 
   backdrop.querySelector<HTMLFormElement>('[data-web-register-form]')?.addEventListener('submit', event => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(event.currentTarget as HTMLFormElement);
     const displayName = String(form.get('displayName') || '').trim();
     const email = String(form.get('email') || '').trim();
     setMessage('Creating your Cribbit account…');
