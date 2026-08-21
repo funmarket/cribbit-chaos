@@ -4,6 +4,7 @@ import { applyCommand as reduceCommand } from './reducer.ts';
 import { createTurnResolution, type GameCommandContext } from './social.ts';
 import { createEngineError } from './errors.ts';
 import { applyCanonicalCommand, reconcileBonusTurnAfterBase, shouldHandleCanonical } from './canonical-flow.ts';
+import { applyCanonicalSafety, isCanonicalSafetyCommand } from './canonical-safety.ts';
 
 const CANONICAL_ONLY_COMMANDS=new Set<GameCommand['type']>(['SELECT_PROMPT_SOURCE','SUBMIT_MANUAL_PROMPT','SELECT_DARE_TARGET','SELECT_DUEL_TIMER','RESOLVE_CHAOS','SELECT_TAG_TARGET','SELECT_HIJACK_TARGET','SELECT_TABOO_TARGET','SUBMIT_TABOO_QUESTION','SUBMIT_TABOO_ANSWER','SUBMIT_GROUP_QUESTION','SUBMIT_GROUP_ANSWER','SUBMIT_GROUP_DARE','COMPLETE_GROUP_DARE','SELECT_MACHIAVELLI_EFFECT','SELECT_REVERSE_CONFESSION_TARGET','SUBMIT_REVERSE_CONFESSION_QUESTION','SUBMIT_REVERSE_CONFESSION_ANSWER','SELECT_DIG_ME_TARGET','SUBMIT_DIG_ME_QUESTION','COMPLETE_DIG_ME','ACTIVATE_GHOST','END_GHOST_TURN']);
 type CanonicalContext=GameCommandContext&{canonicalFlow?:boolean};
@@ -25,6 +26,7 @@ function applyPlayNope<TState extends GameState>(state:TState,command:GameComman
 
 export function applyCommand<TState extends GameState>(state:TState,command:GameCommand,context:GameCommandContext={}):GameTransition<TState>{
   const canonicalContext=(context as CanonicalContext).canonicalFlow===true,canonicalState=Boolean(state.social?.canonicalStep),canonicalOnly=CANONICAL_ONLY_COMMANDS.has(command.type);
+  if(isCanonicalSafetyCommand(state,command)){const replay=canonicalReplay(state,command);if(replay)return replay;return applyCanonicalSafety(state,command,context);}
   if((canonicalContext||canonicalState||canonicalOnly)&&shouldHandleCanonical(state,command)){const replay=canonicalReplay(state,command);if(replay)return replay;return applyCanonicalCommand(state,command,context);}
   if(command.type==='PLAY_NOPE')return applyPlayNope(state,command,context);
   const reduced=reduceCommand(state,command,context);return canonicalContext?reconcileBonusTurnAfterBase(state,command,reduced,context):reduced;
