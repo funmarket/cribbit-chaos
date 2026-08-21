@@ -64,9 +64,13 @@ export interface Card {
 }
 
 export interface AdaptiveProbabilityState {
+  /** Advances whenever an authoritative card draw or card play changes match memory. */
   sequence: number;
+  /** Counts post-start physical draw selections only. */
   drawCount: number;
+  /** Global multiplier applied only to immediate-interaction families. */
   interactionPressure: number;
+  /** Last shared-match sequence at which each family appeared. */
   familyLastSeenStep: Partial<Record<CardKind, number>>;
 }
 
@@ -140,28 +144,79 @@ export type GameCommand =
   | (CommandMeta & { type: 'SUBMIT_PARANOIA_VOTE'; vote: ParanoiaVoteChoice })
   | (CommandMeta & { type: 'SELECT_DUEL_TARGET'; targetId: string })
   | (CommandMeta & { type: 'SUBMIT_DUEL_RESPONSE'; side: 'initiator' | 'opponent'; value?: string; choice?: string; completionOnly?: boolean })
+  | (CommandMeta & { type: 'PLAY_NOPE'; cardId: string })
+  | (CommandMeta & { type: 'PARANOIA_CHOICE'; targetId: string })
+  | (CommandMeta & { type: 'DUEL_TARGET'; targetId: string })
   | (CommandMeta & { type: 'DUEL_VOTE'; winnerId: string })
-  | (CommandMeta & { type: 'PLAY_NOPE' })
-  | (CommandMeta & { type: 'COMPLETE_FLOW' })
+  | (CommandMeta & { type: 'CHAOS_TARGET'; targetId: string })
+  | (CommandMeta & { type: 'NOPE_REACTION'; useNope: boolean })
   | (CommandMeta & { type: 'TIMEOUT_TURN'; timerStartedAtRevision: number })
-  | (CommandMeta & { type: 'TIMEOUT_SOCIAL'; timerStartedAtRevision: number });
+  | (CommandMeta & { type: 'TIMEOUT_SOCIAL'; timerStartedAtRevision: number })
+  | (CommandMeta & { type: 'COMPLETE_FLOW' })
+  | (CommandMeta & { type: 'FORCE_RECAP' });
 
 export type GameCommandType = GameCommand['type'];
 
-export interface GameEvent {
+export type CoreGameEventType =
+  | 'GAME_CREATED'
+  | 'CARD_DEALT'
+  | 'CARD_PLAYED'
+  | 'CARD_DRAWN'
+  | 'TURN_ADVANCED'
+  | 'DIRECTION_CHANGED'
+  | 'PLAYER_SKIPPED'
+  | 'DRAW_EFFECT_APPLIED'
+  | 'WILD_COLOR_REQUIRED'
+  | 'WILD_COLOR_SELECTED'
+  | 'SOCIAL_CARD_TRIGGERED'
+  | 'ROULETTE_PRESENTATION_STARTED'
+  | 'PROMPT_SELECTED'
+  | 'ANSWER_REQUIRED'
+  | 'TARGET_REQUIRED'
+  | 'PARANOIA_TARGET_SELECTED'
+  | 'DUEL_TARGET_SELECTED'
+  | 'DUEL_RESPONSE_SUBMITTED'
+  | 'DUEL_GROUP_VOTE_REQUIRED'
+  | 'DUEL_VOTE_SUBMITTED'
+  | 'DUEL_VOTE_RESOLVED'
+  | 'NOPE_WINDOW_OPENED'
+  | 'NOPE_PLAYED'
+  | 'SOCIAL_PASSED'
+  | 'PROMPT_REWOUND'
+  | 'CONTENT_FLAGGED'
+  | 'ANSWER_MODE_SELECTED'
+  | 'ANSWER_SUBMITTED'
+  | 'ANSWER_CHOICE_SUBMITTED'
+  | 'ANSWERED_LIVE_MARKED'
+  | 'PARANOIA_PHASE_SELECTED'
+  | 'PARANOIA_CLASSIC_ANSWER_REQUIRED'
+  | 'PARANOIA_CLASSIC_ANSWER_SELECTED'
+  | 'PARANOIA_CLASSIC_REVEAL_DECIDED'
+  | 'PARANOIA_VOTE_SUBMITTED'
+  | 'PARANOIA_VOTE_REQUIRED'
+  | 'PARANOIA_VOTE_RESOLVED'
+  | 'SOCIAL_EFFECT_RESOLVED'
+  | 'TURN_TIMED_OUT'
+  | 'SOCIAL_TIMED_OUT'
+  | 'GAME_WON'
+  | 'DECK_RECYCLED';
+
+export interface GameEvent<TPayload = unknown> {
   id: string;
   sessionId: string;
   revision: number;
-  type: string;
-  payload?: Record<string, unknown>;
+  type: CoreGameEventType | string;
   visibility?: 'PUBLIC' | 'PLAYER_PRIVATE';
-  recipientPlayerIds?: string[];
+  recipientPlayerIds?: readonly string[];
+  payload?: TPayload;
+  createdAt: string;
 }
 
 export interface EngineError {
   code:
-    | 'NOT_PLAYERS_TURN'
     | 'STALE_REVISION'
+    | 'GAME_NOT_ACTIVE'
+    | 'NOT_YOUR_TURN'
     | 'CARD_NOT_IN_HAND'
     | 'ILLEGAL_PLAY'
     | 'DRAW_PILE_EMPTY'
