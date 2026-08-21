@@ -1,5 +1,6 @@
 import { cribbitSessionTokenStore } from '../../../packages/api-client/src/session-token-store.ts';
 import { TelegramPlatform } from '../../../packages/platform/src/telegram.ts';
+import { cribbitAuth } from '../../../packages/ui/src/auth-controller.ts';
 import { bootstrapTelegram } from './bootstrapTelegram.ts';
 import './styles/hardening.css';
 
@@ -40,20 +41,28 @@ function setVisibleStatus(text: string, tone: 'neutral'|'success'|'warning' = 'n
 }
 
 async function restorePersistedAuthSession(): Promise<boolean> {
-  if (window.__CRIBBIT_AUTH__) return true;
+  if (window.__CRIBBIT_AUTH__) {
+    cribbitAuth.authenticated(window.__CRIBBIT_AUTH__.user,'TELEGRAM');
+    return true;
+  }
   const token = cribbitSessionTokenStore.get();
   const api = window.__CRIBBIT_API__;
-  if (!token || !api) return false;
+  if (!token || !api) {
+    cribbitAuth.guest();
+    return false;
+  }
 
   try {
     const me = await api.getMe();
     window.__CRIBBIT_AUTH__ = { accessToken:token, user:me.user };
+    cribbitAuth.authenticated(me.user,'TELEGRAM');
     setVisibleAuthState(true);
     return true;
   } catch (error) {
     console.warn('[Cribbit] Persisted Telegram session could not be restored.', error);
     cribbitSessionTokenStore.clear();
     delete window.__CRIBBIT_AUTH__;
+    cribbitAuth.guest();
     setVisibleAuthState(false);
     return false;
   }
@@ -182,6 +191,7 @@ if (compatibilityFixture) {
     return bootstrap(platform, { runtimeMode:'legacy-compatibility' });
   });
 } else {
+  cribbitAuth.loading();
   void bootstrapTelegram(platform).then(() => {
     void restorePersistedAuthSession();
   });
