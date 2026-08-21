@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { Card, GameCommand } from '@cribbit/contracts';
+import type { Card, GameCommand, GameState } from '@cribbit/contracts';
 import { promptDefinitions } from '@cribbit/prompts';
 import { applyCommand, createGame } from '../src/index.ts';
 
 function command(
-  state: ReturnType<typeof createGame> extends infer _T ? any : never,
+  state: GameState,
   type: GameCommand['type'],
   fields: Record<string, unknown> = {},
 ): GameCommand {
