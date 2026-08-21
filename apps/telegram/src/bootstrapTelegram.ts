@@ -1,9 +1,10 @@
 import type { AuthSession, AuthUser } from '../../../packages/contracts/src/index.ts';
-import { CribbitApiClient, clientConfig, type RoomSessionResult } from '../../../packages/api-client/src/index.ts';
+import { ApiError, CribbitApiClient, clientConfig, type RoomSessionResult } from '../../../packages/api-client/src/index.ts';
 import type { PlatformAdapter } from '../../../packages/platform/src/types.ts';
 import { resolveVisualFixture, VISUAL_FIXTURES, type VisualFixtureName } from '../../../packages/ui/src/fixtures.ts';
 import { createTelegramBackendGame } from './backendGame.ts';
 import { renderTelegramGame } from './gameView.ts';
+import { createTelegramSimulationGame } from './simulation.ts';
 import {
   CEILINGS,
   CONTENT_WORLDS,
@@ -55,11 +56,14 @@ export async function bootstrapTelegram(platform: PlatformAdapter): Promise<void
     }
   };
 
+  const openSimulation = (): void => {
+    const game = createTelegramSimulationGame(draft);
+    renderTelegramGame(host, platform, draft, game, showRoomCreation);
+  };
+
   const showRoomCreation = (): void => {
     host.innerHTML = renderRoomCreation(draft);
-    bindRoomCreation(host, platform, api, draft, openBackendSession, () => {
-      setStatus(host, 'QA simulation is separate from live play. Use Create Game for the shared backend session.', 'neutral');
-    });
+    bindRoomCreation(host, platform, api, draft, openBackendSession, openSimulation);
 
     if (window.__CRIBBIT_AUTH__) {
       setAuthState(host, 'Connected', 'success');
@@ -71,14 +75,14 @@ export async function bootstrapTelegram(platform: PlatformAdapter): Promise<void
   const apiState = host.querySelector<HTMLElement>('[data-api-state]');
   if (!config.apiUrl || !config.wsUrl) {
     if (apiState) apiState.textContent = 'API not configured';
-    setStatus(host, 'Railway API is not configured in this build.', 'warning');
+    setStatus(host, 'Railway API is not configured in this build. Simulation remains available.', 'warning');
     return;
   }
 
   const initData = platform.getRawAuthPayload();
   if (!initData) {
     setAuthState(host, 'Auth pending', 'warning');
-    setStatus(host, 'Telegram identity must be validated before creating or joining a live game.', 'neutral');
+    setStatus(host, 'Telegram did not provide Mini App initData. Simulation remains available; live rooms require a valid Telegram launch.', 'neutral');
     return;
   }
 
@@ -92,7 +96,7 @@ export async function bootstrapTelegram(platform: PlatformAdapter): Promise<void
   } catch (error) {
     console.warn('[Cribbit] Telegram server authentication not available yet.', error);
     setAuthState(host, 'Auth unavailable', 'warning');
-    setStatus(host, 'Telegram authentication is unavailable. Live rooms require authentication.', 'warning');
+    setStatus(host, telegramAuthFailureMessage(error), 'warning');
   }
 }
 
@@ -301,7 +305,7 @@ function bindRoomCreation(
   host.querySelector<HTMLButtonElement>('[data-action="create-game"]')?.addEventListener('click', async () => {
     platform.haptic('medium');
     if (!window.__CRIBBIT_AUTH__) {
-      setStatus(host, 'Telegram authentication is required before creating a live game.', 'warning');
+      setStatus(host, 'Live game authentication is not established. Check the authentication status above; Simulation remains available.', 'warning');
       return;
     }
     setStatus(host, 'Creating shared game…', 'neutral');
@@ -382,7 +386,7 @@ async function joinRoom(
     return;
   }
   if (!window.__CRIBBIT_AUTH__) {
-    setStatus(host, 'Telegram authentication is required before joining a live game.', 'warning');
+    setStatus(host, 'Live game authentication is not established. Simulation remains available.', 'warning');
     return;
   }
   setStatus(host, 'Checking room code…', 'neutral');
@@ -394,6 +398,17 @@ async function joinRoom(
     console.warn('[Cribbit] Room join request failed.', error);
     setStatus(host, 'Room joining is currently unavailable.', 'warning');
   }
+}
+
+function telegramAuthFailureMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    const detail = error.message.trim();
+    if (detail.includes('TELEGRAM_BOT_TOKEN') || detail.includes('TELEGRAM_AUTH_INVALID')) {
+      return `Railway rejected Telegram authentication: ${detail}`;
+    }
+    return `Telegram authentication failed: ${detail}`;
+  }
+  return `Telegram authentication failed: ${error instanceof Error ? error.message : 'Unknown authentication error.'}`;
 }
 
 function applyUser(host: HTMLElement, draft: TelegramRoomDraft, user: AuthUser): void {
