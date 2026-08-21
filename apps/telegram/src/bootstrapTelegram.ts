@@ -1,7 +1,8 @@
 import type { AuthSession, AuthUser } from '../../../packages/contracts/src/index.ts';
-import { CribbitApiClient, clientConfig } from '../../../packages/api-client/src/index.ts';
+import { CribbitApiClient, clientConfig, type RoomSessionResult } from '../../../packages/api-client/src/index.ts';
 import type { PlatformAdapter } from '../../../packages/platform/src/types.ts';
 import { resolveVisualFixture, VISUAL_FIXTURES, type VisualFixtureName } from '../../../packages/ui/src/fixtures.ts';
+import { createTelegramBackendGame } from './backendGame.ts';
 import { renderTelegramGame } from './gameView.ts';
 import {
   CEILINGS,
@@ -16,8 +17,6 @@ import {
   type TelegramRoomDraft
 } from './roomSetup.ts';
 import './styles/telegram.css';
-
-type JoinRoomResult = { roomId?: string; sessionId?: string; ok?: boolean; error?: string; message?: string };
 
 export async function bootstrapTelegram(platform: PlatformAdapter): Promise<void> {
   const host = document.querySelector<HTMLDivElement>('#app');
@@ -40,10 +39,26 @@ export async function bootstrapTelegram(platform: PlatformAdapter): Promise<void
   document.documentElement.dataset.fixture = fixture || '';
   document.documentElement.dataset.telegramComposition = 'mobile';
 
+  const openBackendSession = async (room: RoomSessionResult): Promise<void> => {
+    const auth = window.__CRIBBIT_AUTH__;
+    if (!auth) {
+      setStatus(host, 'Telegram authentication is required before entering a live game.', 'warning');
+      return;
+    }
+    try {
+      const game = await createTelegramBackendGame(api, room, auth.user.id);
+      renderTelegramGame(host, platform, draft, game, showRoomCreation);
+    } catch (error) {
+      console.warn('[Cribbit] Shared game session could not be loaded.', error);
+      showRoomCreation();
+      setStatus(host, 'The shared game session could not be loaded.', 'warning');
+    }
+  };
+
   const showRoomCreation = (): void => {
     host.innerHTML = renderRoomCreation(draft);
-    bindRoomCreation(host, platform, api, draft, () => {
-      renderTelegramGame(host, platform, draft, showRoomCreation);
+    bindRoomCreation(host, platform, api, draft, openBackendSession, () => {
+      setStatus(host, 'QA simulation is separate from live play. Use Create Game for the shared backend session.', 'neutral');
     });
 
     if (window.__CRIBBIT_AUTH__) {
@@ -56,14 +71,14 @@ export async function bootstrapTelegram(platform: PlatformAdapter): Promise<void
   const apiState = host.querySelector<HTMLElement>('[data-api-state]');
   if (!config.apiUrl || !config.wsUrl) {
     if (apiState) apiState.textContent = 'API not configured';
-    setStatus(host, 'Local simulation is available. Railway API is not configured in this build.', 'warning');
+    setStatus(host, 'Railway API is not configured in this build.', 'warning');
     return;
   }
 
   const initData = platform.getRawAuthPayload();
   if (!initData) {
     setAuthState(host, 'Auth pending', 'warning');
-    setStatus(host, 'Room setup and local simulation are available. Telegram identity will be trusted only after Railway validates raw initData.', 'neutral');
+    setStatus(host, 'Telegram identity must be validated before creating or joining a live game.', 'neutral');
     return;
   }
 
@@ -77,7 +92,7 @@ export async function bootstrapTelegram(platform: PlatformAdapter): Promise<void
   } catch (error) {
     console.warn('[Cribbit] Telegram server authentication not available yet.', error);
     setAuthState(host, 'Auth unavailable', 'warning');
-    setStatus(host, 'Telegram authentication is not live yet. No fake account or room was created.', 'warning');
+    setStatus(host, 'Telegram authentication is unavailable. Live rooms require authentication.', 'warning');
   }
 }
 
@@ -214,6 +229,7 @@ function bindRoomCreation(
   platform: PlatformAdapter,
   api: CribbitApiClient,
   draft: TelegramRoomDraft,
+  onSession: (room: RoomSessionResult) => void | Promise<void>,
   onSimulation: () => void,
 ): void {
   const profileInput = host.querySelector<HTMLInputElement>('[data-profile-input]');
@@ -272,19 +288,38 @@ function bindRoomCreation(
   qaToggle?.addEventListener('change', () => { draft.qaHand = qaToggle.checked; });
 
   host.querySelector<HTMLButtonElement>('[data-action="join-room"]')?.addEventListener('click', () => {
-    void joinRoom(host, api, joinInput?.value || '');
+    void joinRoom(host, api, joinInput?.value || '', onSession);
   });
 
   joinInput?.addEventListener('keydown', event => {
     if (event.key === 'Enter') {
       event.preventDefault();
-      void joinRoom(host, api, joinInput.value);
+      void joinRoom(host, api, joinInput.value, onSession);
     }
   });
 
-  host.querySelector<HTMLButtonElement>('[data-action="create-game"]')?.addEventListener('click', () => {
+  host.querySelector<HTMLButtonElement>('[data-action="create-game"]')?.addEventListener('click', async () => {
     platform.haptic('medium');
-    setStatus(host, 'Create Game is blocked until the shared room/session backend migration is complete. No fake room was created.', 'warning');
+    if (!window.__CRIBBIT_AUTH__) {
+      setStatus(host, 'Telegram authentication is required before creating a live game.', 'warning');
+      return;
+    }
+    setStatus(host, 'Creating shared game…', 'neutral');
+    try {
+      const room = await api.createRoom({
+        roomName: draft.roomName,
+        mode: draft.mode,
+        playerCount: draft.playerCount,
+        world: draft.world,
+        ceiling: draft.ceiling,
+        sources: draft.sources,
+      });
+      setStatus(host, `Game created · room code ${room.joinCode}.`, 'success');
+      await onSession(room);
+    } catch (error) {
+      console.warn('[Cribbit] Room creation failed.', error);
+      setStatus(host, 'The shared game could not be created.', 'warning');
+    }
   });
 
   host.querySelector<HTMLButtonElement>('[data-action="demo-game"]')?.addEventListener('click', () => {
@@ -335,25 +370,29 @@ async function persistProfile(host: HTMLElement, api: CribbitApiClient, draft: T
   }
 }
 
-async function joinRoom(host: HTMLElement, api: CribbitApiClient, rawCode: string): Promise<void> {
+async function joinRoom(
+  host: HTMLElement,
+  api: CribbitApiClient,
+  rawCode: string,
+  onSession: (room: RoomSessionResult) => void | Promise<void>,
+): Promise<void> {
   const code = rawCode.trim();
   if (!/^[A-Za-z0-9]{4,12}$/.test(code)) {
     setStatus(host, 'Room code must contain 4–12 letters or numbers.', 'warning');
     return;
   }
+  if (!window.__CRIBBIT_AUTH__) {
+    setStatus(host, 'Telegram authentication is required before joining a live game.', 'warning');
+    return;
+  }
   setStatus(host, 'Checking room code…', 'neutral');
   try {
-    const result = api.joinRoom(code) as unknown as Promise<JoinRoomResult>;
-    const joined = await result;
-    if (!joined.roomId) {
-      const message = joined.message || (joined.error === 'ROOMS_NOT_MIGRATED' ? 'Real room joining is not active until the room/session backend migration is complete.' : 'Room joining is not available yet.');
-      setStatus(host, `${message} No fake room was created.`, 'warning');
-      return;
-    }
-    setStatus(host, `Joined room ${joined.roomId}.`, 'success');
+    const joined = await api.joinRoom(code);
+    setStatus(host, `Joined room ${joined.joinCode}.`, 'success');
+    await onSession(joined);
   } catch (error) {
     console.warn('[Cribbit] Room join request failed.', error);
-    setStatus(host, 'Room joining is currently unavailable. No fake room was created.', 'warning');
+    setStatus(host, 'Room joining is currently unavailable.', 'warning');
   }
 }
 
