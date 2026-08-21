@@ -1,15 +1,12 @@
 import type { AnswerMode, GameState, ParanoiaPhase } from '../../../packages/contracts/src/index.ts';
 import type { PlatformAdapter } from '../../../packages/platform/src/types.ts';
-import type { TelegramBackendGame } from './backendGame.ts';
+import type { TelegramBackendGame, TelegramGameResult } from './backendGame.ts';
 import './styles/contextual.css';
 
 type Tone = 'neutral' | 'success' | 'warning';
 type StatusSetter = (message: { text:string; tone:Tone }) => void;
-
-type ContextAction = {
-  title: string;
-  body: string;
-};
+type ContextResult = { ok:boolean; success?:string; error?:string };
+type ContextAction = { title:string; body:string };
 
 export function openContextualRuleUI(
   host: HTMLElement,
@@ -30,10 +27,7 @@ export function openContextualRuleUI(
     <section class="tg-context-sheet" role="dialog" aria-modal="true" aria-labelledby="tgContextTitle">
       <div class="tg-context-handle" aria-hidden="true"></div>
       <header class="tg-context-header">
-        <div>
-          <small>ACTIVE GAME ACTION</small>
-          <h2 id="tgContextTitle">${escapeHTML(action.title)}</h2>
-        </div>
+        <div><small>ACTIVE GAME ACTION</small><h2 id="tgContextTitle">${escapeHTML(action.title)}</h2></div>
         <button type="button" class="tg-context-close" data-context-close aria-label="Close">×</button>
       </header>
       ${action.body}
@@ -74,15 +68,11 @@ export function hasContextualAction(state: GameState, game: TelegramBackendGame)
 function contextualAction(state: GameState, game: TelegramBackendGame): ContextAction | null {
   const social = state.social;
   const humanId = game.humanPlayerId;
-
   if (!social) return null;
 
   if (social.resolutionComplete) {
     if (social.actorId !== humanId) return null;
-    return {
-      title:'Continue',
-      body:`<p class="tg-context-copy">This card effect is resolved. Continue the authoritative flow.</p>${commandButton('COMPLETE_FLOW','Continue','')}`,
-    };
+    return { title:'Continue', body:`<p class="tg-context-copy">This card effect is resolved. Continue the authoritative flow.</p>${commandButton('COMPLETE_FLOW','Continue','')}` };
   }
 
   if (social.cardKind === 'truth' || social.cardKind === 'dare') {
@@ -94,49 +84,28 @@ function contextualAction(state: GameState, game: TelegramBackendGame): ContextA
     if (!social.pendingCompletionPlayerIds.includes(humanId) || social.completedCompletionPlayerIds.includes(humanId)) return null;
     const record = social.completionRecords[humanId];
     if (!record?.mode) {
-      return {
-        title:'Chaos',
-        body:`${promptCard('CHAOS', social.prompt?.text ?? 'Complete the active Chaos effect.')}${commandButton('CHAOS_LIVE','Completed / Answered Live','')}`,
-      };
+      return { title:'Chaos', body:`${promptCard('CHAOS', social.prompt?.text ?? 'Complete the active Chaos effect.')}${commandButton('CHAOS_LIVE','Completed / Answered Live','')}` };
     }
-    return {
-      title:'Chaos',
-      body:`${promptCard('CHAOS', social.prompt?.text ?? 'Complete the active Chaos effect.')}${commandButton('MARK_ANSWERED_LIVE','Confirm completion','')}`,
-    };
+    return { title:'Chaos', body:`${promptCard('CHAOS', social.prompt?.text ?? 'Complete the active Chaos effect.')}${commandButton('MARK_ANSWERED_LIVE','Confirm completion','')}` };
   }
 
   if (social.cardKind === 'paranoia') {
     const prompt = social.prompt?.text ?? 'Paranoia';
     if (!social.pendingTargetId && social.actorId === humanId) {
-      return {
-        title:'Choose a Player',
-        body:`${promptCard('PARANOIA', prompt)}${targetGrid(state, game, social.pendingTargetIds, 'SELECT_PARANOIA_TARGET')}`,
-      };
+      return { title:'Choose a Player', body:`${promptCard('PARANOIA', prompt)}${targetGrid(state, game, social.pendingTargetIds, 'SELECT_PARANOIA_TARGET')}` };
     }
     if (social.pendingTargetId && !social.paranoiaPhase && social.actorId === humanId) {
-      return {
-        title:'Classic or Stranger?',
-        body:`${promptCard('PARANOIA', prompt)}<div class="tg-answer-grid">${commandButton('SELECT_PARANOIA_PHASE','Classic','CLASSIC')}${commandButton('SELECT_PARANOIA_PHASE','Stranger','STRANGER')}</div>`,
-      };
+      return { title:'Classic or Stranger?', body:`${promptCard('PARANOIA', prompt)}<div class="tg-answer-grid">${commandButton('SELECT_PARANOIA_PHASE','Classic','CLASSIC')}${commandButton('SELECT_PARANOIA_PHASE','Stranger','STRANGER')}</div>` };
     }
     if (social.paranoiaPhase === 'CLASSIC' && !social.classicAnswerPlayerId && social.pendingTargetId === humanId) {
       const eligible = state.players.filter(player => player.id !== humanId).map(player => player.id);
-      return {
-        title:'Choose Answer Player',
-        body:`<p class="tg-context-copy">Choose another player for the Classic Paranoia answer.</p>${targetGrid(state, game, eligible, 'SELECT_PARANOIA_CLASSIC_ANSWER')}`,
-      };
+      return { title:'Choose Answer Player', body:`<p class="tg-context-copy">Choose another player for the Classic Paranoia answer.</p>${targetGrid(state, game, eligible, 'SELECT_PARANOIA_CLASSIC_ANSWER')}` };
     }
     if (social.paranoiaPhase === 'CLASSIC' && social.classicAnswerPlayerId === humanId && !social.classicRevealDecision) {
-      return {
-        title:'Reveal or Keep Secret?',
-        body:`<div class="tg-answer-grid">${commandButton('SUBMIT_PARANOIA_CLASSIC_DECISION','Reveal','REVEAL')}${commandButton('SUBMIT_PARANOIA_CLASSIC_DECISION','Keep Secret','KEEP_SECRET')}</div>`,
-      };
+      return { title:'Reveal or Keep Secret?', body:`<div class="tg-answer-grid">${commandButton('SUBMIT_PARANOIA_CLASSIC_DECISION','Reveal','REVEAL')}${commandButton('SUBMIT_PARANOIA_CLASSIC_DECISION','Keep Secret','KEEP_SECRET')}</div>` };
     }
     if (social.paranoiaPhase === 'STRANGER' && social.paranoiaVote?.eligibleVoterIds.includes(humanId) && !social.paranoiaVote.votes[humanId]) {
-      return {
-        title:'Stranger Vote',
-        body:`<p class="tg-context-copy">Vote on the selected player's response.</p><div class="tg-answer-grid">${commandButton('SUBMIT_PARANOIA_VOTE','Believe','BELIEVE')}${commandButton('SUBMIT_PARANOIA_VOTE','Lying','LYING')}${commandButton('SUBMIT_PARANOIA_VOTE','Holding Back','HOLDING_BACK')}</div>`,
-      };
+      return { title:'Stranger Vote', body:`<p class="tg-context-copy">Vote on the selected player's response.</p><div class="tg-answer-grid">${commandButton('SUBMIT_PARANOIA_VOTE','Believe','BELIEVE')}${commandButton('SUBMIT_PARANOIA_VOTE','Lying','LYING')}${commandButton('SUBMIT_PARANOIA_VOTE','Holding Back','HOLDING_BACK')}</div>` };
     }
     return null;
   }
@@ -144,37 +113,25 @@ function contextualAction(state: GameState, game: TelegramBackendGame): ContextA
   if (social.cardKind === 'duel') {
     const duel = social.pendingDuel;
     if (!duel?.opponentId && social.actorId === humanId) {
-      return {
-        title:'Choose Duel Target',
-        body:targetGrid(state, game, social.pendingTargetIds, 'SELECT_DUEL_TARGET'),
-      };
+      return { title:'Choose Duel Target', body:targetGrid(state, game, social.pendingTargetIds, 'SELECT_DUEL_TARGET') };
     }
     if (!duel?.opponentId) return null;
     const prompt = duel.prompt?.text ?? social.prompt?.text ?? 'Complete the Duel response.';
     if (duel.initiatorId === humanId && !duel.initiatorResponse?.submitted) {
-      return {
-        title:'Your Duel Response',
-        body:`${promptCard('DUEL', prompt)}${commandButton('SUBMIT_DUEL_RESPONSE','Answered Live','initiator')}`,
-      };
+      return { title:'Your Duel Response', body:`${promptCard('DUEL', prompt)}${commandButton('SUBMIT_DUEL_RESPONSE','Answered Live','initiator')}` };
     }
     if (duel.opponentId === humanId && !duel.opponentResponse?.submitted) {
-      return {
-        title:'Your Duel Response',
-        body:`${promptCard('DUEL', prompt)}${commandButton('SUBMIT_DUEL_RESPONSE','Answered Live','opponent')}`,
-      };
+      return { title:'Your Duel Response', body:`${promptCard('DUEL', prompt)}${commandButton('SUBMIT_DUEL_RESPONSE','Answered Live','opponent')}` };
     }
     if (duel.vote?.eligibleVoterIds.includes(humanId) && !duel.vote.votes[humanId]) {
-      return {
-        title:'Duel Group Vote',
-        body:`<p class="tg-context-copy">Choose the Duel winner.</p>${targetGrid(state, game, [duel.initiatorId, duel.opponentId], 'DUEL_VOTE')}`,
-      };
+      return { title:'Duel Group Vote', body:`<p class="tg-context-copy">Choose the Duel winner.</p>${targetGrid(state, game, [duel.initiatorId, duel.opponentId], 'DUEL_VOTE')}` };
     }
   }
 
   return null;
 }
 
-function truthDareAction(state: GameState, kind: 'truth' | 'dare'): ContextAction {
+function truthDareAction(state: GameState, kind: 'truth'|'dare'): ContextAction {
   const social = state.social!;
   const prompt = social.prompt!;
   const answer = social.answerState;
@@ -189,50 +146,37 @@ function truthDareAction(state: GameState, kind: 'truth' | 'dare'): ContextActio
   }
 
   if (answer.mode === 'CHOOSE') {
-    return {
-      title,
-      body:`${promptCard(title.toUpperCase(), prompt.text)}<div class="tg-answer-grid">${(prompt.options ?? []).map(option => commandButton('SUBMIT_CHOICE', option, option)).join('')}</div>`,
-    };
+    return { title, body:`${promptCard(title.toUpperCase(), prompt.text)}<div class="tg-answer-grid">${(prompt.options ?? []).map(option => commandButton('SUBMIT_CHOICE', option, option)).join('')}</div>` };
   }
-
   if (answer.mode === 'TYPE') {
-    return {
-      title,
-      body:`${promptCard(title.toUpperCase(), prompt.text)}<textarea class="tg-input" data-context-answer rows="4" maxlength="500" placeholder="Type your answer"></textarea>${commandButton('SUBMIT_TYPED_ANSWER','Submit answer','')}`,
-    };
+    return { title, body:`${promptCard(title.toUpperCase(), prompt.text)}<textarea class="tg-input" data-context-answer rows="4" maxlength="500" placeholder="Type your answer"></textarea>${commandButton('SUBMIT_TYPED_ANSWER','Submit answer','')}` };
   }
-
   if (answer.mode === 'SPEAK') {
-    return {
-      title,
-      body:`${promptCard(title.toUpperCase(), prompt.text)}<p class="tg-context-copy">Speak your answer to the group, then confirm completion.</p>${commandButton('SUBMIT_SPOKEN_ANSWER','Spoken / Done','')}`,
-    };
+    return { title, body:`${promptCard(title.toUpperCase(), prompt.text)}<p class="tg-context-copy">Speak your answer to the group, then confirm completion.</p>${commandButton('SUBMIT_SPOKEN_ANSWER','Spoken / Done','')}` };
   }
+  return { title, body:`${promptCard(title.toUpperCase(), prompt.text)}${commandButton('MARK_ANSWERED_LIVE','Confirm Answered Live','')}` };
+}
 
-  return {
-    title,
-    body:`${promptCard(title.toUpperCase(), prompt.text)}${commandButton('MARK_ANSWERED_LIVE','Confirm Answered Live','')}`,
-  };
+function normalizeResult(result: TelegramGameResult, success: string): ContextResult {
+  return result.ok
+    ? { ok:true, success }
+    : { ok:false, error:result.error?.message ?? 'The game rejected that action.' };
 }
 
 async function runCommand(
   button: HTMLButtonElement,
   wrapper: HTMLElement,
   game: TelegramBackendGame,
-): Promise<{ ok:boolean; success?:string; error?:string }> {
+): Promise<ContextResult> {
   const command = button.dataset.command ?? '';
   const value = button.dataset.value ?? '';
 
-  const send = async (payload: Parameters<TelegramBackendGame['send']>[0]) => {
+  const send = async (payload: Parameters<TelegramBackendGame['send']>[0]): Promise<ContextResult> => {
     const result = await game.send(payload);
-    return result.ok
-      ? { ok:true as const }
-      : { ok:false as const, error:result.error?.message ?? 'The game rejected that action.' };
+    return result.ok ? { ok:true } : { ok:false, error:result.error?.message ?? 'The game rejected that action.' };
   };
 
-  if (command === 'SELECT_ANSWER_MODE') {
-    return { ...(await send({ type:'SELECT_ANSWER_MODE', mode:value as AnswerMode })), success:`${value} selected.` };
-  }
+  if (command === 'SELECT_ANSWER_MODE') return { ...(await send({ type:'SELECT_ANSWER_MODE', mode:value as AnswerMode })), success:`${value} selected.` };
   if (command === 'ANSWERED_LIVE_NOW') {
     const selected = await send({ type:'SELECT_ANSWER_MODE', mode:'ANSWERED_LIVE' });
     if (!selected.ok) return selected;
@@ -261,7 +205,7 @@ async function runCommand(
     const marked = await send({ type:'MARK_ANSWERED_LIVE' });
     return marked.ok ? { ok:true, success:'Chaos completion recorded.' } : marked;
   }
-  if (command === 'PASS_PROMPT') return { ...(await game.passPrompt()), success:'Prompt passed.' };
+  if (command === 'PASS_PROMPT') return normalizeResult(await game.passPrompt(), 'Prompt passed.');
   if (command === 'COMPLETE_FLOW') return { ...(await send({ type:'COMPLETE_FLOW' })), success:'Flow completed.' };
   if (command === 'SELECT_PARANOIA_TARGET') return { ...(await send({ type:'SELECT_PARANOIA_TARGET', targetId:value })), success:'Paranoia target selected.' };
   if (command === 'SELECT_PARANOIA_PHASE') return { ...(await send({ type:'SELECT_PARANOIA_PHASE', phase:value as ParanoiaPhase })), success:`${value} selected.` };
@@ -275,12 +219,8 @@ async function runCommand(
   return { ok:false, error:`Unsupported Telegram action: ${command}` };
 }
 
-function targetGrid(
-  state: GameState,
-  game: TelegramBackendGame,
-  targetIds: readonly string[],
-  command: string,
-): string {
+function targetGrid(state: GameState, game: TelegramBackendGame, targetIds: readonly string[], command: string): string {
+  void state;
   return `<div class="tg-target-grid">${targetIds.map(id => {
     const name = game.players.find(player => player.id === id)?.name ?? id;
     return `<button type="button" data-command="${escapeHTML(command)}" data-value="${escapeHTML(id)}"><span>${escapeHTML(name.slice(0,1).toUpperCase())}</span><b>${escapeHTML(name)}</b></button>`;
