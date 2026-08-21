@@ -32,5 +32,80 @@ export function getEligiblePrompts(prompts: readonly SocialPrompt[], request: Pr
     .sort((left, right) => left.id.localeCompare(right.id));
 }
 
-/** Prompt contracts only; content and moderation are backend-owned. */
-export const promptDefinitions: readonly SocialPrompt[] = [];
+/**
+ * Shared approved prompt seed used by every runtime that calls the shared reducer.
+ * Clients do not pick outcomes; the reducer filters this pool against the authoritative
+ * world/group/targeting contract before selecting a prompt.
+ */
+export const promptDefinitions: readonly SocialPrompt[] = [
+  {
+    id:'clean-truth-school', kind:'truth', text:'What is the funniest thing that ever happened to you at school?',
+    world:'UNDER_18_CLEAN', stage:1, groupSizeMin:2, groupSizeMax:10, intensity:1, language:'*', callSuitability:'*',
+    targeting:'current', authorshipMode:'SIGNED', destination:'community'
+  },
+  {
+    id:'clean-truth-talent', kind:'truth', text:'What harmless talent would surprise this group the most?',
+    world:'UNDER_18_CLEAN', stage:0, groupSizeMin:2, groupSizeMax:10, intensity:1, language:'*', callSuitability:'*',
+    targeting:'current', options:['A performance','A skill','A fact about me'], authorshipMode:'SIGNED', destination:'community'
+  },
+  {
+    id:'clean-dare-villain', kind:'dare', text:'Act like a cartoon villain for 20 seconds. The group guesses the type.',
+    world:'UNDER_18_CLEAN', stage:1, groupSizeMin:2, groupSizeMax:10, intensity:1, language:'*', callSuitability:'*',
+    targeting:'current', authorshipMode:'SIGNED', destination:'community'
+  },
+  {
+    id:'clean-dare-pose', kind:'dare', text:'Hold the weirdest heroic pose you can invent until the next player begins.',
+    world:'UNDER_18_CLEAN', stage:1, groupSizeMin:2, groupSizeMax:10, intensity:1, language:'*', callSuitability:'*',
+    targeting:'current', authorshipMode:'SIGNED', destination:'community'
+  },
+  {
+    id:'clean-paranoia-detective', kind:'paranoia', text:'Who here would make the best cartoon detective?',
+    world:'UNDER_18_CLEAN', stage:1, groupSizeMin:3, groupSizeMax:10, intensity:1, language:'*', callSuitability:'*',
+    targeting:'specific', authorshipMode:'SIGNED', destination:'community'
+  },
+  {
+    id:'clean-duel-countries', kind:'duel', text:'You each have 15 seconds to name as many African countries as possible.',
+    world:'UNDER_18_CLEAN', stage:2, groupSizeMin:2, groupSizeMax:10, intensity:2, language:'*', callSuitability:'*',
+    targeting:'specific', authorshipMode:'SIGNED', destination:'community', duelJudgingMode:'GROUP_VOTE'
+  },
+  {
+    id:'clean-chaos-animal', kind:'chaos', text:'Everyone has 10 seconds to draw an animal. The active player chooses the funniest.',
+    world:'UNDER_18_CLEAN', stage:3, groupSizeMin:2, groupSizeMax:10, intensity:3, language:'*', callSuitability:'*',
+    targeting:'all', authorshipMode:'SIGNED', destination:'community'
+  },
+  {
+    id:'adult-truth-assumption', kind:'truth', text:'What assumption does this group have about you that is completely wrong?',
+    world:'18+_ADULT', stage:1, groupSizeMin:2, groupSizeMax:10, intensity:1, language:'*', callSuitability:'*',
+    targeting:'current', authorshipMode:'SIGNED', destination:'community'
+  },
+  {
+    id:'adult-truth-draft', kind:'truth', text:'What is a message you drafted and never sent?',
+    world:'18+_ADULT', stage:1, groupSizeMin:2, groupSizeMax:10, intensity:1, language:'*', callSuitability:'*',
+    targeting:'current', authorshipMode:'SIGNED', destination:'community'
+  },
+  {
+    id:'adult-dare-impression', kind:'dare', text:'Do your best celebrity impression for 20 seconds.',
+    world:'18+_ADULT', stage:1, groupSizeMin:2, groupSizeMax:10, intensity:1, language:'*', callSuitability:'*',
+    targeting:'current', authorshipMode:'SIGNED', destination:'community'
+  },
+  {
+    id:'adult-dare-story', kind:'dare', text:'Tell a dramatic ten-second story using only three words chosen by the group.',
+    world:'18+_ADULT', stage:2, groupSizeMin:2, groupSizeMax:10, intensity:2, language:'*', callSuitability:'*',
+    targeting:'current', authorshipMode:'SIGNED', destination:'community'
+  },
+  {
+    id:'adult-paranoia-plan', kind:'paranoia', text:'Who here is most likely to have a secret backup plan?',
+    world:'18+_ADULT', stage:1, groupSizeMin:3, groupSizeMax:10, intensity:1, language:'*', callSuitability:'*',
+    targeting:'specific', authorshipMode:'SIGNED', destination:'community'
+  },
+  {
+    id:'adult-duel-liar', kind:'duel', text:'You each get 15 seconds to convince the room you are the better liar. The room votes.',
+    world:'18+_ADULT', stage:2, groupSizeMin:2, groupSizeMax:10, intensity:2, language:'*', callSuitability:'*',
+    targeting:'specific', authorshipMode:'SIGNED', destination:'community', duelJudgingMode:'GROUP_VOTE'
+  },
+  {
+    id:'adult-chaos-reverse', kind:'chaos', text:'Everyone answers the next eligible question in reverse turn order.',
+    world:'18+_ADULT', stage:3, groupSizeMin:2, groupSizeMax:10, intensity:3, language:'*', callSuitability:'*',
+    targeting:'all', authorshipMode:'SIGNED', destination:'community'
+  }
+] as const;
