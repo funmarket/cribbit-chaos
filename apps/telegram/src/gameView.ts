@@ -108,7 +108,20 @@ function gameTemplate(
   const humanTurn = state.currentPlayerId === game.humanPlayerId;
   const activeState = describeActiveState(state, game);
   const humanNope = human?.hand.find(card => card.kind === 'nope');
-  const nopeEligible = Boolean(humanNope && state.social && ['truth','dare'].includes(state.social.cardKind));
+  const truthDareForHuman = Boolean(
+    state.social &&
+    !state.social.resolutionComplete &&
+    state.social.actorId === game.humanPlayerId &&
+    (state.social.cardKind === 'truth' || state.social.cardKind === 'dare'),
+  );
+  const passEligible = truthDareForHuman;
+  const rewindEligible = Boolean(
+    truthDareForHuman &&
+    state.social?.prompt &&
+    state.social.answerState.status === 'WAITING' &&
+    !state.rewindUsedByPlayerIds.includes(game.humanPlayerId),
+  );
+  const nopeEligible = Boolean(humanNope && truthDareForHuman);
 
   return `
     <main class="tg-app tg-game-page" data-telegram-app data-game-simulation>
@@ -198,8 +211,8 @@ function gameTemplate(
       </section>
 
       <nav class="tg-safety-bar" aria-label="Game actions">
-        <button type="button" data-action="safety-pass" aria-disabled="${String(!state.social)}"><span>↪</span><b>Pass</b></button>
-        <button type="button" data-action="safety-rewind" aria-disabled="${String(!state.social)}"><span>↶</span><b>Rewind</b></button>
+        <button type="button" data-action="safety-pass" aria-disabled="${String(!passEligible)}"><span>↪</span><b>Pass</b></button>
+        <button type="button" data-action="safety-rewind" aria-disabled="${String(!rewindEligible)}"><span>↶</span><b>Rewind</b></button>
         <button type="button" data-action="safety-nope" data-nope-card-id="${escapeHTML(humanNope?.id ?? '')}" aria-disabled="${String(!nopeEligible)}" title="Nope is reaction-only"><span>✋</span><b>Nope</b></button>
         <button type="button" data-action="draw-card" aria-disabled="${String(!humanTurn || Boolean(state.social) || Boolean(state.pendingEffect))}"><span>▱</span><b>Draw</b></button>
       </nav>
