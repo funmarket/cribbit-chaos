@@ -1,7 +1,11 @@
 export type {
+  CanonicalInteractionStep,
+  ChaosEffectId,
   DuelJudgingMode,
   DuelObjectiveEvaluation,
+  MachiavelliEffectId,
   PromptEligibilityRequest,
+  PromptSourceChoice,
   PromptWorld,
   RevealState,
   RoulettePresentation,
@@ -64,13 +68,9 @@ export interface Card {
 }
 
 export interface AdaptiveProbabilityState {
-  /** Advances whenever an authoritative card draw or card play changes match memory. */
   sequence: number;
-  /** Counts post-start physical draw selections only. */
   drawCount: number;
-  /** Global multiplier applied only to immediate-interaction families. */
   interactionPressure: number;
-  /** Last shared-match sequence at which each family appeared. */
   familyLastSeenStep: Partial<Record<CardKind, number>>;
 }
 
@@ -79,6 +79,8 @@ export interface Player {
   seat: number;
   hand: Card[];
   status: PlayerStatus;
+  ghostArmedCard?: Card | null;
+  ghostTurnsRemaining?: number;
 }
 
 export type GamePlayerSetup = Pick<Player, 'id'> & Partial<Pick<Player, 'seat' | 'status'>>;
@@ -95,6 +97,18 @@ export interface TimerState {
   startedAt: number;
   deadlineAt: number;
   startedAtRevision: number;
+}
+
+export interface ForcedCardEntry {
+  actorId: string;
+  card: Card;
+}
+
+export interface BonusTurnFrame {
+  kind: 'TAG' | 'HIJACK';
+  playerId: string;
+  returnPlayerId: string | null;
+  pendingWinnerId: string | null;
 }
 
 export interface GameConfig {
@@ -127,11 +141,14 @@ export type GameCommand =
   | (CommandMeta & { type: 'PLAY_CARD'; cardId: string })
   | (CommandMeta & { type: 'DRAW_CARD' })
   | (CommandMeta & { type: 'SELECT_WILD_COLOR'; color: CardColor })
+  | (CommandMeta & { type: 'SELECT_PROMPT_SOURCE'; source: import('./social.ts').PromptSourceChoice })
+  | (CommandMeta & { type: 'SUBMIT_MANUAL_PROMPT'; text: string })
   | (CommandMeta & { type: 'REVEAL_PROMPT' })
   | (CommandMeta & { type: 'PUBLISH_PROMPT' })
   | (CommandMeta & { type: 'REWIND_PROMPT' })
   | (CommandMeta & { type: 'PASS_PROMPT' })
   | (CommandMeta & { type: 'FLAG_PROMPT'; promptId: string; reasonCode?: string })
+  | (CommandMeta & { type: 'SELECT_DARE_TARGET'; targetId: string })
   | (CommandMeta & { type: 'SELECT_ANSWER_MODE'; mode: AnswerMode })
   | (CommandMeta & { type: 'REVIEW_ANSWER'; value?: string; choice?: string; completionOnly?: boolean })
   | (CommandMeta & { type: 'SUBMIT_ANSWER' })
@@ -143,11 +160,31 @@ export type GameCommand =
   | (CommandMeta & { type: 'SUBMIT_PARANOIA_CLASSIC_DECISION'; decision: ParanoiaClassicRevealDecision })
   | (CommandMeta & { type: 'SUBMIT_PARANOIA_VOTE'; vote: ParanoiaVoteChoice })
   | (CommandMeta & { type: 'SELECT_DUEL_TARGET'; targetId: string })
+  | (CommandMeta & { type: 'SELECT_DUEL_TIMER'; seconds: 15 | 30 | 45 })
   | (CommandMeta & { type: 'SUBMIT_DUEL_RESPONSE'; side: 'initiator' | 'opponent'; value?: string; choice?: string; completionOnly?: boolean })
+  | (CommandMeta & { type: 'DUEL_VOTE'; winnerId: string })
+  | (CommandMeta & { type: 'RESOLVE_CHAOS' })
+  | (CommandMeta & { type: 'SELECT_TAG_TARGET'; targetId: string })
+  | (CommandMeta & { type: 'SELECT_HIJACK_TARGET'; targetId: string })
+  | (CommandMeta & { type: 'SELECT_TABOO_TARGET'; targetId: string })
+  | (CommandMeta & { type: 'SUBMIT_TABOO_QUESTION'; text: string })
+  | (CommandMeta & { type: 'SUBMIT_TABOO_ANSWER'; answer: 'YES' | 'OTHER' })
+  | (CommandMeta & { type: 'SUBMIT_GROUP_QUESTION'; text: string; options: string[] })
+  | (CommandMeta & { type: 'SUBMIT_GROUP_ANSWER'; choice: string })
+  | (CommandMeta & { type: 'SUBMIT_GROUP_DARE'; text: string })
+  | (CommandMeta & { type: 'COMPLETE_GROUP_DARE'; completion: 'DONE' | 'PASS' })
+  | (CommandMeta & { type: 'SELECT_MACHIAVELLI_EFFECT'; effect: import('./social.ts').MachiavelliEffectId })
+  | (CommandMeta & { type: 'SELECT_REVERSE_CONFESSION_TARGET'; targetId: string })
+  | (CommandMeta & { type: 'SUBMIT_REVERSE_CONFESSION_QUESTION'; text: string })
+  | (CommandMeta & { type: 'SUBMIT_REVERSE_CONFESSION_ANSWER'; value?: string; answeredLive?: boolean })
+  | (CommandMeta & { type: 'SELECT_DIG_ME_TARGET'; targetId: string })
+  | (CommandMeta & { type: 'SUBMIT_DIG_ME_QUESTION'; text?: string; askedLive?: boolean })
+  | (CommandMeta & { type: 'COMPLETE_DIG_ME' })
+  | (CommandMeta & { type: 'ACTIVATE_GHOST' })
+  | (CommandMeta & { type: 'END_GHOST_TURN' })
   | (CommandMeta & { type: 'PLAY_NOPE'; cardId: string })
   | (CommandMeta & { type: 'PARANOIA_CHOICE'; targetId: string })
   | (CommandMeta & { type: 'DUEL_TARGET'; targetId: string })
-  | (CommandMeta & { type: 'DUEL_VOTE'; winnerId: string })
   | (CommandMeta & { type: 'CHAOS_TARGET'; targetId: string })
   | (CommandMeta & { type: 'NOPE_REACTION'; useNope: boolean })
   | (CommandMeta & { type: 'TIMEOUT_TURN'; timerStartedAtRevision: number })
@@ -162,6 +199,8 @@ export type CoreGameEventType =
   | 'CARD_DEALT'
   | 'CARD_PLAYED'
   | 'CARD_DRAWN'
+  | 'FORCED_CARD_QUEUED'
+  | 'FORCED_CARD_TRIGGERED'
   | 'TURN_ADVANCED'
   | 'DIRECTION_CHANGED'
   | 'PLAYER_SKIPPED'
@@ -169,16 +208,32 @@ export type CoreGameEventType =
   | 'WILD_COLOR_REQUIRED'
   | 'WILD_COLOR_SELECTED'
   | 'SOCIAL_CARD_TRIGGERED'
+  | 'PROMPT_SOURCE_REQUIRED'
+  | 'PROMPT_SOURCE_SELECTED'
+  | 'MANUAL_PROMPT_ACCEPTED'
   | 'ROULETTE_PRESENTATION_STARTED'
   | 'PROMPT_SELECTED'
   | 'ANSWER_REQUIRED'
   | 'TARGET_REQUIRED'
+  | 'DARE_TARGET_SELECTED'
   | 'PARANOIA_TARGET_SELECTED'
   | 'DUEL_TARGET_SELECTED'
+  | 'DUEL_TIMER_SELECTED'
   | 'DUEL_RESPONSE_SUBMITTED'
   | 'DUEL_GROUP_VOTE_REQUIRED'
   | 'DUEL_VOTE_SUBMITTED'
   | 'DUEL_VOTE_RESOLVED'
+  | 'CHAOS_EFFECT_RESOLVED'
+  | 'TAG_TARGET_SELECTED'
+  | 'HIJACK_TARGET_SELECTED'
+  | 'TABOO_RESOLVED'
+  | 'TRUTH_OR_CHAOS_RESOLVED'
+  | 'MACHIAVELLI_APPLIED'
+  | 'REVERSE_CONFESSION_RESOLVED'
+  | 'DIG_ME_RESOLVED'
+  | 'GHOST_ARMED'
+  | 'GHOST_ACTIVATED'
+  | 'GHOST_TURN_ENDED'
   | 'NOPE_WINDOW_OPENED'
   | 'NOPE_PLAYED'
   | 'SOCIAL_PASSED'
@@ -288,6 +343,9 @@ export interface GameState {
   rewindUsedByPlayerIds: string[];
   processedCommands: Record<string, ProcessedCommandRecord>;
   adaptiveProbability?: AdaptiveProbabilityState;
+  forcedQueue?: ForcedCardEntry[];
+  bonusTurnStack?: BonusTurnFrame[];
+  chaosReverseActive?: boolean;
 }
 
 export interface GameTransition<TState = GameState> {
@@ -327,10 +385,7 @@ export interface AuthUser {
   identities: AuthIdentitySummary[];
 }
 
-export interface TelegramMiniAppAuthRequest {
-  initData: string;
-}
-
+export interface TelegramMiniAppAuthRequest { initData: string; }
 export type TelegramAuthRequest = TelegramMiniAppAuthRequest;
 
 export interface WebRegisterRequest {
@@ -341,28 +396,11 @@ export interface WebRegisterRequest {
   email?: string;
 }
 
-export interface WebLoginRequest {
-  loginUsername: string;
-  password: string;
-}
-
-export interface WebAuthResponse {
-  user: AuthUser;
-}
-
-export interface ProfileUpdateRequest {
-  displayName?: string;
-}
-
-export interface AuthSession {
-  accessToken: string;
-  user: AuthUser;
-}
-
-export interface WebTelegramLoginConfiguration {
-  configured: boolean;
-  error?: 'TELEGRAM_WEB_LOGIN_NOT_CONFIGURED';
-}
+export interface WebLoginRequest { loginUsername: string; password: string; }
+export interface WebAuthResponse { user: AuthUser; }
+export interface ProfileUpdateRequest { displayName?: string; }
+export interface AuthSession { accessToken: string; user: AuthUser; }
+export interface WebTelegramLoginConfiguration { configured: boolean; error?: 'TELEGRAM_WEB_LOGIN_NOT_CONFIGURED'; }
 
 export interface ClientConfig {
   apiUrl: string;
