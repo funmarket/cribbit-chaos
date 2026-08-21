@@ -26,8 +26,9 @@ function applyPlayNope<TState extends GameState>(state:TState,command:GameComman
 
 export function applyCommand<TState extends GameState>(state:TState,command:GameCommand,context:GameCommandContext={}):GameTransition<TState>{
   const canonicalContext=(context as CanonicalContext).canonicalFlow===true,canonicalState=Boolean(state.social?.canonicalStep),canonicalOnly=CANONICAL_ONLY_COMMANDS.has(command.type);
-  if(isCanonicalSafetyCommand(state,command)){const replay=canonicalReplay(state,command);if(replay)return replay;return applyCanonicalSafety(state,command,context);}
-  if((canonicalContext||canonicalState||canonicalOnly)&&shouldHandleCanonical(state,command)){const replay=canonicalReplay(state,command);if(replay)return replay;return applyCanonicalCommand(state,command,context);}
+  if(canonicalContext||canonicalState||canonicalOnly){const replay=canonicalReplay(state,command);if(replay)return replay;}
+  if(isCanonicalSafetyCommand(state,command))return applyCanonicalSafety(state,command,context);
+  if((canonicalContext||canonicalState||canonicalOnly)&&shouldHandleCanonical(state,command))return applyCanonicalCommand(state,command,context);
   if(command.type==='PLAY_NOPE')return applyPlayNope(state,command,context);
   const reduced=reduceCommand(state,command,context);return canonicalContext?reconcileBonusTurnAfterBase(state,command,reduced,context):reduced;
 }
