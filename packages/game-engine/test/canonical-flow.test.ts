@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { Card, GameCommand, GameState, SocialPrompt } from '@cribbit/contracts';
 import { applyCommand, createGame } from '../src/index.ts';
 
-function unwrap<T>(result:{ok:boolean;state:T;error?:Error}):T{if(!result.ok)throw result.error??new Error('transition failed');return result.state;}
+function unwrap<T>(result:{ok:boolean;state:T;error?:{message:string}}):T{if(!result.ok)throw new Error(result.error?.message??'transition failed');return result.state;}
 function state(playerCount=3):GameState{const created=createGame({seed:'canonical-live-test',allowVoluntaryDraw:true},Array.from({length:playerCount},(_,i)=>({id:`p${i+1}`,seat:i})),undefined,{now:1000});const s=unwrap(created);s.forcedQueue=[];s.bonusTurnStack=[];return s;}
 function card(id:string,kind:Card['kind']):Card{return{id,kind,symbol:kind};}
 function setHands(s:GameState,hands:Record<string,Card[]>):void{s.players.forEach(p=>p.hand=[...(hands[p.id]??[])]);}
@@ -11,7 +11,6 @@ function prompt(id:string,kind:SocialPrompt['kind'],targeting:SocialPrompt['targ
 const pool=[prompt('truth-a','truth','current'),prompt('truth-b','truth','current'),prompt('dare-a','dare','specific'),prompt('paranoia-a','paranoia','specific'),prompt('duel-a','duel','specific')];
 function ctx(){return{canonicalFlow:true,now:2000,promptPool:pool,promptProfile:{stage:Number.MAX_SAFE_INTEGER,intensity:Number.MAX_SAFE_INTEGER,language:'*',callSuitability:'*'}} as any;}
 function cmd(s:GameState,playerId:string,body:any,id=`c-${s.revision}-${body.type}`):GameCommand{return{...body,commandId:id,playerId,expectedRevision:s.revision,sessionId:s.id} as GameCommand;}
-
 function play(s:GameState,playerId:string,cardId:string){return applyCommand(s,cmd(s,playerId,{type:'PLAY_CARD',cardId}),ctx());}
 
 test('Truth live play stops at prompt source with no preselected prompt',()=>{
@@ -35,7 +34,7 @@ test('Roulette prompt remains private until publish and Rewind changes it once',
 });
 
 test('forced interaction drawn is not kept in hand and triggers before turn advance',()=>{
-  let s=state();setHands(s,{p1:[card('held','number')],p2:[card('x','number')],p3:[card('y','number')]});s.currentPlayerId='p1';s.drawPile=[card('forced-truth','truth'),card('later','number')];
+  let s=state();setHands(s,{p1:[card('held','number')],p2:[card('x','number')],p3:[card('y','number')]});s.currentPlayerId='p1';s.drawPile=[card('forced-truth','truth')];
   s=unwrap(applyCommand(s,cmd(s,'p1',{type:'DRAW_CARD'}),ctx()));
   assert.equal(s.players[0].hand.some(c=>c.id==='forced-truth'),false);assert.equal(s.discardPile.at(-1)?.id,'forced-truth');assert.equal(s.social?.cardKind,'truth');assert.equal(s.social?.forced,true);assert.equal(s.currentPlayerId,'p1');
 });
