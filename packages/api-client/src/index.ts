@@ -2,6 +2,27 @@ import { io, type Socket } from 'socket.io-client';
 import type { AuthSession, AuthUser, ClientConfig, CommandResponse, GameCommand, ProfileUpdateRequest, SessionSnapshot, TelegramAuthRequest, WebTelegramLoginConfiguration } from '../../contracts/src/index.ts';
 import { cribbitSessionTokenStore } from './session-token-store.ts';
 
+export interface RoomSessionResult {
+  ok: true;
+  roomId: string;
+  sessionId: string;
+  joinCode: string;
+  players: Array<{ id:string; name:string; isHuman:boolean }>;
+}
+
+export interface RoomCreateRequest {
+  roomName?: string;
+  mode?: string;
+  playerCount?: number;
+  world?: 'clean' | 'adult';
+  ceiling?: number;
+  sources?: Record<string, boolean>;
+}
+
+export interface GameSessionSnapshot<TState = unknown> extends SessionSnapshot<TState> {
+  players: Array<{ id:string; name:string; isHuman:boolean }>;
+}
+
 export class ApiError extends Error {
   constructor(public readonly status: number, message: string) { super(message); }
 }
@@ -40,13 +61,16 @@ export class CribbitApiClient {
   startWebTelegramLogin(): void {
     window.location.assign(`${this.config.apiUrl}/v1/auth/telegram/web/start`);
   }
-  joinRoom(code: string): Promise<{ roomId:string; sessionId?:string }> {
+  createRoom(payload: RoomCreateRequest): Promise<RoomSessionResult> {
+    return this.request('/v1/rooms', { method:'POST', body:JSON.stringify(payload) });
+  }
+  joinRoom(code: string): Promise<RoomSessionResult> {
     return this.request('/v1/rooms/join', { method:'POST', body:JSON.stringify({ code }) });
   }
   updateRoomConfig(roomId: string, config: unknown): Promise<unknown> {
     return this.request(`/v1/rooms/${encodeURIComponent(roomId)}/config`, { method:'PATCH', body:JSON.stringify(config) });
   }
-  getSnapshot<TState>(sessionId: string): Promise<SessionSnapshot<TState>> {
+  getSnapshot<TState>(sessionId: string): Promise<GameSessionSnapshot<TState>> {
     return this.request(`/v1/games/${encodeURIComponent(sessionId)}/snapshot`);
   }
   sendCommand<TState>(command: GameCommand): Promise<CommandResponse<TState>> {
@@ -65,7 +89,6 @@ export function clientConfig(platform: ClientConfig['platform']): ClientConfig {
     appEnv: (import.meta.env.VITE_APP_ENV as ClientConfig['appEnv']) || 'development'
   };
 }
-
 
 export class CribbitRealtimeClient {
   private socket: Socket | null = null;
