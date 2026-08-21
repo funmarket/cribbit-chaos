@@ -3,8 +3,9 @@ import './styles.css';
 import './compact-cards.css';
 import './draw-pile-card-back.css';
 import type { PlatformAdapter } from '../../platform/src/types.ts';
-import { CribbitApiClient, clientConfig } from '../../api-client/src/index.ts';
+import { ApiError, CribbitApiClient, clientConfig } from '../../api-client/src/index.ts';
 import type { AuthSession } from '../../contracts/src/index.ts';
+import { cribbitAuth } from './auth-controller.ts';
 import { resolveVisualFixture, type VisualFixtureName, VISUAL_FIXTURES } from './fixtures.ts';
 
 export type BootstrapRuntimeMode = 'none' | 'legacy-compatibility';
@@ -54,14 +55,35 @@ export async function bootstrap(
   if (fixture) host.dataset.fixture = fixture;
   setupWebTelegramLogin(platform.kind, api, config.apiUrl);
 
+  cribbitAuth.loading();
+
   // Telegram identity is useful for display immediately, but remains untrusted until
   // the Railway API validates the signed raw initData. Failure never breaks the UI.
   if (platform.kind === 'telegram' && config.apiUrl) {
     const initData = platform.getRawAuthPayload();
     if (initData) {
-      try { window.__CRIBBIT_AUTH__ = await api.telegramAuth({ initData }); }
-      catch (error) { console.warn('[Cribbit] Telegram server authentication not available yet.', error); }
+      try {
+        window.__CRIBBIT_AUTH__ = await api.telegramAuth({ initData });
+        cribbitAuth.authenticated(window.__CRIBBIT_AUTH__.user, 'TELEGRAM');
+      } catch (error) {
+        cribbitAuth.guest();
+        console.warn('[Cribbit] Telegram server authentication not available yet.', error);
+      }
+    } else {
+      cribbitAuth.guest();
     }
+  } else if (platform.kind === 'web' && config.apiUrl) {
+    try {
+      const session = await api.getAuthSession();
+      cribbitAuth.authenticated(session.user, 'WEB');
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 401) {
+        console.warn('[Cribbit] Web session check failed.', error);
+      }
+      cribbitAuth.guest();
+    }
+  } else {
+    cribbitAuth.guest();
   }
 
   if (options.runtimeMode === 'legacy-compatibility') {
@@ -79,7 +101,7 @@ function setupWebTelegramLogin(platformKind: PlatformAdapter['kind'], api: Cribb
   }
   if (!apiUrl) {
     status.hidden = false;
-    status.textContent = 'Telegram login needs API config';
+    status.textContent = 'Authentication needs API config';
     return;
   }
   button.addEventListener('click', async () => {
@@ -87,13 +109,13 @@ function setupWebTelegramLogin(platformKind: PlatformAdapter['kind'], api: Cribb
       const configuration = await api.getWebTelegramLoginConfiguration();
       if (!configuration.configured) {
         status.hidden = false;
-        status.textContent = 'Telegram login not configured';
+        status.textContent = 'Telegram Web login is optional and not configured';
         return;
       }
       api.startWebTelegramLogin();
     } catch {
       status.hidden = false;
-      status.textContent = 'Telegram login unavailable';
+      status.textContent = 'Telegram Web login unavailable';
     }
   });
 }
