@@ -22,6 +22,7 @@ import { validateTelegramInitData } from './telegram-auth.ts';
 
 type TelegramIdentityInput = { telegramId:string; displayName:string; username?:string };
 type SessionProvider = 'telegram' | 'web';
+type SessionBroadcaster = { to(room:string): { emit(event:string, payload:unknown): void } };
 
 export interface ApiDependencies {
   dbHealth: () => Promise<boolean>;
@@ -91,19 +92,12 @@ function profileDisplayName(value:unknown): string {
 
 function authError(reply:any, error:unknown) {
   const err = error as { code?:string; statusCode?:number; message?:string };
-  return reply.code(err.statusCode || 401).send({
-    error:err.code || 'AUTH_INVALID',
-    message:err.message || 'Authentication failed.'
-  });
+  return reply.code(err.statusCode || 401).send({ error:err.code || 'AUTH_INVALID', message:err.message || 'Authentication failed.' });
 }
 
 function routeError(reply:any, error:unknown) {
   const err = error as { code?:string; statusCode?:number; message?:string };
-  return reply.code(err.statusCode || 500).send({
-    ok:false,
-    error:err.code || 'SERVER_ERROR',
-    message:err.message || 'Request failed.'
-  });
+  return reply.code(err.statusCode || 500).send({ ok:false, error:err.code || 'SERVER_ERROR', message:err.message || 'Request failed.' });
 }
 
 export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
@@ -118,9 +112,10 @@ export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
 
   const io = new SocketIOServer(app.server, {
     path:'/v1/realtime',
-    cors:{ origin: allowedOrigins.length ? allowedOrigins : true },
+    cors:{ origin:allowedOrigins.length ? allowedOrigins : true },
     transports:['polling','websocket']
   });
+  const sessions = io as unknown as SessionBroadcaster;
 
   app.get('/health', async () => ({ ok:true, service:'cribbit-chaos-api', database:await deps.dbHealth(), time:new Date().toISOString() }));
   app.get('/v1/meta/action-map', async () => ({ actions:ACTION_ASSIGNMENTS }));
@@ -143,10 +138,7 @@ export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
 
   app.post('/v1/auth/guest', async (_request:any, reply:any) => {
     if (!guestAuthEnabled()) {
-      return reply.code(403).send({
-        error:'GUEST_AUTH_DISABLED',
-        message:'Guest authentication is disabled. Use Telegram authentication.'
-      });
+      return reply.code(403).send({ error:'GUEST_AUTH_DISABLED', message:'Guest authentication is disabled. Use Telegram authentication.' });
     }
     try {
       const user = await deps.createGuestIdentity('Web Player');
@@ -158,9 +150,7 @@ export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
   });
 
   app.get('/v1/auth/telegram/web/configuration', async () => (
-    telegramWebLoginConfigured()
-      ? { configured:true }
-      : { configured:false, error:'TELEGRAM_WEB_LOGIN_NOT_CONFIGURED' }
+    telegramWebLoginConfigured() ? { configured:true } : { configured:false, error:'TELEGRAM_WEB_LOGIN_NOT_CONFIGURED' }
   ));
   app.get('/v1/auth/telegram/web/start', async (_request:any, reply:any) => {
     if (!telegramWebLoginConfigured()) return reply.code(503).send({ error:'TELEGRAM_WEB_LOGIN_NOT_CONFIGURED' });
@@ -247,7 +237,7 @@ export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
         return reply.code(400).send({ error:'INVALID_COMMAND_ENVELOPE' });
       }
       const response = await processSessionCommand(auth, sessionId, body);
-      io.to(`game:${sessionId}`).emit('session-updated', { sessionId, revision:response.revision });
+      sessions.to(`game:${sessionId}`).emit('session-updated', { sessionId, revision:response.revision });
       return response;
     } catch (error) {
       return routeError(reply, error);
