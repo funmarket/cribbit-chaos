@@ -15,13 +15,12 @@ function send(s:GameState,playerId:string,body:any):GameState{return unwrap(appl
 function play(s:GameState,playerId:string,cardId:string):GameState{return send(s,playerId,{type:'PLAY_CARD',cardId});}
 
 test('TAG grants exactly one target bonus action and blocks nested TAG',()=>{
-  let s=state(3);hands(s,{p1:[card('tag-1','tag'),card('keep','number')],p2:[card('tag-2','tag'),card('p2-number','number')],p3:[card('p3','number')]});
+  let s=state(3);hands(s,{p1:[card('tag-1','tag'),card('keep','number')],p2:[card('p2','number')],p3:[card('tag-2','tag'),card('bonus-skip','skip')]});
   s=play(s,'p1','tag-1');assert.equal(s.social?.cardKind,'tag');
-  s=send(s,'p1',{type:'SELECT_TAG_TARGET',targetId:'p2'});assert.equal(s.currentPlayerId,'p2');assert.equal(s.bonusTurnStack?.at(-1)?.kind,'TAG');
-  assert.equal(s.players.find(p=>p.id==='p2')?.hand.some(c=>c.id==='tag-2'),true);
-  const nested=applyCommand(s,command(s,'p2',{type:'PLAY_CARD',cardId:'tag-2'}),context());assert.equal(nested.ok,false);assert.equal(nested.error?.code,'ILLEGAL_PLAY');
-  s=play(s,'p2','p2-number');assert.equal(s.currentPlayerId,'p2'===s.bonusTurnStack?.at(-1)?.playerId?'p2':s.currentPlayerId);
-  assert.equal(s.bonusTurnStack?.length??0,0);assert.equal(s.currentPlayerId,'p2');
+  s=send(s,'p1',{type:'SELECT_TAG_TARGET',targetId:'p3'});assert.equal(s.currentPlayerId,'p3');assert.equal(s.bonusTurnStack?.at(-1)?.kind,'TAG');
+  assert.equal(s.players.find(p=>p.id==='p3')?.hand.some(c=>c.id==='tag-2'),true);
+  const nested=applyCommand(s,command(s,'p3',{type:'PLAY_CARD',cardId:'tag-2'}),context());assert.equal(nested.ok,false);assert.equal(nested.error?.code,'ILLEGAL_PLAY');
+  s=play(s,'p3','bonus-skip');assert.equal(s.bonusTurnStack?.length??0,0);assert.equal(s.currentPlayerId,'p2');
 });
 
 test('Hijack permanently swaps positions, draws one for target, then gives target immediate action',()=>{
