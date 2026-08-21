@@ -34,11 +34,11 @@ function ghostOwnerWhoseTurnCompleted(before:GameState,command:GameCommand,after
   if(command.type==='PLAY_CARD'){
     const owner=before.players.find(player=>player.id===command.playerId);
     const played=owner?.hand.find(card=>card.id===command.cardId);
-    if((owner?.ghostTurnsRemaining??0)>0&&played&&GHOST_IMMEDIATE_PLAY_KINDS.has(played.kind))return owner.id;
+    if((owner?.ghostTurnsRemaining??0)>0&&played&&GHOST_IMMEDIATE_PLAY_KINDS.has(played.kind))return command.playerId;
   }
   if(command.type==='SELECT_WILD_COLOR'){
     const owner=before.players.find(player=>player.id===command.playerId);
-    if((owner?.ghostTurnsRemaining??0)>0&&before.pendingEffect?.type==='WILD_COLOR'&&before.pendingEffect.playerId===owner?.id&&!after.pendingEffect)return owner.id;
+    if((owner?.ghostTurnsRemaining??0)>0&&before.pendingEffect?.type==='WILD_COLOR'&&before.pendingEffect.playerId===command.playerId&&!after.pendingEffect)return command.playerId;
   }
   return null;
 }
