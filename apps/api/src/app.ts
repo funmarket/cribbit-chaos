@@ -1,7 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { Server as SocketIOServer } from 'socket.io';
-import type { AuthUser } from '../../../packages/contracts/src/index.ts';
+import type { AuthUser, GameCommand } from '../../../packages/contracts/src/index.ts';
 import { ACTION_ASSIGNMENTS } from '../../../packages/action-registry/src/index.ts';
 import {
   authenticateSessionToken,
@@ -11,6 +11,13 @@ import {
   resolveOrCreateTelegramIdentity,
   updateUserProfile
 } from './db.ts';
+import {
+  createRoomAndSession,
+  getSessionSnapshot,
+  joinRoomByCode,
+  processSessionCommand,
+  type RoomCreateInput,
+} from './game-service.ts';
 import { validateTelegramInitData } from './telegram-auth.ts';
 
 type TelegramIdentityInput = { telegramId:string; displayName:string; username?:string };
@@ -87,6 +94,15 @@ function authError(reply:any, error:unknown) {
   return reply.code(err.statusCode || 401).send({
     error:err.code || 'AUTH_INVALID',
     message:err.message || 'Authentication failed.'
+  });
+}
+
+function routeError(reply:any, error:unknown) {
+  const err = error as { code?:string; statusCode?:number; message?:string };
+  return reply.code(err.statusCode || 500).send({
+    ok:false,
+    error:err.code || 'SERVER_ERROR',
+    message:err.message || 'Request failed.'
   });
 }
 
@@ -182,13 +198,28 @@ export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
   });
   app.get('/v1/me/notifications', async (_request:any, reply:any) => reply.code(501).send({ error:'NOTIFICATIONS_NOT_MIGRATED' }));
 
-  app.post('/v1/rooms/join', async (request:any) => {
-    const { code } = request.body as { code?:string };
-    if (!code || !/^[A-Za-z0-9]{4,12}$/.test(code)) return { ok:false, error:'INVALID_ROOM_CODE' };
-    return { ok:false, error:'ROOMS_NOT_MIGRATED', message:'Room persistence is not enabled until the PostgreSQL room service is migrated.' };
+  app.post('/v1/rooms', async (request:any, reply:any) => {
+    try {
+      const auth = await authenticateBearer(request, deps);
+      return await createRoomAndSession(auth, (request.body ?? {}) as RoomCreateInput);
+    } catch (error) {
+      return routeError(reply, error);
+    }
   });
-  app.patch('/v1/rooms/:roomId/config', async (_request:any, reply:any) => reply.code(501).send({ error:'ROOMS_NOT_MIGRATED' }));
-  app.post('/v1/rooms/:roomId/start', async (request:any, reply:any) => reply.code(501).send({ error:'ENGINE_NOT_MIGRATED', roomId:(request.params as {roomId:string}).roomId, message:'Route is reserved for authoritative shuffle/deal/start after the reducer migration.' }));
+
+  app.post('/v1/rooms/join', async (request:any, reply:any) => {
+    try {
+      const auth = await authenticateBearer(request, deps);
+      const { code } = request.body as { code?:string };
+      if (!code || !/^[A-Za-z0-9]{4,12}$/.test(code)) return reply.code(400).send({ ok:false, error:'INVALID_ROOM_CODE' });
+      return await joinRoomByCode(auth, code);
+    } catch (error) {
+      return routeError(reply, error);
+    }
+  });
+
+  app.patch('/v1/rooms/:roomId/config', async (_request:any, reply:any) => reply.code(501).send({ error:'ROOM_CONFIG_NOT_IMPLEMENTED' }));
+  app.post('/v1/rooms/:roomId/start', async (_request:any, reply:any) => reply.code(409).send({ error:'SESSION_ALREADY_CREATED', message:'Room creation currently creates the authoritative session immediately.' }));
   app.post('/v1/rooms/:roomId/prompt-pool/:promptId', async (_request:any, reply:any) => reply.code(501).send({ error:'PROMPT_POOL_NOT_MIGRATED' }));
   app.delete('/v1/rooms/:roomId/prompt-pool/:promptId', async (_request:any, reply:any) => reply.code(501).send({ error:'PROMPT_POOL_NOT_MIGRATED' }));
 
@@ -197,22 +228,38 @@ export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
   app.post('/v1/prompts/:promptId/save', async (_request:any, reply:any) => reply.code(501).send({ error:'SAVED_PROMPTS_NOT_MIGRATED' }));
   app.post('/v1/moderation/submissions/:submissionId/advance', async (_request:any, reply:any) => reply.code(501).send({ error:'MODERATION_NOT_MIGRATED' }));
 
-  app.get('/v1/games/:sessionId/snapshot', async (_request:any, reply:any) => reply.code(501).send({ error:'ENGINE_NOT_MIGRATED', message:'Authoritative game-state reducer has not yet been migrated from the V4 compatibility runtime.' }));
-  app.post('/v1/games/:sessionId/commands', async (request:any, reply:any) => {
-    const body = request.body as { type?:string; commandId?:string; playerId?:string; expectedRevision?:number };
-    if (!body?.type || !body.commandId || !body.playerId || !Number.isInteger(body.expectedRevision)) return reply.code(400).send({ error:'INVALID_COMMAND_ENVELOPE' });
-    return reply.code(501).send({ error:'ENGINE_NOT_MIGRATED', commandId:body.commandId, message:`${body.type} has a production backend assignment, but the authoritative reducer is intentionally not enabled until rule-state migration/tests pass.` });
+  app.get('/v1/games/:sessionId/snapshot', async (request:any, reply:any) => {
+    try {
+      const auth = await authenticateBearer(request, deps);
+      const { sessionId } = request.params as { sessionId:string };
+      return await getSessionSnapshot(auth, sessionId);
+    } catch (error) {
+      return routeError(reply, error);
+    }
   });
-  app.post('/v1/games/:sessionId/rematch', async (_request:any, reply:any) => reply.code(501).send({ error:'ENGINE_NOT_MIGRATED' }));
+
+  app.post('/v1/games/:sessionId/commands', async (request:any, reply:any) => {
+    try {
+      const auth = await authenticateBearer(request, deps);
+      const { sessionId } = request.params as { sessionId:string };
+      const body = request.body as GameCommand;
+      if (!body?.type || !body.commandId || !body.playerId || !Number.isInteger(body.expectedRevision)) {
+        return reply.code(400).send({ error:'INVALID_COMMAND_ENVELOPE' });
+      }
+      const response = await processSessionCommand(auth, sessionId, body);
+      io.to(`game:${sessionId}`).emit('session-updated', { sessionId, revision:response.revision });
+      return response;
+    } catch (error) {
+      return routeError(reply, error);
+    }
+  });
+  app.post('/v1/games/:sessionId/rematch', async (_request:any, reply:any) => reply.code(501).send({ error:'REMATCH_NOT_IMPLEMENTED' }));
 
   io.on('connection', (socket:any) => {
     socket.on('join-session', (payload:{sessionId?:string}) => {
       if (!payload?.sessionId) return socket.emit('server-error',{code:'SESSION_REQUIRED'});
       void socket.join(`game:${payload.sessionId}`);
       socket.emit('joined-session',{sessionId:payload.sessionId});
-    });
-    socket.on('game-command', (payload:{sessionId?:string; type?:string; commandId?:string; playerId?:string}) => {
-      socket.emit('command-rejected',{ commandId:payload?.commandId, code:'ENGINE_NOT_MIGRATED', message:'Realtime transport is ready; authoritative reducer is not enabled yet.' });
     });
   });
 
