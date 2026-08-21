@@ -40,19 +40,21 @@ export async function bootstrapTelegram(platform: PlatformAdapter): Promise<void
   document.documentElement.dataset.fixture = fixture || '';
   document.documentElement.dataset.telegramComposition = 'mobile';
 
-  const openBackendSession = async (room: RoomSessionResult): Promise<void> => {
+  const openBackendSession = async (room: RoomSessionResult): Promise<boolean> => {
     const auth = window.__CRIBBIT_AUTH__;
     if (!auth) {
       setStatus(host, 'Telegram authentication is required before entering a live game.', 'warning');
-      return;
+      return false;
     }
     try {
       const game = await createTelegramBackendGame(api, room, auth.user.id);
       renderTelegramGame(host, platform, draft, game, showRoomCreation);
+      return true;
     } catch (error) {
       console.warn('[Cribbit] Shared game session could not be loaded.', error);
       showRoomCreation();
       setStatus(host, 'The shared game session could not be loaded.', 'warning');
+      return false;
     }
   };
 
@@ -233,7 +235,7 @@ function bindRoomCreation(
   platform: PlatformAdapter,
   api: CribbitApiClient,
   draft: TelegramRoomDraft,
-  onSession: (room: RoomSessionResult) => void | Promise<void>,
+  onSession: (room: RoomSessionResult) => Promise<boolean>,
   onSimulation: () => void,
 ): void {
   const profileInput = host.querySelector<HTMLInputElement>('[data-profile-input]');
@@ -292,12 +294,14 @@ function bindRoomCreation(
   qaToggle?.addEventListener('change', () => { draft.qaHand = qaToggle.checked; });
 
   host.querySelector<HTMLButtonElement>('[data-action="join-room"]')?.addEventListener('click', () => {
+    platform.haptic('medium');
     void joinRoom(host, api, joinInput?.value || '', onSession);
   });
 
   joinInput?.addEventListener('keydown', event => {
     if (event.key === 'Enter') {
       event.preventDefault();
+      platform.haptic('medium');
       void joinRoom(host, api, joinInput.value, onSession);
     }
   });
@@ -318,8 +322,11 @@ function bindRoomCreation(
         ceiling: draft.ceiling,
         sources: draft.sources,
       });
-      setStatus(host, `Game created · room code ${room.joinCode}.`, 'success');
-      await onSession(room);
+      setStatus(host, `Game created · opening room ${room.joinCode}…`, 'neutral');
+      const opened = await onSession(room);
+      if (!opened && host.querySelector('[data-room-form]')) {
+        setStatus(host, 'The game was created, but its live session could not be opened.', 'warning');
+      }
     } catch (error) {
       console.warn('[Cribbit] Room creation failed.', error);
       setStatus(host, 'The shared game could not be created.', 'warning');
@@ -378,7 +385,7 @@ async function joinRoom(
   host: HTMLElement,
   api: CribbitApiClient,
   rawCode: string,
-  onSession: (room: RoomSessionResult) => void | Promise<void>,
+  onSession: (room: RoomSessionResult) => Promise<boolean>,
 ): Promise<void> {
   const code = rawCode.trim();
   if (!/^[A-Za-z0-9]{4,12}$/.test(code)) {
@@ -392,11 +399,25 @@ async function joinRoom(
   setStatus(host, 'Checking room code…', 'neutral');
   try {
     const joined = await api.joinRoom(code);
-    setStatus(host, `Joined room ${joined.joinCode}.`, 'success');
-    await onSession(joined);
+    setStatus(host, `Room ${joined.joinCode} found · opening live session…`, 'neutral');
+    const opened = await onSession(joined);
+    if (!opened && host.querySelector('[data-room-form]')) {
+      setStatus(host, `Room ${joined.joinCode} was joined, but its live session could not be opened.`, 'warning');
+    }
   } catch (error) {
     console.warn('[Cribbit] Room join request failed.', error);
-    setStatus(host, 'Room joining is currently unavailable.', 'warning');
+    const detail = error instanceof ApiError ? error.message : '';
+    if (detail.includes('ROOM_NOT_FOUND')) {
+      setStatus(host, 'That room code does not exist.', 'warning');
+    } else if (detail.includes('SESSION_NOT_STARTED')) {
+      setStatus(host, 'That room exists, but its game session has not started yet.', 'warning');
+    } else if (detail.includes('GAME_ALREADY_STARTED')) {
+      setStatus(host, 'That game has already started and is no longer accepting new players.', 'warning');
+    } else if (detail.includes('ROOM_FULL')) {
+      setStatus(host, 'That room is already full.', 'warning');
+    } else {
+      setStatus(host, 'Room joining is currently unavailable.', 'warning');
+    }
   }
 }
 
