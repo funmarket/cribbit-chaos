@@ -1,460 +1,91 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { AuthUser, CommandResponse, GameCommand, GameEvent, GameState, SessionSnapshot } from '../../../packages/contracts/src/index.ts';
-import { applyCommand, createGame, isLegalPlay } from '../../../packages/game-engine/src/index.ts';
+import { applyCommand, createGame } from '../../../packages/game-engine/src/index.ts';
 import { promptPoolForSources } from '../../../packages/prompts/src/index.ts';
 import { pool, withTransaction } from './db.ts';
+import { advanceCanonicalBots, isBotPlayerId } from './canonical-bots.ts';
 
-const BOT_NAMES = ['Maya', 'Leo', 'Nina', 'Jordan', 'Sam', 'Alex', 'Zoe', 'Arjun', 'Dev'] as const;
-const BOT_PREFIX = 'bot:';
+const BOT_NAMES=['Maya','Leo','Nina','Jordan','Sam','Alex','Zoe','Arjun','Dev'] as const;
+const BOT_PREFIX='bot:';
 
-export interface RoomCreateInput {
-  roomName?: string;
-  mode?: string;
-  playerCount?: number;
-  world?: 'clean' | 'adult';
-  ceiling?: number;
-  sources?: Record<string, boolean>;
-}
+export interface RoomCreateInput{roomName?:string;mode?:string;playerCount?:number;world?:'clean'|'adult';ceiling?:number;sources?:Record<string,boolean>;}
+export interface SessionPlayerView{id:string;name:string;isHuman:boolean;}
+export interface RoomSessionResult{ok:true;roomId:string;sessionId:string;joinCode:string;players:SessionPlayerView[];}
+export interface ProjectedSessionSnapshot extends SessionSnapshot<GameState>{players:SessionPlayerView[];}
+type StoredRoomConfig=RoomCreateInput&{playerNames?:Record<string,string>;};
 
-export interface SessionPlayerView {
-  id: string;
-  name: string;
-  isHuman: boolean;
-}
+function requirePool(){if(!pool)throw Object.assign(new Error('DATABASE_URL is not configured.'),{code:'DATABASE_UNAVAILABLE',statusCode:503});return pool;}
+function normalizePlayerCount(value:unknown):number{const count=Number(value??5);if(!Number.isInteger(count)||count<2||count>10)throw Object.assign(new Error('playerCount must be between 2 and 10.'),{code:'INVALID_PLAYER_COUNT',statusCode:400});return count;}
+function normalizeRoomName(value:unknown):string{const roomName=String(value??'Night Squad').trim();if(!roomName||roomName.length>40)throw Object.assign(new Error('roomName must be 1 to 40 characters.'),{code:'INVALID_ROOM_NAME',statusCode:400});return roomName;}
+function makeJoinCode():string{return randomBytes(6).toString('base64url').replace(/[^A-Za-z0-9]/g,'').slice(0,8).toUpperCase();}
+function botId(sessionId:string,index:number):string{return`${BOT_PREFIX}${sessionId}:${index}`;}
 
-export interface RoomSessionResult {
-  ok: true;
-  roomId: string;
-  sessionId: string;
-  joinCode: string;
-  players: SessionPlayerView[];
-}
+function playerViewsFromState(state:GameState,config:StoredRoomConfig,viewerId:string):SessionPlayerView[]{const names=config.playerNames??{};return state.players.map((p,index)=>({id:p.id,name:names[p.id]??(isBotPlayerId(p.id)?BOT_NAMES[Math.max(0,index-1)]??`Player ${index+1}`:p.id),isHuman:p.id===viewerId}));}
 
-export interface ProjectedSessionSnapshot extends SessionSnapshot<GameState> {
-  players: SessionPlayerView[];
-}
-
-type StoredRoomConfig = RoomCreateInput & {
-  playerNames?: Record<string, string>;
-};
-
-function requirePool() {
-  if (!pool) throw Object.assign(new Error('DATABASE_URL is not configured.'), { code: 'DATABASE_UNAVAILABLE', statusCode: 503 });
-  return pool;
-}
-
-function normalizePlayerCount(value: unknown): number {
-  const count = Number(value ?? 5);
-  if (!Number.isInteger(count) || count < 2 || count > 10) {
-    throw Object.assign(new Error('playerCount must be between 2 and 10.'), { code: 'INVALID_PLAYER_COUNT', statusCode: 400 });
+function redactCanonicalSocial(state:GameState,viewerId:string):void{
+  const social=state.social;if(!social?.canonicalStep)return;
+  const actor=social.actorId;const target=social.pendingTargetId;const duel=social.pendingDuel;
+  const isDuelParticipant=Boolean(duel&&[duel.initiatorId,duel.opponentId].includes(viewerId));
+  const maySeePrompt=social.canonicalStep==='PRIVATE_PREVIEW'?viewerId===actor:
+    social.cardKind==='paranoia'?viewerId===actor:
+    social.cardKind==='duel'?isDuelParticipant||social.canonicalStep==='DUEL_VOTE':
+    social.cardKind==='truth'||social.cardKind==='dare'?[actor,target].filter(Boolean).includes(viewerId):true;
+  if(!maySeePrompt){social.prompt=null;social.promptSelection=null;social.roulettePresentation=null;social.manualPrompt=null;}
+  if(social.cardKind==='truth_or_chaos'&&social.canonicalStep==='GROUP_ANSWER'){
+    const own=social.groupAnswers?.[viewerId];social.groupAnswers=own?{[viewerId]:own}:{};
   }
-  return count;
+  if(social.cardKind==='taboo'&&![actor,target].includes(viewerId))social.question=null;
+  if((social.cardKind==='reverse_confession'||social.cardKind==='dig_me')&&![actor,target].includes(viewerId))social.question=null;
 }
 
-function normalizeRoomName(value: unknown): string {
-  const roomName = String(value ?? 'Night Squad').trim();
-  if (!roomName || roomName.length > 40) {
-    throw Object.assign(new Error('roomName must be 1 to 40 characters.'), { code: 'INVALID_ROOM_NAME', statusCode: 400 });
+function projectStateForPlayer(state:GameState,viewerId:string):GameState{
+  const projected=structuredClone(state);
+  projected.players=projected.players.map(p=>p.id===viewerId?p:{...p,hand:p.hand.map((_,index)=>({id:`hidden:${p.id}:${index}`,kind:'number' as const})),ghostArmedCard:p.ghostArmedCard?{id:`hidden-ghost:${p.id}`,kind:'ghost' as const}:null});
+  projected.processedCommands={};redactCanonicalSocial(projected,viewerId);return projected;
+}
+function visibleEvents(events:readonly GameEvent[],viewerId:string):GameEvent[]{return events.filter(event=>event.visibility!=='PLAYER_PRIVATE'||!event.recipientPlayerIds?.length||event.recipientPlayerIds.includes(viewerId));}
+async function persistEvents(client:any,sessionId:string,events:readonly GameEvent[]):Promise<void>{for(const event of events){await client.query(`insert into game_events(session_id,revision,event_type,payload) values($1,$2,$3,$4::jsonb)`,[sessionId,event.revision,event.type,JSON.stringify(event.payload??{})]);}}
+
+function engineContext(config?:StoredRoomConfig,now=Date.now()){return{canonicalFlow:true,now,promptPool:promptPoolForSources(config?.sources),promptProfile:{stage:Number.MAX_SAFE_INTEGER,intensity:Number.isFinite(Number(config?.ceiling))?Number(config?.ceiling):Number.MAX_SAFE_INTEGER,language:'*',callSuitability:'*'}};}
+
+export async function createRoomAndSession(user:AuthUser,input:RoomCreateInput):Promise<RoomSessionResult>{
+  const playerCount=normalizePlayerCount(input.playerCount),roomName=normalizeRoomName(input.roomName),world=input.world==='adult'?'adult':'clean',sessionId=randomUUID(),joinCode=makeJoinCode();
+  const bots=Array.from({length:playerCount-1},(_,index)=>({id:botId(sessionId,index+1),seat:index+1}));
+  const playerNames:Record<string,string>={[user.id]:user.displayName};bots.forEach((bot,index)=>{playerNames[bot.id]=BOT_NAMES[index]??`Player ${index+2}`;});
+  const config:StoredRoomConfig={...input,roomName,playerCount,world,playerNames};
+  const created=createGame({seed:sessionId,startingHandCount:7,startingPlayerIndex:0,allowVoluntaryDraw:true,contentWorld:world==='adult'?'18+_ADULT':'UNDER_18_CLEAN'},[{id:user.id,seat:0},...bots],undefined,{now:Date.now()});
+  if(!created.ok)throw Object.assign(new Error(created.error?.message??'Unable to create game.'),{code:created.error?.code??'INVALID_SETUP',statusCode:400});
+  created.state.id=sessionId;created.state.forcedQueue=[];created.state.bonusTurnStack=[];created.events.forEach(event=>{event.sessionId=sessionId;});
+  const roomId=await withTransaction(async client=>{const room=await client.query(`insert into rooms(join_code,owner_user_id,config) values($1,$2,$3::jsonb) returning id`,[joinCode,user.id,JSON.stringify(config)]);const id=String(room.rows[0].id);await client.query(`insert into room_members(room_id,user_id,role) values($1,$2,'owner') on conflict(room_id,user_id) do nothing`,[id,user.id]);await client.query(`insert into game_sessions(id,room_id,status,revision,state) values($1,$2,$3,$4,$5::jsonb)`,[sessionId,id,created.state.status,created.state.revision,JSON.stringify(created.state)]);await persistEvents(client,sessionId,created.events);return id;});
+  return{ok:true,roomId,sessionId,joinCode,players:playerViewsFromState(created.state,config,user.id)};
+}
+
+export async function joinRoomByCode(user:AuthUser,code:string):Promise<RoomSessionResult>{
+  const db=requirePool(),normalized=code.trim().toUpperCase();const roomResult=await db.query(`select id,join_code,config from rooms where upper(join_code)=upper($1)`,[normalized]);if(!roomResult.rowCount)throw Object.assign(new Error('Room not found.'),{code:'ROOM_NOT_FOUND',statusCode:404});
+  const roomId=String(roomResult.rows[0].id),config=(roomResult.rows[0].config??{}) as StoredRoomConfig;await db.query(`insert into room_members(room_id,user_id,role) values($1,$2,'player') on conflict(room_id,user_id) do nothing`,[roomId,user.id]);
+  const sessionResult=await db.query(`select id,state,revision from game_sessions where room_id=$1 and status='ACTIVE' order by created_at desc limit 1`,[roomId]);if(!sessionResult.rowCount)throw Object.assign(new Error('Room has no active game yet.'),{code:'SESSION_NOT_STARTED',statusCode:409});
+  const sessionId=String(sessionResult.rows[0].id),state=sessionResult.rows[0].state as GameState;
+  if(!state.players.some(p=>p.id===user.id)){
+    if(state.revision!==0)throw Object.assign(new Error('This game already started.'),{code:'GAME_ALREADY_STARTED',statusCode:409});
+    const replacement=state.players.find(p=>isBotPlayerId(p.id));if(!replacement)throw Object.assign(new Error('Room is full.'),{code:'ROOM_FULL',statusCode:409});const oldId=replacement.id;replacement.id=user.id;if(state.currentPlayerId===oldId)state.currentPlayerId=user.id;config.playerNames={...(config.playerNames??{}),[user.id]:user.displayName};delete config.playerNames[oldId];await db.query(`update rooms set config=$2::jsonb where id=$1`,[roomId,JSON.stringify(config)]);await db.query(`update game_sessions set state=$2::jsonb,updated_at=now() where id=$1`,[sessionId,JSON.stringify(state)]);
   }
-  return roomName;
+  return{ok:true,roomId,sessionId,joinCode:String(roomResult.rows[0].join_code),players:playerViewsFromState(state,config,user.id)};
 }
 
-function makeJoinCode(): string {
-  return randomBytes(6).toString('base64url').replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase();
+async function loadSessionRow(sessionId:string,userId:string,forUpdate=false,client:any=requirePool()){
+  const result=await client.query(`select gs.id,gs.state,gs.revision,gs.status,r.config from game_sessions gs join rooms r on r.id=gs.room_id join room_members rm on rm.room_id=r.id where gs.id=$1 and rm.user_id=$2${forUpdate?' for update of gs':''}`,[sessionId,userId]);if(!result.rowCount)throw Object.assign(new Error('Game session not found.'),{code:'SESSION_NOT_FOUND',statusCode:404});return result.rows[0] as{id:string;state:GameState;revision:number;status:string;config:StoredRoomConfig};
 }
 
-function botId(sessionId: string, index: number): string {
-  return `${BOT_PREFIX}${sessionId}:${index}`;
-}
+export async function getSessionSnapshot(user:AuthUser,sessionId:string):Promise<ProjectedSessionSnapshot>{const row=await loadSessionRow(sessionId,user.id);return{sessionId,revision:Number(row.revision),state:projectStateForPlayer(row.state,user.id),players:playerViewsFromState(row.state,row.config??{},user.id),serverTime:new Date().toISOString()};}
 
-function isBotPlayerId(playerId: string): boolean {
-  return playerId.startsWith(BOT_PREFIX);
-}
-
-function playerViewsFromState(state: GameState, config: StoredRoomConfig, viewerId: string): SessionPlayerView[] {
-  const names = config.playerNames ?? {};
-  return state.players.map((player, index) => ({
-    id: player.id,
-    name: names[player.id] ?? (isBotPlayerId(player.id) ? BOT_NAMES[Math.max(0, index - 1)] ?? `Player ${index + 1}` : player.id),
-    isHuman: player.id === viewerId,
-  }));
-}
-
-function projectStateForPlayer(state: GameState, viewerId: string): GameState {
-  const projected = structuredClone(state);
-  projected.players = projected.players.map(player => {
-    if (player.id === viewerId) return player;
-    return {
-      ...player,
-      hand: player.hand.map((_, index) => ({ id: `hidden:${player.id}:${index}`, kind: 'number' as const })),
-    };
-  });
-  projected.processedCommands = {};
-  return projected;
-}
-
-function visibleEvents(events: readonly GameEvent[], viewerId: string): GameEvent[] {
-  return events.filter(event =>
-    event.visibility !== 'PLAYER_PRIVATE' || !event.recipientPlayerIds?.length || event.recipientPlayerIds.includes(viewerId),
-  );
-}
-
-async function persistEvents(client: any, sessionId: string, events: readonly GameEvent[]): Promise<void> {
-  for (const event of events) {
-    await client.query(
-      `insert into game_events(session_id,revision,event_type,payload) values($1,$2,$3,$4::jsonb)`,
-      [sessionId, event.revision, event.type, JSON.stringify(event.payload ?? {})],
-    );
-  }
-}
-
-function engineCommand<T extends GameCommand>(state: GameState, playerId: string, body: Omit<T, 'commandId' | 'playerId' | 'expectedRevision' | 'sessionId'>): T {
-  return {
-    ...body,
-    commandId: randomUUID(),
-    playerId,
-    expectedRevision: state.revision,
-    sessionId: state.id,
-  } as T;
-}
-
-function engineContext(config?: StoredRoomConfig, now = Date.now()) {
-  return {
-    now,
-    promptPool: promptPoolForSources(config?.sources),
-    promptProfile: {
-      stage: Number.MAX_SAFE_INTEGER,
-      intensity: Number.isFinite(Number(config?.ceiling)) ? Number(config?.ceiling) : Number.MAX_SAFE_INTEGER,
-      language: '*',
-      callSuitability: '*',
-    },
-  };
-}
-
-function chooseBotColor(state: GameState, playerId: string): 'lime' | 'orange' | 'cyan' | 'purple' {
-  const player = state.players.find(item => item.id === playerId);
-  const color = player?.hand.find(card => card.color)?.color;
-  return color ?? 'lime';
-}
-
-function firstOtherPlayer(state: GameState, playerId: string): string | null {
-  return state.players.find(player => player.id !== playerId)?.id ?? null;
-}
-
-function advanceBots(initialState: GameState, config?: StoredRoomConfig, now = Date.now()): { state: GameState; events: GameEvent[] } {
-  let state = initialState;
-  const events: GameEvent[] = [];
-  let steps = 0;
-
-  const applyBot = (command: GameCommand) => {
-    const result = applyCommand(state, command, engineContext(config, now));
-    state = result.state;
-    events.push(...result.events);
-    return result.ok;
-  };
-
-  while (state.status === 'ACTIVE' && steps < 100) {
-    steps += 1;
-
-    if (state.pendingEffect?.type === 'WILD_COLOR') {
-      const ownerId = state.pendingEffect.playerId;
-      if (!isBotPlayerId(ownerId)) break;
-      if (!applyBot(engineCommand(state, ownerId, { type:'SELECT_WILD_COLOR', color:chooseBotColor(state, ownerId) } as never))) break;
-      continue;
-    }
-
-    const social = state.social;
-    if (social && !social.resolutionComplete) {
-      if (social.cardKind === 'truth' || social.cardKind === 'dare') {
-        if (!isBotPlayerId(social.actorId)) break;
-        if (social.answerState.status === 'WAITING') {
-          if (!applyBot(engineCommand(state, social.actorId, { type:'SELECT_ANSWER_MODE', mode:'ANSWERED_LIVE' } as never))) break;
-          continue;
-        }
-        if (social.answerState.mode === 'ANSWERED_LIVE' && social.answerState.status !== 'SUBMITTED') {
-          if (!applyBot(engineCommand(state, social.actorId, { type:'MARK_ANSWERED_LIVE' } as never))) break;
-          continue;
-        }
-        break;
-      }
-
-      if (social.cardKind === 'chaos') {
-        const pendingBotId = social.pendingCompletionPlayerIds.find(
-          playerId => isBotPlayerId(playerId) && !social.completedCompletionPlayerIds.includes(playerId),
-        );
-        if (pendingBotId) {
-          const record = social.completionRecords[pendingBotId];
-          if (!record?.mode) {
-            if (!applyBot(engineCommand(state, pendingBotId, { type:'SELECT_ANSWER_MODE', mode:'ANSWERED_LIVE' } as never))) break;
-            continue;
-          }
-          if (!applyBot(engineCommand(state, pendingBotId, { type:'MARK_ANSWERED_LIVE' } as never))) break;
-          continue;
-        }
-        break;
-      }
-
-      if (social.cardKind === 'paranoia') {
-        if (!social.pendingTargetId) {
-          if (!isBotPlayerId(social.actorId)) break;
-          const targetId = firstOtherPlayer(state, social.actorId);
-          if (!targetId || !applyBot(engineCommand(state, social.actorId, { type:'SELECT_PARANOIA_TARGET', targetId } as never))) break;
-          continue;
-        }
-        if (!social.paranoiaPhase) {
-          if (!isBotPlayerId(social.actorId)) break;
-          if (!applyBot(engineCommand(state, social.actorId, { type:'SELECT_PARANOIA_PHASE', phase:'CLASSIC' } as never))) break;
-          continue;
-        }
-        if (social.paranoiaPhase === 'CLASSIC') {
-          if (!social.classicAnswerPlayerId) {
-            if (!isBotPlayerId(social.pendingTargetId)) break;
-            const answerId = state.players.find(player => player.id !== social.pendingTargetId)?.id;
-            if (!answerId || !applyBot(engineCommand(state, social.pendingTargetId, { type:'SELECT_PARANOIA_CLASSIC_ANSWER', targetId:answerId } as never))) break;
-            continue;
-          }
-          if (!social.classicRevealDecision) {
-            if (!isBotPlayerId(social.classicAnswerPlayerId)) break;
-            if (!applyBot(engineCommand(state, social.classicAnswerPlayerId, { type:'SUBMIT_PARANOIA_CLASSIC_DECISION', decision:'REVEAL' } as never))) break;
-            continue;
-          }
-        } else if (social.paranoiaVote) {
-          const voterId = social.paranoiaVote.eligibleVoterIds.find(
-            playerId => isBotPlayerId(playerId) && !social.paranoiaVote?.votes[playerId],
-          );
-          if (voterId) {
-            if (!applyBot(engineCommand(state, voterId, { type:'SUBMIT_PARANOIA_VOTE', vote:'BELIEVE' } as never))) break;
-            continue;
-          }
-        }
-        break;
-      }
-
-      if (social.cardKind === 'duel') {
-        const duel = social.pendingDuel;
-        if (!duel?.opponentId) {
-          if (!isBotPlayerId(social.actorId)) break;
-          const targetId = firstOtherPlayer(state, social.actorId);
-          if (!targetId || !applyBot(engineCommand(state, social.actorId, { type:'SELECT_DUEL_TARGET', targetId } as never))) break;
-          continue;
-        }
-        if (!duel.initiatorResponse?.submitted) {
-          if (!isBotPlayerId(duel.initiatorId)) break;
-          if (!applyBot(engineCommand(state, duel.initiatorId, { type:'SUBMIT_DUEL_RESPONSE', side:'initiator', completionOnly:true } as never))) break;
-          continue;
-        }
-        if (!duel.opponentResponse?.submitted) {
-          if (!isBotPlayerId(duel.opponentId)) break;
-          if (!applyBot(engineCommand(state, duel.opponentId, { type:'SUBMIT_DUEL_RESPONSE', side:'opponent', completionOnly:true } as never))) break;
-          continue;
-        }
-        const voterId = duel.vote?.eligibleVoterIds.find(
-          playerId => isBotPlayerId(playerId) && !duel.vote?.votes[playerId],
-        );
-        if (voterId) {
-          if (!applyBot(engineCommand(state, voterId, { type:'DUEL_VOTE', winnerId:duel.initiatorId } as never))) break;
-          continue;
-        }
-        break;
-      }
-
-      break;
-    }
-
-    if (state.social?.resolutionComplete) {
-      if (!isBotPlayerId(state.social.actorId)) break;
-      if (!applyBot(engineCommand(state, state.social.actorId, { type:'COMPLETE_FLOW' } as never))) break;
-      continue;
-    }
-
-    if (!isBotPlayerId(state.currentPlayerId)) break;
-    const bot = state.players.find(player => player.id === state.currentPlayerId);
-    if (!bot) break;
-
-    const playable = bot.hand.find(card => card.kind !== 'nope' && isLegalPlay(state, bot.id, card.id));
-    const command = playable
-      ? engineCommand(state, bot.id, { type:'PLAY_CARD', cardId:playable.id } as never)
-      : engineCommand(state, bot.id, { type:'DRAW_CARD' } as never);
-    if (!applyBot(command)) break;
-  }
-
-  return { state, events };
-}
-
-export async function createRoomAndSession(user: AuthUser, input: RoomCreateInput): Promise<RoomSessionResult> {
-  const playerCount = normalizePlayerCount(input.playerCount);
-  const roomName = normalizeRoomName(input.roomName);
-  const world = input.world === 'adult' ? 'adult' : 'clean';
-  const sessionId = randomUUID();
-  const joinCode = makeJoinCode();
-  const bots = Array.from({ length: playerCount - 1 }, (_, index) => ({ id: botId(sessionId, index + 1), seat: index + 1 }));
-  const playerNames: Record<string, string> = { [user.id]: user.displayName };
-  bots.forEach((bot, index) => { playerNames[bot.id] = BOT_NAMES[index] ?? `Player ${index + 2}`; });
-
-  const config: StoredRoomConfig = {
-    ...input,
-    roomName,
-    playerCount,
-    world,
-    playerNames,
-  };
-
-  const created = createGame(
-    {
-      seed: sessionId,
-      startingHandCount: 7,
-      startingPlayerIndex: 0,
-      allowVoluntaryDraw: true,
-      contentWorld: world === 'adult' ? '18+_ADULT' : 'UNDER_18_CLEAN',
-    },
-    [{ id: user.id, seat: 0 }, ...bots],
-    undefined,
-    { now: Date.now() },
-  );
-
-  if (!created.ok) throw Object.assign(new Error(created.error?.message ?? 'Unable to create game.'), { code: created.error?.code ?? 'INVALID_SETUP', statusCode: 400 });
-  created.state.id = sessionId;
-  created.events.forEach(event => { event.sessionId = sessionId; });
-
-  const roomId = await withTransaction(async client => {
-    const room = await client.query(
-      `insert into rooms(join_code,owner_user_id,config) values($1,$2,$3::jsonb) returning id`,
-      [joinCode, user.id, JSON.stringify(config)],
-    );
-    const id = String(room.rows[0].id);
-    await client.query(
-      `insert into room_members(room_id,user_id,role) values($1,$2,'owner') on conflict(room_id,user_id) do nothing`,
-      [id, user.id],
-    );
-    await client.query(
-      `insert into game_sessions(id,room_id,status,revision,state) values($1,$2,$3,$4,$5::jsonb)`,
-      [sessionId, id, created.state.status, created.state.revision, JSON.stringify(created.state)],
-    );
-    await persistEvents(client, sessionId, created.events);
-    return id;
-  });
-
-  return {
-    ok: true,
-    roomId,
-    sessionId,
-    joinCode,
-    players: playerViewsFromState(created.state, config, user.id),
-  };
-}
-
-export async function joinRoomByCode(user: AuthUser, code: string): Promise<RoomSessionResult> {
-  const db = requirePool();
-  const normalized = code.trim().toUpperCase();
-  const roomResult = await db.query(`select id,join_code,config from rooms where upper(join_code)=upper($1)`, [normalized]);
-  if (!roomResult.rowCount) throw Object.assign(new Error('Room not found.'), { code: 'ROOM_NOT_FOUND', statusCode: 404 });
-
-  const roomId = String(roomResult.rows[0].id);
-  const config = (roomResult.rows[0].config ?? {}) as StoredRoomConfig;
-  await db.query(
-    `insert into room_members(room_id,user_id,role) values($1,$2,'player') on conflict(room_id,user_id) do nothing`,
-    [roomId, user.id],
-  );
-
-  const sessionResult = await db.query(
-    `select id,state,revision from game_sessions where room_id=$1 and status='ACTIVE' order by created_at desc limit 1`,
-    [roomId],
-  );
-  if (!sessionResult.rowCount) throw Object.assign(new Error('Room has no active game yet.'), { code: 'SESSION_NOT_STARTED', statusCode: 409 });
-
-  const sessionId = String(sessionResult.rows[0].id);
-  const state = sessionResult.rows[0].state as GameState;
-  if (!state.players.some(player => player.id === user.id)) {
-    if (state.revision !== 0) throw Object.assign(new Error('This game already started.'), { code: 'GAME_ALREADY_STARTED', statusCode: 409 });
-    const replacement = state.players.find(player => isBotPlayerId(player.id));
-    if (!replacement) throw Object.assign(new Error('Room is full.'), { code: 'ROOM_FULL', statusCode: 409 });
-    const oldId = replacement.id;
-    replacement.id = user.id;
-    if (state.currentPlayerId === oldId) state.currentPlayerId = user.id;
-    config.playerNames = { ...(config.playerNames ?? {}), [user.id]: user.displayName };
-    delete config.playerNames[oldId];
-    await db.query(`update rooms set config=$2::jsonb where id=$1`, [roomId, JSON.stringify(config)]);
-    await db.query(`update game_sessions set state=$2::jsonb,updated_at=now() where id=$1`, [sessionId, JSON.stringify(state)]);
-  }
-
-  return {
-    ok: true,
-    roomId,
-    sessionId,
-    joinCode: String(roomResult.rows[0].join_code),
-    players: playerViewsFromState(state, config, user.id),
-  };
-}
-
-async function loadSessionRow(sessionId: string, userId: string, forUpdate = false, client: any = requirePool()) {
-  const result = await client.query(
-    `select gs.id,gs.state,gs.revision,gs.status,r.config
-       from game_sessions gs
-       join rooms r on r.id=gs.room_id
-       join room_members rm on rm.room_id=r.id
-      where gs.id=$1 and rm.user_id=$2${forUpdate ? ' for update of gs' : ''}`,
-    [sessionId, userId],
-  );
-  if (!result.rowCount) throw Object.assign(new Error('Game session not found.'), { code: 'SESSION_NOT_FOUND', statusCode: 404 });
-  return result.rows[0] as { id: string; state: GameState; revision: number; status: string; config: StoredRoomConfig };
-}
-
-export async function getSessionSnapshot(user: AuthUser, sessionId: string): Promise<ProjectedSessionSnapshot> {
-  const row = await loadSessionRow(sessionId, user.id);
-  return {
-    sessionId,
-    revision: Number(row.revision),
-    state: projectStateForPlayer(row.state, user.id),
-    players: playerViewsFromState(row.state, row.config ?? {}, user.id),
-    serverTime: new Date().toISOString(),
-  };
-}
-
-export async function processSessionCommand(user: AuthUser, sessionId: string, command: GameCommand): Promise<CommandResponse<GameState>> {
-  if (command.sessionId !== sessionId) throw Object.assign(new Error('Command session does not match route.'), { code: 'SESSION_MISMATCH', statusCode: 400 });
-  if (command.playerId !== user.id) throw Object.assign(new Error('Command player does not match authenticated user.'), { code: 'PLAYER_MISMATCH', statusCode: 403 });
-
-  return withTransaction(async client => {
-    const duplicate = await client.query(`select result from game_commands where command_id=$1 and session_id=$2`, [command.commandId, sessionId]);
-    if (duplicate.rowCount && duplicate.rows[0].result) return duplicate.rows[0].result as CommandResponse<GameState>;
-
-    const row = await loadSessionRow(sessionId, user.id, true, client);
-    const originalState = row.state;
-    if (!originalState.players.some(player => player.id === user.id)) {
-      throw Object.assign(new Error('Authenticated user is not a player in this session.'), { code: 'PLAYER_NOT_IN_SESSION', statusCode: 403 });
-    }
-
-    const transition = applyCommand(originalState, command, engineContext(row.config, Date.now()));
-    let finalState = transition.state;
-    let allEvents = [...transition.events];
-
-    if (transition.ok) {
-      const bots = advanceBots(finalState, row.config);
-      finalState = bots.state;
-      allEvents = [...allEvents, ...bots.events];
-      await client.query(
-        `update game_sessions set status=$2,revision=$3,state=$4::jsonb,updated_at=now() where id=$1`,
-        [sessionId, finalState.status, finalState.revision, JSON.stringify(finalState)],
-      );
-      await persistEvents(client, sessionId, allEvents);
-    }
-
-    const response: CommandResponse<GameState> = {
-      ok: transition.ok,
-      commandId: command.commandId,
-      revision: finalState.revision,
-      state: projectStateForPlayer(finalState, user.id),
-      events: visibleEvents(allEvents, user.id),
-      ...(transition.error ? { error: { code: transition.error.code, message: transition.error.message } } : {}),
-      ...(transition.idempotentReplay ? { idempotentReplay: true } : {}),
-    };
-
-    await client.query(
-      `insert into game_commands(command_id,session_id,actor_user_id,expected_revision,command_type,payload,result)
-       values($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb)`,
-      [command.commandId, sessionId, user.id, command.expectedRevision, command.type, JSON.stringify(command), JSON.stringify(response)],
-    );
-
-    return response;
+export async function processSessionCommand(user:AuthUser,sessionId:string,command:GameCommand):Promise<CommandResponse<GameState>>{
+  if(command.sessionId!==sessionId)throw Object.assign(new Error('Command session does not match route.'),{code:'SESSION_MISMATCH',statusCode:400});if(command.playerId!==user.id)throw Object.assign(new Error('Command player does not match authenticated user.'),{code:'PLAYER_MISMATCH',statusCode:403});
+  return withTransaction(async client=>{
+    const duplicate=await client.query(`select result from game_commands where command_id=$1 and session_id=$2`,[command.commandId,sessionId]);if(duplicate.rowCount&&duplicate.rows[0].result)return duplicate.rows[0].result as CommandResponse<GameState>;
+    const row=await loadSessionRow(sessionId,user.id,true,client),originalState=row.state;if(!originalState.players.some(p=>p.id===user.id))throw Object.assign(new Error('Authenticated user is not a player in this session.'),{code:'PLAYER_NOT_IN_SESSION',statusCode:403});
+    const transition=applyCommand(originalState,command,engineContext(row.config,Date.now()));let finalState=transition.state,allEvents=[...transition.events];
+    if(transition.ok){const bots=advanceCanonicalBots(finalState,row.config);finalState=bots.state;allEvents=[...allEvents,...bots.events];await client.query(`update game_sessions set status=$2,revision=$3,state=$4::jsonb,updated_at=now() where id=$1`,[sessionId,finalState.status,finalState.revision,JSON.stringify(finalState)]);await persistEvents(client,sessionId,allEvents);}
+    const response:CommandResponse<GameState>={ok:transition.ok,commandId:command.commandId,revision:finalState.revision,state:projectStateForPlayer(finalState,user.id),events:visibleEvents(allEvents,user.id),...(transition.error?{error:{code:transition.error.code,message:transition.error.message}}:{}),...(transition.idempotentReplay?{idempotentReplay:true}:{})};
+    await client.query(`insert into game_commands(command_id,session_id,actor_user_id,expected_revision,command_type,payload,result) values($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb)`,[command.commandId,sessionId,user.id,command.expectedRevision,command.type,JSON.stringify(command),JSON.stringify(response)]);return response;
   });
 }
