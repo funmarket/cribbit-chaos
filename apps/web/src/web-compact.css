@@ -1,0 +1,495 @@
+/*
+ * Web-only compact layout pass.
+ *
+ * Purpose: tighten the existing Cribbit CHAOS Web presentation without
+ * changing room/game behavior, DOM ids, event bindings, or server authority.
+ * Telegram keeps its own presentation layer.
+ */
+
+:root {
+  --shell: min(1360px, calc(100vw - 32px));
+  --cc-readable: #dfe6f1;
+  --cc-readable-muted: #aeb8c8;
+  --cc-readable-faint: #8995a8;
+}
+
+/* =========================================================
+   WEB HEADER
+   Root layout: brand/home + main nav + utility tools on the primary row.
+   Diagnostics live on the slim secondary row and collapse on scroll.
+   ========================================================= */
+body:not(.is-game-view) .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  overflow: visible;
+}
+
+body:not(.is-game-view) .app-header__inner {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "brand nav tools"
+    "status status status";
+  align-items: center;
+  column-gap: 14px;
+  row-gap: 0;
+  padding-block: 5px 0;
+}
+
+/* Restore the canonical home/brand control from the shared template. */
+body:not(.is-game-view) .brand-lockup {
+  grid-area: brand;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: max-content;
+  padding: 0 4px 0 0;
+}
+
+body:not(.is-game-view) .brand-lockup .frog-mark {
+  width: 34px;
+  height: 34px;
+}
+
+body:not(.is-game-view) .brand-lockup .brand-type__cribbit {
+  font-size: 13px;
+}
+
+body:not(.is-game-view) .brand-lockup .brand-type__chaos {
+  font-size: 18px;
+}
+
+/* Primary menu: centered in the free space, never under the brand/home icon. */
+body:not(.is-game-view) .product-nav {
+  grid-area: nav;
+  position: relative;
+  inset: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  width: 100%;
+  min-width: 0;
+  height: 48px;
+  max-height: 48px;
+  margin: 0;
+  padding: 0 6px;
+  overflow: visible;
+  border: 0;
+  opacity: 1;
+  transform: none;
+}
+
+body:not(.is-game-view) .product-nav .nav-button {
+  min-height: 36px;
+  padding: 8px 10px;
+  color: #ffffff;
+  font-family: var(--font-body);
+  font-size: clamp(13px, .86vw, 14px);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+body:not(.is-game-view) .product-nav .nav-button:hover,
+body:not(.is-game-view) .product-nav .nav-button:focus-visible,
+body:not(.is-game-view) .product-nav .nav-button[aria-current="page"] {
+  color: #ffffff;
+  background: rgba(255,255,255,.055);
+}
+
+body:not(.is-game-view) .product-nav .nav-button[aria-current="page"] {
+  border-color: rgba(var(--magenta-rgb), .28);
+}
+
+/* Utility icons remain on the same primary row, aligned to the far right. */
+body:not(.is-game-view) .header-tools {
+  grid-area: tools;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+}
+
+body:not(.is-game-view) .icon-button,
+body:not(.is-game-view) .header-utility-icon {
+  width: 36px;
+  height: 36px;
+}
+
+/* Secondary diagnostics row. */
+body:not(.is-game-view) .status-cluster {
+  grid-area: status;
+  min-width: 0;
+  width: 100%;
+  min-height: 31px;
+  max-height: 31px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0 5px;
+  border-top: 1px solid rgba(255,255,255,.045);
+  opacity: 1;
+  overflow: hidden;
+  transform: translateY(0);
+  transition:
+    min-height .18s ease,
+    max-height .18s ease,
+    padding .18s ease,
+    opacity .14s ease,
+    transform .18s ease,
+    border-color .18s ease;
+}
+
+body:not(.is-game-view) #connectionPill {
+  margin-right: auto;
+}
+
+body:not(.is-game-view) .status-pill {
+  min-height: 24px;
+  padding: 3px 7px;
+  color: #9aa6b8;
+  background: rgba(255,255,255,.018);
+  border-color: rgba(255,255,255,.07);
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+body:not(.is-game-view) #connectionPill {
+  color: #c6d0df;
+}
+
+body:not(.is-game-view) #revisionLabel,
+body:not(.is-game-view) #fixtureLabel {
+  color: #8793a5;
+}
+
+/* Scroll down: keep brand + main menu, collapse only diagnostics. */
+body:not(.is-game-view) .app-header.web-secondary-hidden .status-cluster {
+  min-height: 0;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top-color: transparent;
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+}
+
+body:not(.is-game-view) main {
+  padding-top: 18px;
+}
+
+/* =========================================================
+   TYPOGRAPHY / CONTROL LEGIBILITY
+   Buttons should not be giant containers around tiny low-contrast labels.
+   ========================================================= */
+body:not(.is-game-view) .button,
+body:not(.is-game-view) .seg-button,
+body:not(.is-game-view) .source-toggle,
+body:not(.is-game-view) .mode-card {
+  color: var(--cc-readable);
+}
+
+body:not(.is-game-view) .button,
+body:not(.is-game-view) .seg-button {
+  min-height: 38px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: .01em;
+}
+
+body:not(.is-game-view) .seg-button {
+  color: #aeb8c8;
+  background: rgba(255,255,255,.028);
+  border-color: rgba(255,255,255,.09);
+}
+
+body:not(.is-game-view) .seg-button:hover,
+body:not(.is-game-view) .seg-button:focus-visible {
+  color: #fff;
+  background: rgba(255,255,255,.055);
+  border-color: rgba(255,255,255,.18);
+}
+
+body:not(.is-game-view) .seg-button[aria-pressed="true"],
+body:not(.is-game-view) .seg-button.is-active,
+body:not(.is-game-view) .seg-button.active {
+  color: #fff;
+  background: rgba(255,255,255,.075);
+  border-color: rgba(255,255,255,.20);
+}
+
+/* =========================================================
+   ROOM CREATION
+   ========================================================= */
+body:not(.is-game-view) .setup-panel {
+  width: min(1240px, 100%);
+  min-height: 0;
+  margin-inline: auto;
+  border-radius: 18px;
+}
+
+body:not(.is-game-view) .setup-panel .panel-header {
+  align-items: center;
+  padding: 18px 22px 0;
+}
+
+body:not(.is-game-view) .setup-panel .panel-title {
+  font-size: clamp(22px, 2vw, 30px);
+}
+
+body:not(.is-game-view) .setup-panel .panel-subtitle {
+  margin-top: 4px;
+  color: var(--cc-readable-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+body:not(.is-game-view) .setup-panel .panel-body {
+  padding: 18px 22px 22px;
+}
+
+body:not(.is-game-view) .setup-grid {
+  gap: 13px;
+}
+
+body:not(.is-game-view) .setup-row {
+  gap: 14px;
+}
+
+body:not(.is-game-view) .setup-panel .field {
+  gap: 5px;
+}
+
+body:not(.is-game-view) .setup-panel .field label,
+body:not(.is-game-view) .setup-panel .field-label {
+  color: #eef2f8;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+body:not(.is-game-view) .setup-panel .field-help {
+  color: var(--cc-readable-faint);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+body:not(.is-game-view) .setup-panel .input,
+body:not(.is-game-view) .setup-panel .select {
+  min-height: 40px;
+  padding: 8px 11px;
+  border-radius: 9px;
+  color: #f5f7fb;
+  font-size: 14px;
+}
+
+body:not(.is-game-view) .setup-panel .mode-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+body:not(.is-game-view) .setup-panel .mode-card {
+  min-height: 88px;
+  padding: 12px 14px;
+  border-radius: 11px;
+}
+
+body:not(.is-game-view) .setup-panel .mode-card b {
+  color: #fff;
+  font-size: clamp(17px, 1.35vw, 21px);
+  font-weight: 750;
+  line-height: 1;
+}
+
+body:not(.is-game-view) .setup-panel .mode-card span {
+  display: block;
+  margin-top: 7px;
+  color: #b5bfce;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+body:not(.is-game-view) .setup-panel .mode-card small {
+  display: block;
+  margin-top: 8px;
+  color: #d179ff;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.1;
+  letter-spacing: .045em;
+}
+
+body:not(.is-game-view) .setup-panel .mode-card[aria-pressed="true"] b {
+  color: #fff;
+}
+
+body:not(.is-game-view) .setup-panel .mode-card[aria-pressed="true"] span {
+  color: #c6cfdd;
+}
+
+body:not(.is-game-view) .setup-panel .range-row {
+  grid-template-columns: minmax(260px, 720px) 62px;
+  justify-content: start;
+  gap: 10px;
+}
+
+body:not(.is-game-view) .setup-panel .range-value {
+  min-height: 38px;
+  color: var(--lime);
+  font-size: 15px;
+}
+
+body:not(.is-game-view) .setup-panel .source-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+body:not(.is-game-view) .setup-panel .source-toggle {
+  min-height: 64px;
+  padding: 9px 11px;
+  border-radius: 11px;
+}
+
+body:not(.is-game-view) .setup-panel .source-toggle svg {
+  width: 18px;
+  height: 18px;
+  margin-bottom: 5px;
+}
+
+body:not(.is-game-view) .setup-panel .source-toggle b {
+  color: #f1f4f8;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.1;
+}
+
+body:not(.is-game-view) .setup-panel .source-toggle span {
+  margin-top: 4px;
+  color: #98a5b7;
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+body:not(.is-game-view) .setup-panel .source-toggle[aria-pressed="true"] b {
+  color: #fff;
+}
+
+body:not(.is-game-view) .setup-panel .source-toggle[aria-pressed="true"] span {
+  color: #bac4d2;
+}
+
+body:not(.is-game-view) .setup-panel .start-row {
+  padding-top: 8px;
+  align-items: center;
+}
+
+body:not(.is-game-view) .setup-panel .start-row .button--primary,
+body:not(.is-game-view) .setup-panel #startGameButton {
+  min-width: 190px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+@media (max-width: 1040px) {
+  :root {
+    --shell: min(960px, calc(100vw - 24px));
+  }
+
+  body:not(.is-game-view) .brand-lockup .brand-type {
+    display: none;
+  }
+
+  body:not(.is-game-view) .product-nav .nav-button {
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+
+  body:not(.is-game-view) .setup-panel .mode-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body:not(.is-game-view) .setup-panel .range-row {
+    grid-template-columns: minmax(0, 1fr) 62px;
+  }
+}
+
+@media (max-width: 720px) {
+  :root {
+    --shell: calc(100vw - 20px);
+  }
+
+  body:not(.is-game-view) .app-header__inner {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "brand status tools";
+    padding-block: 6px;
+  }
+
+  body:not(.is-game-view) .brand-lockup {
+    display: inline-flex;
+  }
+
+  body:not(.is-game-view) .brand-lockup .brand-type {
+    display: none;
+  }
+
+  body:not(.is-game-view) .product-nav {
+    display: none;
+  }
+
+  body:not(.is-game-view) .status-cluster {
+    grid-area: status;
+    min-height: 30px;
+    max-height: 30px;
+    padding: 0;
+    border: 0;
+  }
+
+  body:not(.is-game-view) .status-cluster > :not(#connectionPill) {
+    display: none;
+  }
+
+  body:not(.is-game-view) .setup-panel .panel-header {
+    align-items: flex-start;
+    padding: 16px 15px 0;
+  }
+
+  body:not(.is-game-view) .setup-panel .panel-body {
+    padding: 15px;
+  }
+
+  body:not(.is-game-view) .setup-row,
+  body:not(.is-game-view) .setup-panel .mode-grid,
+  body:not(.is-game-view) .setup-panel .source-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body:not(.is-game-view) .setup-panel .mode-grid,
+  body:not(.is-game-view) .setup-panel .source-grid {
+    gap: 7px;
+  }
+
+  body:not(.is-game-view) .setup-panel .mode-card {
+    min-height: 76px;
+  }
+
+  body:not(.is-game-view) .setup-panel .source-toggle {
+    min-height: 56px;
+  }
+
+  body:not(.is-game-view) .setup-panel .start-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  body:not(.is-game-view) .setup-panel .start-row .button,
+  body:not(.is-game-view) .setup-panel #startGameButton {
+    width: 100%;
+  }
+}

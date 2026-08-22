@@ -1,0 +1,158 @@
+/* Telegram WebView constraints only. Component sizing belongs to component styles. */
+
+html,
+body,
+#app,
+.tg-app {
+  max-width: 100%;
+}
+
+html,
+body {
+  overscroll-behavior-x: none;
+}
+
+body {
+  min-width: 0;
+}
+
+.tg-app {
+  overflow-x: clip;
+  padding-left: max(10px, var(--cribbit-safe-left, 0px));
+  padding-right: max(10px, var(--cribbit-safe-right, 0px));
+}
+
+.tg-room-form,
+.tg-setup-card,
+.tg-grid-2,
+.tg-source-grid,
+.tg-mode-grid,
+.tg-join-row,
+.tg-primary-actions,
+.tg-game-meta,
+.tg-board,
+.tg-player-strip,
+.tg-hand,
+.tg-active-state,
+.tg-wild-picker {
+  min-width: 0;
+}
+
+.tg-input,
+.tg-select,
+.tg-button,
+.tg-mode-card,
+.tg-source-card,
+.tg-count-chip,
+.tg-safety-bar button,
+.tg-wild-picker button,
+.tg-context-sheet button,
+.game-card--tg-hand,
+.game-card--tg-board,
+.tg-deck {
+  touch-action: manipulation;
+}
+
+.tg-input,
+.tg-select,
+.tg-button,
+.tg-mode-card,
+.tg-source-card,
+.tg-count-chip,
+.tg-safety-bar button,
+.tg-wild-picker button {
+  min-height: 44px;
+}
+
+.tg-field-meta,
+.tg-section-label,
+.tg-toggle-row,
+.tg-game-meta,
+.tg-player-chip,
+.tg-context-header,
+.tg-reaction-window {
+  min-width: 0;
+}
+
+.tg-field-meta > *,
+.tg-section-label > *,
+.tg-toggle-row > *,
+.tg-game-meta > *,
+.tg-player-chip > *,
+.tg-context-header > * {
+  min-width: 0;
+}
+
+.tg-field-meta span,
+.tg-section-label small,
+.tg-toggle-row small,
+.tg-player-chip b,
+.tg-player-chip small {
+  overflow-wrap: anywhere;
+}
+
+.tg-player-rail,
+.tg-hand-rail {
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-inline: contain;
+}
+
+.tg-safety-bar {
+  position: sticky;
+  bottom: max(6px, var(--cribbit-safe-bottom, 0px));
+  z-index: 8;
+  padding: 5px;
+  margin-left: -5px;
+  margin-right: -5px;
+  border: 1px solid rgba(255, 255, 255, .06);
+  border-radius: 12px;
+  background: rgba(5, 6, 10, .92);
+  backdrop-filter: blur(8px);
+}
+
+.tg-context-layer {
+  padding-top: max(8px, var(--cribbit-safe-top, 0px));
+  padding-right: max(10px, var(--cribbit-safe-right, 0px));
+  padding-bottom: max(8px, var(--cribbit-safe-bottom, 0px));
+  padding-left: max(10px, var(--cribbit-safe-left, 0px));
+}
+
+.tg-context-sheet {
+  max-height: min(
+    calc(var(--cribbit-platform-height, 100dvh) - var(--cribbit-safe-top, 0px) - var(--cribbit-safe-bottom, 0px) - 18px),
+    620px
+  );
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tg-context-close,
+.tg-color-grid button,
+.tg-answer-grid button,
+.tg-flag-grid button,
+.tg-target-grid button,
+.tg-context-wide {
+  min-height: 44px;
+}
+
+@media (max-height: 620px) {
+  .tg-primary-actions,
+  .tg-safety-bar {
+    position: static;
+  }
+
+  .tg-context-sheet {
+    max-height: calc(var(--cribbit-platform-height, 100dvh) - var(--cribbit-safe-top, 0px) - var(--cribbit-safe-bottom, 0px) - 12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tg-switch span,
+  .tg-switch span::after,
+  .game-card--tg-board,
+  .game-card--tg-hand {
+    transition: none;
+  }
+}

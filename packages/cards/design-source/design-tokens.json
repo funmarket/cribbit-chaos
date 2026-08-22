@@ -1,0 +1,32 @@
+{
+  "name": "Cribbit Chaos Design Tokens",
+  "version": "1.0",
+  "surfaces": {
+    "bg0": "#0A0A0F", "bg1": "#12121A",
+    "glass": "rgba(255,255,255,0.04)", "border": "rgba(255,255,255,0.08)",
+    "textPrimary": "#FFFFFF", "textSecondary": "rgba(255,255,255,0.62)", "textTertiary": "rgba(255,255,255,0.38)"
+  },
+  "cardFamilies": {
+    "truth":      { "color": "#7CFF3D", "dim": "#2E5A1A", "label": "Truth — electric lime / neon green" },
+    "dare":       { "color": "#FF8A1E", "dim": "#5A3410", "label": "Dare — bright orange / lightning yellow" },
+    "paranoia":   { "color": "#A855F7", "dim": "#3B2058", "label": "Paranoia — deep purple / violet eye" },
+    "chaos":      { "color": "#FF2E9A", "dim": "#5C1240", "label": "Chaos — hot pink / magenta swirl" },
+    "duel":       { "color": "#3DD6FF", "dim": "#123B4A", "label": "Duel — icy blue swords" },
+    "nope":       { "color": "#FFD23D", "dim": "#4A3C0E", "label": "Nope — golden yellow hand" },
+    "pass":       { "color": "#33E0C7", "dim": "#0E4A40", "label": "Teal utility" },
+    "spice":      { "color": "#FF4136", "dim": "#4A0F0C", "label": "Red utility" }
+  },
+  "typography": {
+    "display": "Inter/SF Pro Display Black, tight tracking",
+    "body": "Inter/SF Pro Text",
+    "mono": "JetBrains Mono / SF Mono",
+    "cardTitleSize": 44,
+    "cardInstructionSize": 26,
+    "cardExampleSize": 17
+  },
+  "cardGeometry": {
+    "width": 1080, "height": 1512, "radius": 40, "padding": 64,
+    "iconContainerSize": 160, "glowBlurSmall": 24, "glowBlurLarge": 64, "borderWidth": 2
+  },
+  "screenGeometry": { "width": 1080, "height": 1920 }
+}

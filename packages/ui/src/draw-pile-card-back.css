@@ -1,0 +1,60 @@
+.desktop-draw-pile {
+  background-image: url("../../cards/assets/CHAOS-133-V1/backs/card_back.jpg");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+/* The old internal placeholder stack covered the real card-back artwork. */
+.draw-pile-stack {
+  display: none;
+}
+
+/* Keep the existing deck count, but let the card back be the visual surface. */
+.draw-pile-body {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 6px;
+  pointer-events: none;
+}
+
+.draw-pile-body svg,
+.draw-pile-body b {
+  display: none;
+}
+
+.draw-pile-body span {
+  padding: 3px 6px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(5, 6, 10, .72);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .28);
+  font-size: 7px;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Preserve the stacked-deck silhouette with the same canonical back art. */
+.desktop-draw-pile::before,
+.desktop-draw-pile::after {
+  background-image: url("../../cards/assets/CHAOS-133-V1/backs/card_back.jpg");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+/* Disabled means "cannot draw now", not "hide the deck artwork". */
+.desktop-draw-pile:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.desktop-draw-pile:disabled .draw-pile-body span {
+  opacity: .7;
+}

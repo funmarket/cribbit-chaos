@@ -1,0 +1,90 @@
+/* ==========================================================================
+   CRIBBIT CHAOS — Design Tokens (v1.0)
+   Locked to: Core Card Set catalogue (pages 1–2) + Ultimate Game Bible
+   Book II v6.1. "Native Apple Utility meets Cyberpunk Brain."
+   ========================================================================== */
+
+:root {
+  /* ---- Surfaces ---------------------------------------------------- */
+  --surface-bg-0: #0A0A0F;   /* app background */
+  --surface-bg-1: #12121A;   /* panel background */
+  --surface-glass: rgba(255,255,255,0.04);
+  --surface-border: rgba(255,255,255,0.08);
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(255,255,255,0.62);
+  --text-tertiary: rgba(255,255,255,0.38);
+
+  /* ---- Card family colors (exact match to catalogue) ---------------- */
+  --c-truth:      #7CFF3D;   /* electric lime / neon green */
+  --c-truth-dim:  #2E5A1A;
+  --c-dare:       #FF8A1E;   /* bright orange / lightning yellow */
+  --c-dare-dim:   #5A3410;
+  --c-paranoia:   #A855F7;   /* deep purple / violet eye */
+  --c-paranoia-dim: #3B2058;
+  --c-chaos:      #FF2E9A;   /* hot pink / magenta swirl */
+  --c-chaos-dim:  #5C1240;
+  --c-duel:       #3DD6FF;   /* icy blue swords */
+  --c-duel-dim:   #123B4A;
+  --c-nope:       #FFD23D;   /* golden yellow hand */
+  --c-nope-dim:   #4A3C0E;
+  --c-wild:       linear-gradient(135deg, #7CFF3D, #3DD6FF, #A855F7, #FF2E9A);
+  --c-pass:       #33E0C7;   /* teal */
+  --c-rewind:     #7CFF3D;
+  --c-roulette:   #FF8A1E;
+  --c-spice:      #FF4136;   /* red */
+  --c-flag:       #FF6A1E;
+  --c-keyrule:    #4A90D9;
+  --c-answer:     #A855F7;
+  --c-voice:      #33E0C7;
+  --c-authorship: #7C6BFF;
+  --c-stage:      #FFB347;
+  --c-intensity:  #E8E8E8;
+
+  /* ---- Typography ---------------------------------------------------- */
+  --font-display: "Inter", "SF Pro Display", -apple-system, sans-serif; /* card titles: black weight, tight tracking */
+  --font-body:    "Inter", "SF Pro Text", -apple-system, sans-serif;    /* instructions/descriptions */
+  --font-mono:    "JetBrains Mono", "SF Mono", ui-monospace, monospace; /* micro labels, numbers */
+
+  --fs-card-title: 44px;
+  --fs-card-instruction: 26px;
+  --fs-card-example: 17px;
+  --fs-micro: 12px;
+
+  --tracking-tight: -0.02em;
+  --tracking-micro: 0.08em; /* uppercase micro labels */
+
+  /* ---- Layout / geometry --------------------------------------------- */
+  --card-w: 1080px;
+  --card-h: 1512px;
+  --card-radius: 40px;
+  --card-padding: 64px;
+  --icon-container-size: 160px;
+  --glow-blur-sm: 24px;
+  --glow-blur-lg: 64px;
+  --border-width: 2px;
+
+  /* ---- Motion ---------------------------------------------------------*/
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur-standard: 240ms;
+}
+
+/* Family → color binding used by the card template's data-family attr */
+[data-family="truth"]      { --family-color: var(--c-truth);      --family-dim: var(--c-truth-dim); }
+[data-family="dare"]       { --family-color: var(--c-dare);       --family-dim: var(--c-dare-dim); }
+[data-family="paranoia"]   { --family-color: var(--c-paranoia);   --family-dim: var(--c-paranoia-dim); }
+[data-family="chaos"]      { --family-color: var(--c-chaos);      --family-dim: var(--c-chaos-dim); }
+[data-family="duel"]       { --family-color: var(--c-duel);       --family-dim: var(--c-duel-dim); }
+[data-family="nope"]       { --family-color: var(--c-nope);       --family-dim: var(--c-nope-dim); }
+[data-family="pass"]       { --family-color: var(--c-pass);       --family-dim: #0E4A40; }
+[data-family="rewind"]     { --family-color: var(--c-rewind);     --family-dim: var(--c-truth-dim); }
+[data-family="roulette"]   { --family-color: var(--c-roulette);   --family-dim: var(--c-dare-dim); }
+[data-family="spice"]      { --family-color: var(--c-spice);      --family-dim: #4A0F0C; }
+[data-family="flag"]       { --family-color: var(--c-flag);       --family-dim: #4A2410; }
+[data-family="keyrule"]    { --family-color: var(--c-keyrule);    --family-dim: #14304A; }
+[data-family="answer"]     { --family-color: var(--c-answer);     --family-dim: var(--c-paranoia-dim); }
+[data-family="voice"]      { --family-color: var(--c-voice);      --family-dim: #0E4A40; }
+[data-family="authorship"] { --family-color: var(--c-authorship); --family-dim: #241A5C; }
+[data-family="stage"]      { --family-color: var(--c-stage);      --family-dim: #4A3410; }
+[data-family="intensity"]  { --family-color: var(--c-intensity);  --family-dim: #2A2A2A; }
+[data-family="wild"]       { --family-color: #FFFFFF;             --family-dim: #2A2A2A; }

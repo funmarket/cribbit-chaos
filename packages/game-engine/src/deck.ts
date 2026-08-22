@@ -1,36 +1,37 @@
-import type { Card, CardColor, GameEvent, GameState } from '@cribbit/contracts';
+import type { Card, GameEvent, GameState } from '@cribbit/contracts';
+import {
+  CARD_COPY_COUNTS,
+  CARD_INSTANCES,
+  CANONICAL_DECK_SIZE as CHAOS_133_DECK_SIZE,
+  DECK_SPEC_ID
+} from '../../cards/src/index.ts';
 import type { RandomSource } from './rng.ts';
 import { createDeterministicId, createSeededRandom, shuffle, toSeedString } from './rng.ts';
 import { createEngineError } from './errors.ts';
 import { makeEvent } from './events.ts';
+import { selectAdaptiveDrawCard } from './adaptive-distribution.ts';
 
-const COLORS: readonly CardColor[] = ['lime', 'orange', 'cyan', 'purple'];
+export const CANONICAL_DECK_COUNTS = CARD_COPY_COUNTS;
+export const CANONICAL_DECK_SIZE = CHAOS_133_DECK_SIZE;
+export const CANONICAL_DECK_SPEC_ID = DECK_SPEC_ID;
 
-function createCard(seed: string | number, index: number, kind: Card['kind'], fields: Partial<Card> = {}): Card {
+function toEngineCard(seed: string | number, index: number, instance: (typeof CARD_INSTANCES)[number]): Card {
   return {
     id: createDeterministicId(seed, 'card', index),
-    kind,
-    ...fields
+    kind: instance.family,
+    ...(instance.color ? { color: instance.color } : {}),
+    ...(instance.value !== undefined ? { value: instance.value } : {}),
+    symbol: instance.family === 'number' ? String(instance.value) : instance.family
   };
 }
 
 export function buildCoreDeck(seed: string | number, random: RandomSource = createSeededRandom(`${toSeedString(seed)}:deck`)): Card[] {
-  const deck: Card[] = [];
-  let index = 0;
-  for (const color of COLORS) {
-    deck.push(createCard(seed, index += 1, 'number', { color, value: 0, symbol: '0' }));
-    for (let value = 1; value <= 9; value += 1) {
-      deck.push(createCard(seed, index += 1, 'number', { color, value, symbol: String(value) }));
-      deck.push(createCard(seed, index += 1, 'number', { color, value, symbol: String(value) }));
-    }
-    for (const kind of ['skip', 'reverse', 'draw'] as const) {
-      deck.push(createCard(seed, index += 1, kind, { color, symbol: kind }));
-      deck.push(createCard(seed, index += 1, kind, { color, symbol: kind }));
-    }
+  const deck = CARD_INSTANCES.map((instance, index) => toEngineCard(seed, index + 1, instance));
+
+  if (deck.length !== CANONICAL_DECK_SIZE) {
+    throw new Error(`${CANONICAL_DECK_SPEC_ID} must contain exactly ${CANONICAL_DECK_SIZE} cards; received ${deck.length}.`);
   }
-  for (let wildIndex = 0; wildIndex < 4; wildIndex += 1) {
-    deck.push(createCard(seed, index += 1, 'wild', { symbol: 'wild' }));
-  }
+
   return shuffle(deck, random);
 }
 
@@ -56,7 +57,7 @@ export function drawCards(state: GameState, count: number, events: GameEvent[] =
     if (!state.drawPile.length && !recycleDiscardPile(state, events)) {
       throw createEngineError('DRAW_PILE_EMPTY', 'No cards are available to draw.');
     }
-    const card = state.drawPile.pop();
+    const card = selectAdaptiveDrawCard(state);
     if (!card) {
       throw createEngineError('DRAW_PILE_EMPTY', 'No cards are available to draw.');
     }

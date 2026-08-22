@@ -1,5 +1,13 @@
 # Cribbit CHAOS Requirements
 
+## Project-control requirement
+
+The repository documentation is living project-control documentation.
+
+After every completed implementation slice, `PLAN.md` and every affected technical/operational `.md` file must be updated to match verified reality. Resolved blockers and obsolete instructions must be removed, and `Current Next Task` must always point to the next real unfinished task.
+
+GitHub is the canonical source of truth for deployable source and project documentation.
+
 ## R1 — Platform
 
 Cribbit CHAOS must support:
@@ -7,7 +15,7 @@ Cribbit CHAOS must support:
 - Web application
 - Telegram Mini App
 
-Both use the same backend, database, and game state.
+Both use the same backend, database, account system, and game state.
 
 ## R2 — Technology
 
@@ -30,16 +38,23 @@ Database:
 
 - PostgreSQL
 
-Hosting:
+Primary hosting:
 
-- Web: Vercel
-- Telegram Mini App: Vercel
+- Web: Cloudflare Pages
+- Telegram Mini App: Cloudflare Pages
 - API: Railway
 - PostgreSQL: Railway
 
-Source control:
+Secondary/fallback hosting:
+
+- Web: Vercel
+- Telegram Mini App: Vercel
+
+Source control and deployable-source authority:
 
 - GitHub
+
+Vercel, Cloudflare, and Railway runtime configuration must not become an alternate source of application code.
 
 ## R3 — Multiplayer authority
 
@@ -64,12 +79,11 @@ Clients may provide UI hints but are not authoritative.
 
 ## R4 — Shared account
 
-One Cribbit account may have multiple identities:
+One Cribbit account may have multiple provider/session surfaces, but one canonical internal user identity.
 
-- WEB
-- TELEGRAM
+Use the internal `users.id` UUID as the canonical user ID.
 
-Use the internal UUID as the canonical user ID.
+The same Telegram human using the Telegram Mini App and browser Web client must resolve to the same Cribbit UUID.
 
 ## R5 — Game core
 
@@ -120,18 +134,25 @@ No passive background conversation capture.
 
 ## R8 — Telegram authentication
 
-Raw Telegram `initData` must be validated server-side.
+Raw Telegram `initData` must be validated server-side by the Railway API.
 
 `initDataUnsafe` cannot establish authenticated identity.
 
+Browser Web authentication must use server-side Telegram Login/OIDC validation and must not reuse Mini App `initData` as browser authentication.
+
 ## R9 — Database
 
-One shared PostgreSQL database.
+Cribbit CHAOS uses one shared Railway PostgreSQL database.
+
+Clients never connect directly to PostgreSQL. All database access goes through the Railway API.
+
+Never create separate Web and Telegram databases.
 
 Core domains include:
 
 - users
 - user_identities
+- auth_sessions
 - rooms
 - room_members
 - game_sessions
@@ -148,7 +169,7 @@ Core domains include:
 
 ## R10 — Persistence
 
-Saved Deck, House Deck, CHAOS Board, prompt submissions, user identity, history, and recaps must persist across Web and Telegram clients.
+Saved Deck, House Deck, CHAOS Board, prompt submissions, user identity, history, and recaps must persist across Web and Telegram clients through the same backend/database.
 
 ## R11 — Realtime
 
@@ -165,6 +186,8 @@ Duplicate or retried gameplay commands must not apply game effects twice.
 ## R14 — Security
 
 Never expose server secrets in Vite.
+
+Never put `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, Telegram OIDC secrets, session credentials, or JWT/session secrets in Cloudflare Pages or Vercel public client variables.
 
 Validate incoming commands server-side.
 
@@ -184,6 +207,9 @@ Production tasks should maintain:
 
 - passing TypeScript checks
 - passing tests
-- successful web build
+- successful Web build
 - successful Telegram build
 - successful API build
+- documentation synchronized with the verified implementation/deployment state
+
+No task is fully complete while its affected project-control documents remain stale.

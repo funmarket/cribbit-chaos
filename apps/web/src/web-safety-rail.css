@@ -1,0 +1,100 @@
+/* Web-only safety-control relocation.
+ * Desktop moves the existing runtime-bound controls into Session Stats.
+ * Narrow layouts keep the original bottom safety row so safety actions remain reachable.
+ */
+
+@media (min-width: 901px) {
+  body.is-game-view .desktop-gameboard {
+    grid-template-rows:
+      var(--session-strip-h)
+      minmax(0, 1fr)
+      calc(var(--hand-row-h) + var(--action-row-h));
+  }
+
+  body.is-game-view #rightRail .panel-body {
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /*
+   * Keep the controls in the visual middle of the unused rail area rather
+   * than pinning them to the bottom edge. This keeps all four actions visible
+   * and makes use of the large empty space below Session Stats.
+   */
+  body.is-game-view .cc-web-safety-rail {
+    position: relative;
+    z-index: 3;
+    flex: 0 0 auto;
+    width: 100%;
+    margin-top: auto;
+    margin-bottom: auto;
+    padding: 14px 0;
+    border-top: 1px solid rgba(255, 255, 255, .08);
+    border-bottom: 1px solid rgba(255, 255, 255, .055);
+    background: transparent;
+  }
+
+  body.is-game-view .cc-web-safety-rail__header {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 9px;
+  }
+
+  body.is-game-view .cc-web-safety-rail__header b {
+    color: #f5f7fb;
+    font: 900 10px/1 var(--font-display);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  body.is-game-view .cc-web-safety-rail__header span {
+    color: var(--faint);
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+
+  body.is-game-view .desktop-safety-bar.cc-web-safety-rail__grid {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    padding: 0;
+  }
+
+  body.is-game-view .desktop-safety-bar.cc-web-safety-rail__grid .button {
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+    height: auto;
+    padding: 7px 5px;
+    border-radius: 8px;
+    font-size: 8px;
+    line-height: 1.15;
+    white-space: normal;
+    text-align: center;
+  }
+
+  /* Short desktop windows still keep the full 2x2 grid inside the rail. */
+  @media (max-height: 720px) {
+    body.is-game-view .cc-web-safety-rail {
+      padding-block: 8px;
+    }
+
+    body.is-game-view .cc-web-safety-rail__header {
+      margin-bottom: 6px;
+    }
+
+    body.is-game-view .desktop-safety-bar.cc-web-safety-rail__grid .button {
+      min-height: 40px;
+      padding-block: 5px;
+    }
+  }
+}

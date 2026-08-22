@@ -1,0 +1,113 @@
+id,filename,type,family,variant,runtimeRole,engineKind,actionId,responseMode,authorshipMode,frontAsset,backCategory,ambiguity
+001,001_truth.png,Truth,truth,1,playable-social-card,truth,,,,01_Card_Masters_1080x1512/001_truth.png,classic,
+002,002_truth.png,Truth,truth,2,playable-social-card,truth,,,,01_Card_Masters_1080x1512/002_truth.png,classic,
+003,003_truth.png,Truth,truth,3,playable-social-card,truth,,,,01_Card_Masters_1080x1512/003_truth.png,classic,
+004,004_truth.png,Truth,truth,4,playable-social-card,truth,,,,01_Card_Masters_1080x1512/004_truth.png,classic,
+005,005_truth.png,Truth,truth,5,playable-social-card,truth,,,,01_Card_Masters_1080x1512/005_truth.png,classic,
+006,006_truth.png,Truth,truth,6,playable-social-card,truth,,,,01_Card_Masters_1080x1512/006_truth.png,classic,
+007,007_truth.png,Truth,truth,7,playable-social-card,truth,,,,01_Card_Masters_1080x1512/007_truth.png,classic,
+008,008_truth.png,Truth,truth,8,playable-social-card,truth,,,,01_Card_Masters_1080x1512/008_truth.png,classic,
+009,009_truth.png,Truth,truth,9,playable-social-card,truth,,,,01_Card_Masters_1080x1512/009_truth.png,classic,
+010,010_truth.png,Truth,truth,10,playable-social-card,truth,,,,01_Card_Masters_1080x1512/010_truth.png,classic,
+011,011_dare.png,Dare,dare,1,playable-social-card,dare,,,,01_Card_Masters_1080x1512/011_dare.png,classic,
+012,012_dare.png,Dare,dare,2,playable-social-card,dare,,,,01_Card_Masters_1080x1512/012_dare.png,classic,
+013,013_dare.png,Dare,dare,3,playable-social-card,dare,,,,01_Card_Masters_1080x1512/013_dare.png,classic,
+014,014_dare.png,Dare,dare,4,playable-social-card,dare,,,,01_Card_Masters_1080x1512/014_dare.png,classic,
+015,015_dare.png,Dare,dare,5,playable-social-card,dare,,,,01_Card_Masters_1080x1512/015_dare.png,classic,
+016,016_dare.png,Dare,dare,6,playable-social-card,dare,,,,01_Card_Masters_1080x1512/016_dare.png,classic,
+017,017_dare.png,Dare,dare,7,playable-social-card,dare,,,,01_Card_Masters_1080x1512/017_dare.png,classic,
+018,018_dare.png,Dare,dare,8,playable-social-card,dare,,,,01_Card_Masters_1080x1512/018_dare.png,classic,
+019,019_dare.png,Dare,dare,9,playable-social-card,dare,,,,01_Card_Masters_1080x1512/019_dare.png,classic,
+020,020_paranoia.png,Paranoia,paranoia,1,playable-social-card,paranoia,,,,01_Card_Masters_1080x1512/020_paranoia.png,classic,
+021,021_paranoia.png,Paranoia,paranoia,2,playable-social-card,paranoia,,,,01_Card_Masters_1080x1512/021_paranoia.png,classic,
+022,022_paranoia.png,Paranoia,paranoia,3,playable-social-card,paranoia,,,,01_Card_Masters_1080x1512/022_paranoia.png,classic,
+023,023_paranoia.png,Paranoia,paranoia,4,playable-social-card,paranoia,,,,01_Card_Masters_1080x1512/023_paranoia.png,classic,
+024,024_paranoia.png,Paranoia,paranoia,5,playable-social-card,paranoia,,,,01_Card_Masters_1080x1512/024_paranoia.png,classic,
+025,025_paranoia.png,Paranoia,paranoia,6,playable-social-card,paranoia,,,,01_Card_Masters_1080x1512/025_paranoia.png,classic,
+026,026_paranoia.png,Paranoia,paranoia,7,playable-social-card,paranoia,,,,01_Card_Masters_1080x1512/026_paranoia.png,classic,
+027,027_chaos.png,Chaos,chaos,1,playable-social-card,chaos,,,,01_Card_Masters_1080x1512/027_chaos.png,classic,
+028,028_chaos.png,Chaos,chaos,2,playable-social-card,chaos,,,,01_Card_Masters_1080x1512/028_chaos.png,classic,
+029,029_chaos.png,Chaos,chaos,3,playable-social-card,chaos,,,,01_Card_Masters_1080x1512/029_chaos.png,classic,
+030,030_chaos.png,Chaos,chaos,4,playable-social-card,chaos,,,,01_Card_Masters_1080x1512/030_chaos.png,classic,
+031,031_chaos.png,Chaos,chaos,5,playable-social-card,chaos,,,,01_Card_Masters_1080x1512/031_chaos.png,classic,
+032,032_chaos.png,Chaos,chaos,6,playable-social-card,chaos,,,,01_Card_Masters_1080x1512/032_chaos.png,classic,
+033,033_chaos.png,Chaos,chaos,7,playable-social-card,chaos,,,,01_Card_Masters_1080x1512/033_chaos.png,classic,
+034,034_duel.png,Duel,duel,1,playable-social-card,duel,,,,01_Card_Masters_1080x1512/034_duel.png,classic,
+035,035_duel.png,Duel,duel,2,playable-social-card,duel,,,,01_Card_Masters_1080x1512/035_duel.png,classic,
+036,036_duel.png,Duel,duel,3,playable-social-card,duel,,,,01_Card_Masters_1080x1512/036_duel.png,classic,
+037,037_duel.png,Duel,duel,4,playable-social-card,duel,,,,01_Card_Masters_1080x1512/037_duel.png,classic,
+038,038_duel.png,Duel,duel,5,playable-social-card,duel,,,,01_Card_Masters_1080x1512/038_duel.png,classic,
+039,039_nope.png,Nope,nope,1,reaction-card,nope,PLAY_NOPE,,,01_Card_Masters_1080x1512/039_nope.png,classic,
+040,040_nope.png,Nope,nope,2,reaction-card,nope,PLAY_NOPE,,,01_Card_Masters_1080x1512/040_nope.png,classic,
+041,041_nope.png,Nope,nope,3,reaction-card,nope,PLAY_NOPE,,,01_Card_Masters_1080x1512/041_nope.png,classic,
+042,042_nope.png,Nope,nope,4,reaction-card,nope,PLAY_NOPE,,,01_Card_Masters_1080x1512/042_nope.png,classic,
+043,043_nope.png,Nope,nope,5,reaction-card,nope,PLAY_NOPE,,,01_Card_Masters_1080x1512/043_nope.png,classic,
+044,044_wild.png,Wild,wild,1,playable-core-card,wild,PLAY_CARD / SELECT_WILD_COLOR,,,01_Card_Masters_1080x1512/044_wild.png,classic,
+045,045_wild.png,Wild,wild,2,playable-core-card,wild,PLAY_CARD / SELECT_WILD_COLOR,,,01_Card_Masters_1080x1512/045_wild.png,classic,
+046,046_wild.png,Wild,wild,3,playable-core-card,wild,PLAY_CARD / SELECT_WILD_COLOR,,,01_Card_Masters_1080x1512/046_wild.png,classic,
+047,047_wild.png,Wild,wild,4,playable-core-card,wild,PLAY_CARD / SELECT_WILD_COLOR,,,01_Card_Masters_1080x1512/047_wild.png,classic,
+048,048_pass.png,Pass,pass,1,safety-action,,PASS_PROMPT,,,01_Card_Masters_1080x1512/048_pass.png,classic,
+049,049_pass.png,Pass,pass,2,safety-action,,PASS_PROMPT,,,01_Card_Masters_1080x1512/049_pass.png,classic,
+050,050_pass.png,Pass,pass,3,safety-action,,PASS_PROMPT,,,01_Card_Masters_1080x1512/050_pass.png,classic,
+051,051_pass.png,Pass,pass,4,safety-action,,PASS_PROMPT,,,01_Card_Masters_1080x1512/051_pass.png,classic,
+052,052_rewind.png,Rewind,rewind,1,safety-action,,REWIND_PROMPT,,,01_Card_Masters_1080x1512/052_rewind.png,classic,
+053,053_rewind.png,Rewind,rewind,2,safety-action,,REWIND_PROMPT,,,01_Card_Masters_1080x1512/053_rewind.png,classic,
+054,054_rewind.png,Rewind,rewind,3,safety-action,,REWIND_PROMPT,,,01_Card_Masters_1080x1512/054_rewind.png,classic,
+055,055_rewind.png,Rewind,rewind,4,safety-action,,REWIND_PROMPT,,,01_Card_Masters_1080x1512/055_rewind.png,classic,
+056,056_roulette.png,Roulette,roulette,1,presentation-metadata,,,,,01_Card_Masters_1080x1512/056_roulette.png,chaos_tier,"Roulette presentation contract exists, but this card is not itself a gameplay command."
+057,057_roulette.png,Roulette,roulette,2,presentation-metadata,,,,,01_Card_Masters_1080x1512/057_roulette.png,chaos_tier,"Roulette presentation contract exists, but this card is not itself a gameplay command."
+058,058_spice_dial.png,Spice Dial,spice,1,presentation-metadata,,,,,01_Card_Masters_1080x1512/058_spice_dial.png,chaos_tier,Spice Dial has no current engine/action command; verify whether it configures prompt profile/intensity.
+059,059_spice_dial.png,Spice Dial,spice,2,presentation-metadata,,,,,01_Card_Masters_1080x1512/059_spice_dial.png,chaos_tier,Spice Dial has no current engine/action command; verify whether it configures prompt profile/intensity.
+060,060_nope_card.png,Nope Card,nope,1,reaction-card,nope,PLAY_NOPE,,,01_Card_Masters_1080x1512/060_nope_card.png,classic,Type label differs from Nope; proposed as same reaction rule pending Bible confirmation.
+061,061_nope_card.png,Nope Card,nope,2,reaction-card,nope,PLAY_NOPE,,,01_Card_Masters_1080x1512/061_nope_card.png,classic,Type label differs from Nope; proposed as same reaction rule pending Bible confirmation.
+062,062_nope_card.png,Nope Card,nope,3,reaction-card,nope,PLAY_NOPE,,,01_Card_Masters_1080x1512/062_nope_card.png,classic,Type label differs from Nope; proposed as same reaction rule pending Bible confirmation.
+063,063_flag_report.png,Flag (Report),flag,1,safety-action,,FLAG_PROMPT,,,01_Card_Masters_1080x1512/063_flag_report.png,classic,
+064,064_key_rule.png,Key Rule,keyrule,1,rules-reference,,,,,01_Card_Masters_1080x1512/064_key_rule.png,chaos_tier,Key Rule is reference/metadata; no current engine/action command.
+065,065_speak.png,Speak,answer,1,answer-mode,,SELECT_ANSWER_MODE,SPEAK,,01_Card_Masters_1080x1512/065_speak.png,classic,
+066,066_speak.png,Speak,answer,2,answer-mode,,SELECT_ANSWER_MODE,SPEAK,,01_Card_Masters_1080x1512/066_speak.png,classic,
+067,067_speak.png,Speak,answer,3,answer-mode,,SELECT_ANSWER_MODE,SPEAK,,01_Card_Masters_1080x1512/067_speak.png,classic,
+068,068_type.png,Type,answer,1,answer-mode,,SELECT_ANSWER_MODE,TYPE,,01_Card_Masters_1080x1512/068_type.png,classic,
+069,069_type.png,Type,answer,2,answer-mode,,SELECT_ANSWER_MODE,TYPE,,01_Card_Masters_1080x1512/069_type.png,classic,
+070,070_type.png,Type,answer,3,answer-mode,,SELECT_ANSWER_MODE,TYPE,,01_Card_Masters_1080x1512/070_type.png,classic,
+071,071_choose.png,Choose,answer,1,answer-mode,,SELECT_ANSWER_MODE,CHOOSE,,01_Card_Masters_1080x1512/071_choose.png,classic,
+072,072_choose.png,Choose,answer,2,answer-mode,,SELECT_ANSWER_MODE,CHOOSE,,01_Card_Masters_1080x1512/072_choose.png,classic,
+073,073_choose.png,Choose,answer,3,answer-mode,,SELECT_ANSWER_MODE,CHOOSE,,01_Card_Masters_1080x1512/073_choose.png,classic,
+074,074_answered_live.png,Answered Live,answer,1,answer-mode,,SELECT_ANSWER_MODE / MARK_ANSWERED_LIVE,ANSWERED_LIVE,,01_Card_Masters_1080x1512/074_answered_live.png,classic,
+075,075_answered_live.png,Answered Live,answer,2,answer-mode,,SELECT_ANSWER_MODE / MARK_ANSWERED_LIVE,ANSWERED_LIVE,,01_Card_Masters_1080x1512/075_answered_live.png,classic,
+076,076_answered_live.png,Answered Live,answer,3,answer-mode,,SELECT_ANSWER_MODE / MARK_ANSWERED_LIVE,ANSWERED_LIVE,,01_Card_Masters_1080x1512/076_answered_live.png,classic,
+077,077_voice_only.png,Voice Only,voice,1,answer-constraint,,,,,01_Card_Masters_1080x1512/077_voice_only.png,classic,Voice-only constraint/card is not a current GameCommand; verify canonical prompt/profile linkage.
+078,078_voice_only.png,Voice Only,voice,2,answer-constraint,,,,,01_Card_Masters_1080x1512/078_voice_only.png,classic,Voice-only constraint/card is not a current GameCommand; verify canonical prompt/profile linkage.
+079,079_no_voice.png,No Voice,voice,1,answer-constraint,,,,,01_Card_Masters_1080x1512/079_no_voice.png,classic,No-voice constraint/card is not a current GameCommand; verify canonical prompt/profile linkage.
+080,080_no_voice.png,No Voice,voice,2,answer-constraint,,,,,01_Card_Masters_1080x1512/080_no_voice.png,classic,No-voice constraint/card is not a current GameCommand; verify canonical prompt/profile linkage.
+081,081_signed.png,Signed,authorship,1,authorship-mode,,,,SIGNED,01_Card_Masters_1080x1512/081_signed.png,classic,
+082,082_signed.png,Signed,authorship,2,authorship-mode,,,,SIGNED,01_Card_Masters_1080x1512/082_signed.png,classic,
+083,083_reveal_after.png,Reveal After,authorship,1,authorship-mode,,,,REVEAL_AFTER,01_Card_Masters_1080x1512/083_reveal_after.png,classic,
+084,084_reveal_after.png,Reveal After,authorship,2,authorship-mode,,,,REVEAL_AFTER,01_Card_Masters_1080x1512/084_reveal_after.png,classic,
+085,085_taboo.png,Taboo,authorship,1,authorship-mode,,,,TABOO,01_Card_Masters_1080x1512/085_taboo.png,classic,
+086,086_taboo.png,Taboo,authorship,2,authorship-mode,,,,TABOO,01_Card_Masters_1080x1512/086_taboo.png,classic,
+087,087_warm_up.png,Warm Up,stage,1,stage-card,,,,,01_Card_Masters_1080x1512/087_warm_up.png,chaos_tier,"Stage cards are prompt/profile metadata, not current GameCommand cards."
+088,088_warm_up.png,Warm Up,stage,2,stage-card,,,,,01_Card_Masters_1080x1512/088_warm_up.png,chaos_tier,"Stage cards are prompt/profile metadata, not current GameCommand cards."
+089,089_warm_up.png,Warm Up,stage,3,stage-card,,,,,01_Card_Masters_1080x1512/089_warm_up.png,chaos_tier,"Stage cards are prompt/profile metadata, not current GameCommand cards."
+090,090_personal.png,Personal,stage,1,stage-card,,,,,01_Card_Masters_1080x1512/090_personal.png,chaos_tier,"Stage cards are prompt/profile metadata, not current GameCommand cards."
+091,091_personal.png,Personal,stage,2,stage-card,,,,,01_Card_Masters_1080x1512/091_personal.png,chaos_tier,"Stage cards are prompt/profile metadata, not current GameCommand cards."
+092,092_personal.png,Personal,stage,3,stage-card,,,,,01_Card_Masters_1080x1512/092_personal.png,chaos_tier,"Stage cards are prompt/profile metadata, not current GameCommand cards."
+093,093_bold.png,Bold,stage,1,stage-card,,,,,01_Card_Masters_1080x1512/093_bold.png,chaos_tier,"Stage cards are prompt/profile metadata, not current GameCommand cards."
+094,094_bold.png,Bold,stage,2,stage-card,,,,,01_Card_Masters_1080x1512/094_bold.png,chaos_tier,"Stage cards are prompt/profile metadata, not current GameCommand cards."
+095,095_bold.png,Bold,stage,3,stage-card,,,,,01_Card_Masters_1080x1512/095_bold.png,chaos_tier,"Stage cards are prompt/profile metadata, not current GameCommand cards."
+096,096_chaos_tier.png,Chaos Tier,stage,1,stage-card,,,,,01_Card_Masters_1080x1512/096_chaos_tier.png,chaos_tier,"Stage cards are prompt/profile metadata, not current GameCommand cards."
+097,097_chaos_tier.png,Chaos Tier,stage,2,stage-card,,,,,01_Card_Masters_1080x1512/097_chaos_tier.png,chaos_tier,"Stage cards are prompt/profile metadata, not current GameCommand cards."
+098,098_chaos_tier.png,Chaos Tier,stage,3,stage-card,,,,,01_Card_Masters_1080x1512/098_chaos_tier.png,chaos_tier,"Stage cards are prompt/profile metadata, not current GameCommand cards."
+099,099_endgame.png,Endgame,stage,1,stage-card,,,,,01_Card_Masters_1080x1512/099_endgame.png,chaos_tier,"Stage cards are prompt/profile metadata, not current GameCommand cards."
+100,100_endgame.png,Endgame,stage,2,stage-card,,,,,01_Card_Masters_1080x1512/100_endgame.png,chaos_tier,"Stage cards are prompt/profile metadata, not current GameCommand cards."
+101,101_0.png,0,intensity,1,intensity-card,,,,,01_Card_Masters_1080x1512/101_0.png,chaos_tier,"Intensity cards are prompt/profile metadata, not current GameCommand cards."
+102,102_0.png,0,intensity,2,intensity-card,,,,,01_Card_Masters_1080x1512/102_0.png,chaos_tier,"Intensity cards are prompt/profile metadata, not current GameCommand cards."
+103,103_0.png,0,intensity,3,intensity-card,,,,,01_Card_Masters_1080x1512/103_0.png,chaos_tier,"Intensity cards are prompt/profile metadata, not current GameCommand cards."
+104,104_1.png,1,intensity,1,intensity-card,,,,,01_Card_Masters_1080x1512/104_1.png,chaos_tier,"Intensity cards are prompt/profile metadata, not current GameCommand cards."
+105,105_1.png,1,intensity,2,intensity-card,,,,,01_Card_Masters_1080x1512/105_1.png,chaos_tier,"Intensity cards are prompt/profile metadata, not current GameCommand cards."
+106,106_1.png,1,intensity,3,intensity-card,,,,,01_Card_Masters_1080x1512/106_1.png,chaos_tier,"Intensity cards are prompt/profile metadata, not current GameCommand cards."
+107,107_2.png,2,intensity,1,intensity-card,,,,,01_Card_Masters_1080x1512/107_2.png,chaos_tier,"Intensity cards are prompt/profile metadata, not current GameCommand cards."
+108,108_2.png,2,intensity,2,intensity-card,,,,,01_Card_Masters_1080x1512/108_2.png,chaos_tier,"Intensity cards are prompt/profile metadata, not current GameCommand cards."
+109,109_2.png,2,intensity,3,intensity-card,,,,,01_Card_Masters_1080x1512/109_2.png,chaos_tier,"Intensity cards are prompt/profile metadata, not current GameCommand cards."
+110,110_3.png,3,intensity,1,intensity-card,,,,,01_Card_Masters_1080x1512/110_3.png,chaos_tier,"Intensity cards are prompt/profile metadata, not current GameCommand cards."
+111,111_3.png,3,intensity,2,intensity-card,,,,,01_Card_Masters_1080x1512/111_3.png,chaos_tier,"Intensity cards are prompt/profile metadata, not current GameCommand cards."
+112,112_3.png,3,intensity,3,intensity-card,,,,,01_Card_Masters_1080x1512/112_3.png,chaos_tier,"Intensity cards are prompt/profile metadata, not current GameCommand cards."
