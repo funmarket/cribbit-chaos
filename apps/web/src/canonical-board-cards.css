@@ -42,3 +42,115 @@
   background-position: center !important;
   background-repeat: no-repeat !important;
 }
+
+/* Web board pile composition: Play pile | Discarded | Deck. */
+body.is-game-view .table-piles {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(14px, 2.5vw, 42px);
+}
+
+body.is-game-view .cc-current-play-slot,
+body.is-game-view .cc-used-discard-slot {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+}
+
+body.is-game-view .cc-current-play-slot > .cc-play-stack-layer {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 10px;
+  background:
+    linear-gradient(145deg, rgba(54,208,255,.06), rgba(179,76,255,.04)),
+    #080b12;
+  box-shadow: 0 8px 24px rgba(0,0,0,.26);
+  pointer-events: none;
+}
+
+body.is-game-view .cc-current-play-slot > .cc-play-stack-layer--1 {
+  transform: translate(-7px, 8px) rotate(-3.4deg);
+  opacity: .72;
+  z-index: 0;
+}
+
+body.is-game-view .cc-current-play-slot > .cc-play-stack-layer--2 {
+  transform: translate(6px, 6px) rotate(2.5deg);
+  opacity: .84;
+  z-index: 1;
+}
+
+body.is-game-view .cc-current-play-slot > .cc-play-stack-layer--3 {
+  transform: translate(-2px, 3px) rotate(-1deg);
+  opacity: .94;
+  z-index: 2;
+}
+
+body.is-game-view .cc-current-play-slot > .cc-current-play-card {
+  position: relative;
+  z-index: 5;
+  opacity: 1 !important;
+  filter: none !important;
+  transform: none;
+  box-shadow:
+    0 15px 34px rgba(0,0,0,.42),
+    0 0 0 1px rgba(255,255,255,.08);
+}
+
+body.is-game-view .cc-current-play-slot > .cc-current-play-card[data-legal="false"],
+body.is-game-view .cc-current-play-slot > .cc-current-play-card[aria-disabled="true"] {
+  opacity: 1 !important;
+  filter: none !important;
+  cursor: default;
+}
+
+body.is-game-view .cc-used-discard-slot {
+  display: grid;
+  place-items: center;
+}
+
+body.is-game-view .cc-discard-empty {
+  width: 58%;
+  aspect-ratio: 5 / 7;
+  border: 1px dashed rgba(255,255,255,.12);
+  border-radius: 9px;
+  background: rgba(255,255,255,.015);
+}
+
+body.is-game-view .cc-used-discard-card {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+body.is-game-view .cc-used-discard-card > .game-card {
+  width: min(94px, 100%);
+  opacity: .82;
+  filter: saturate(.82) brightness(.78);
+  box-shadow: 0 10px 24px rgba(0,0,0,.32);
+}
+
+body.is-game-view .cc-used-discard-card--1 { transform: translate(-8px, 6px) rotate(-6deg); z-index: 1; }
+body.is-game-view .cc-used-discard-card--2 { transform: translate(7px, 4px) rotate(4deg); z-index: 2; }
+body.is-game-view .cc-used-discard-card--3 { transform: translate(-3px, 2px) rotate(-2deg); z-index: 3; }
+body.is-game-view .cc-used-discard-card--4 { transform: translate(2px, 0) rotate(1deg); z-index: 4; }
+body.is-game-view .cc-used-discard-card--4 > .game-card {
+  opacity: .94;
+  filter: saturate(.95) brightness(.88);
+}
+
+@media (max-width: 900px) {
+  body.is-game-view .table-piles {
+    gap: 8px;
+  }
+
+  body.is-game-view .cc-current-play-slot > .cc-play-stack-layer--1 {
+    transform: translate(-4px, 5px) rotate(-3deg);
+  }
+
+  body.is-game-view .cc-current-play-slot > .cc-play-stack-layer--2 {
+    transform: translate(4px, 4px) rotate(2deg);
+  }
+}
