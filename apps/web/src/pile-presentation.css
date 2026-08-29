@@ -35,8 +35,7 @@
 
 /* Physical depth behind the current play card without cloning gameplay DOM. */
 .cc-play-pile-slot::before,
-.cc-play-pile-slot::after,
-.cc-play-pile::before {
+.cc-play-pile-slot::after {
   content: '';
   position: absolute;
   width: min(94px, 100%);
@@ -63,12 +62,6 @@
   z-index: 2;
   transform: translate(-45%, -52%) rotate(3deg) scale(.985);
   opacity: .84;
-}
-
-.cc-play-pile::before {
-  z-index: 0;
-  transform: translate(-50%, -50%) rotate(-1.5deg) scale(.99);
-  opacity: .5;
 }
 
 .cc-used-discard-slot,
@@ -138,7 +131,6 @@
 
   .cc-play-pile-slot::before,
   .cc-play-pile-slot::after,
-  .cc-play-pile::before,
   .cc-passive-pile-card {
     width: 60px;
   }
