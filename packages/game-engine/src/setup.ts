@@ -5,6 +5,7 @@ import type { RandomSource } from './rng.ts';
 import { createSeededRandom, toSeedString } from './rng.ts';
 import { makeEvent } from './events.ts';
 import { startTimer } from './timer.ts';
+import { createAdaptiveProbabilityState, dealAdaptiveOpeningHands } from './adaptive-distribution.ts';
 
 const DEFAULT_CONFIG: Omit<GameConfig, 'seed'> = {
   startingHandCount: 7,
@@ -58,18 +59,39 @@ function createPlayers(players: readonly GamePlayerSetup[]): Player[] {
   }));
 }
 
-function pickStarterCard(deck: Card[], strategy: GameConfig['initialDiscardStrategy']): Card {
+/**
+ * Starter selection keeps its existing deterministic setup contract, but the chosen
+ * card is reserved before the constrained opening dealer runs. This prevents the
+ * adaptive dealer from accidentally consuming the starter and lets opening hands
+ * vary without changing the initial-discard strategy.
+ */
+function reserveStarterCard(
+  deck: Card[],
+  strategy: GameConfig['initialDiscardStrategy'],
+  openingCardCount: number
+): Card {
+  const candidateStart = Math.min(Math.max(0, openingCardCount), Math.max(0, deck.length - 1));
+  const candidateZone = deck.slice(candidateStart);
+
+  let candidate: Card | undefined;
   if (strategy === 'TOP_SHUFFLED_CARD') {
-    const starter = deck.pop();
-    if (!starter) {
-      throw createEngineError('INVALID_SETUP', 'The deck did not contain a valid starter card.');
-    }
-    return starter;
+    candidate = candidateZone.at(-1) ?? deck.at(-1);
+  } else {
+    candidate = candidateZone.find(card => card.kind === 'number')
+      ?? candidateZone.at(-1)
+      ?? deck.find(card => card.kind === 'number')
+      ?? deck.at(-1);
   }
 
-  let starterIndex = deck.findIndex(card => card.kind === 'number');
-  if (starterIndex < 0) starterIndex = deck.length - 1;
-  const [starter] = deck.splice(starterIndex, 1);
+  if (!candidate) {
+    throw createEngineError('INVALID_SETUP', 'The deck did not contain a valid starter card.');
+  }
+
+  const index = deck.findIndex(card => card.id === candidate!.id);
+  if (index < 0) {
+    throw createEngineError('INVALID_SETUP', 'The reserved starter card was not present in the physical deck.');
+  }
+  const [starter] = deck.splice(index, 1);
   if (!starter) {
     throw createEngineError('INVALID_SETUP', 'The deck did not contain a valid starter card.');
   }
@@ -89,15 +111,27 @@ export function createGame(
   const resolvedConfig = resolveConfig(config);
   const gameId = `game-${toSeedString(resolvedConfig.seed)}`;
   const nextPlayers = createPlayers(players);
-  const deck = buildCoreDeck(resolvedConfig.seed, rng);
+  const canonicalDeck = buildCoreDeck(resolvedConfig.seed, rng);
+  const starter = reserveStarterCard(
+    canonicalDeck,
+    resolvedConfig.initialDiscardStrategy,
+    nextPlayers.length * resolvedConfig.startingHandCount
+  );
+  const openingDeal = dealAdaptiveOpeningHands(
+    canonicalDeck,
+    nextPlayers.length,
+    resolvedConfig.startingHandCount,
+    createSeededRandom(`${toSeedString(resolvedConfig.seed)}:opening`)
+  );
+  const deck = openingDeal.remainingDeck;
   const dealtHands: Record<string, readonly string[]> = {};
 
-  for (const player of nextPlayers) {
-    player.hand = deck.splice(0, resolvedConfig.startingHandCount);
+  for (let index = 0; index < nextPlayers.length; index += 1) {
+    const player = nextPlayers[index];
+    player.hand = openingDeal.hands[index] ?? [];
     dealtHands[player.id] = player.hand.map(card => card.id);
   }
 
-  const starter = pickStarterCard(deck, resolvedConfig.initialDiscardStrategy);
   const startingPlayerIndex = ((resolvedConfig.startingPlayerIndex % nextPlayers.length) + nextPlayers.length) % nextPlayers.length;
   const currentPlayerId = nextPlayers[startingPlayerIndex]?.id ?? nextPlayers[0].id;
   const state: GameState = {
@@ -118,7 +152,8 @@ export function createGame(
     social: null,
     winnerId: null,
     rewindUsedByPlayerIds: [],
-    processedCommands: {}
+    processedCommands: {},
+    adaptiveProbability: createAdaptiveProbabilityState()
   };
 
   startTimer(state, 'TURN', currentPlayerId, context.now, state.revision);
@@ -131,7 +166,8 @@ export function createGame(
       currentPlayerId,
       direction: state.direction,
       activeColor: state.activeColor,
-      activeSymbol: state.activeSymbol
+      activeSymbol: state.activeSymbol,
+      distribution: 'CHAOS_PULSE_ADAPTIVE_V1'
     }),
     ...state.players.map((player, index) =>
       makeEvent(state, 'CARD_DEALT', {

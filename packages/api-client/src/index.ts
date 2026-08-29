@@ -1,5 +1,45 @@
 import { io, type Socket } from 'socket.io-client';
-import type { AuthSession, ClientConfig, CommandResponse, GameCommand, SessionSnapshot, TelegramAuthRequest } from '../../contracts/src/index.ts';
+import type {
+  AuthSession,
+  AuthUser,
+  ClientConfig,
+  CommandResponse,
+  GameCommand,
+  ProfileUpdateRequest,
+  SessionSnapshot,
+  TelegramAuthRequest,
+  WebAuthResponse,
+  WebLoginRequest,
+  WebRegisterRequest,
+  WebTelegramLoginConfiguration
+} from '../../contracts/src/index.ts';
+import { cribbitSessionTokenStore } from './session-token-store.ts';
+
+export interface RoomSessionResult {
+  ok: true;
+  roomId: string;
+  sessionId: string;
+  joinCode: string;
+  players: Array<{ id:string; name:string; isHuman:boolean }>;
+}
+
+export interface RoomCreateRequest {
+  roomName?: string;
+  mode?: string;
+  playerCount?: number;
+  world?: 'clean' | 'adult';
+  ceiling?: number;
+  sources?: Record<string, boolean>;
+}
+
+export interface GameSessionSnapshot<TState = unknown> extends SessionSnapshot<TState> {
+  players: Array<{ id:string; name:string; isHuman:boolean }>;
+}
+
+export interface CurrentAuthSession {
+  user: AuthUser;
+  authSource: 'telegram' | 'web' | 'telegram+web';
+}
 
 export class ApiError extends Error {
   constructor(public readonly status: number, message: string) { super(message); }
@@ -9,30 +49,63 @@ export class CribbitApiClient {
   constructor(readonly config: ClientConfig) {}
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const token = this.config.platform === 'telegram' ? cribbitSessionTokenStore.get() : null;
     const response = await fetch(`${this.config.apiUrl}${path}`, {
       ...init,
-      headers: { 'content-type':'application/json', ...(init.headers || {}) },
-      credentials: 'include'
+      credentials:'include',
+      headers: {
+        'content-type':'application/json',
+        ...(token ? { authorization:`Bearer ${token}` } : {}),
+        ...(init.headers || {})
+      }
     });
     if (!response.ok) throw new ApiError(response.status, await response.text() || response.statusText);
     return response.json() as Promise<T>;
   }
 
   telegramAuth(payload: TelegramAuthRequest): Promise<AuthSession> {
-    return this.request('/v1/auth/telegram', { method:'POST', body:JSON.stringify(payload) });
+    return this.request<AuthSession>('/v1/auth/telegram', { method:'POST', body:JSON.stringify(payload) }).then(session => {
+      if (this.config.platform === 'telegram') cribbitSessionTokenStore.set(session.accessToken);
+      return session;
+    });
   }
 
-  getMe(): Promise<AuthSession['user']> { return this.request('/v1/me'); }
-  updateProfile(payload: Record<string, unknown>): Promise<AuthSession['user']> {
+  webRegister(payload: WebRegisterRequest): Promise<WebAuthResponse> {
+    return this.request('/v1/auth/register', { method:'POST', body:JSON.stringify(payload) });
+  }
+
+  webLogin(payload: WebLoginRequest): Promise<WebAuthResponse> {
+    return this.request('/v1/auth/login', { method:'POST', body:JSON.stringify(payload) });
+  }
+
+  webLogout(): Promise<{ok:true}> {
+    return this.request('/v1/auth/logout', { method:'POST', body:'{}' });
+  }
+
+  getAuthSession(): Promise<CurrentAuthSession> {
+    return this.request('/v1/auth/session');
+  }
+
+  getMe(): Promise<{ user: AuthUser; authSource?: CurrentAuthSession['authSource'] }> { return this.request('/v1/me'); }
+  updateProfile(payload: ProfileUpdateRequest): Promise<{ user: AuthUser }> {
     return this.request('/v1/me/profile', { method:'PATCH', body:JSON.stringify(payload) });
   }
-  joinRoom(code: string): Promise<{ roomId:string; sessionId?:string }> {
+  getWebTelegramLoginConfiguration(): Promise<WebTelegramLoginConfiguration> {
+    return this.request('/v1/auth/telegram/web/configuration');
+  }
+  startWebTelegramLogin(): void {
+    window.location.assign(`${this.config.apiUrl}/v1/auth/telegram/web/start`);
+  }
+  createRoom(payload: RoomCreateRequest): Promise<RoomSessionResult> {
+    return this.request('/v1/rooms', { method:'POST', body:JSON.stringify(payload) });
+  }
+  joinRoom(code: string): Promise<RoomSessionResult> {
     return this.request('/v1/rooms/join', { method:'POST', body:JSON.stringify({ code }) });
   }
   updateRoomConfig(roomId: string, config: unknown): Promise<unknown> {
     return this.request(`/v1/rooms/${encodeURIComponent(roomId)}/config`, { method:'PATCH', body:JSON.stringify(config) });
   }
-  getSnapshot<TState>(sessionId: string): Promise<SessionSnapshot<TState>> {
+  getSnapshot<TState>(sessionId: string): Promise<GameSessionSnapshot<TState>> {
     return this.request(`/v1/games/${encodeURIComponent(sessionId)}/snapshot`);
   }
   sendCommand<TState>(command: GameCommand): Promise<CommandResponse<TState>> {
@@ -52,12 +125,11 @@ export function clientConfig(platform: ClientConfig['platform']): ClientConfig {
   };
 }
 
-
 export class CribbitRealtimeClient {
   private socket: Socket | null = null;
   constructor(private readonly config: ClientConfig) {}
 
-  connect(accessToken?: string): Socket {
+  connect(accessToken = this.config.platform === 'telegram' ? cribbitSessionTokenStore.get() || undefined : undefined): Socket {
     if (this.socket?.connected) return this.socket;
     const origin = this.config.wsUrl.replace(/^wss:/,'https:').replace(/^ws:/,'http:').replace(/\/$/,'');
     this.socket = io(origin, {

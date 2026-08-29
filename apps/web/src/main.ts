@@ -1,4 +1,384 @@
 import { BrowserPlatform } from '../../../packages/platform/src/browser.ts';
-import { bootstrap } from '../../../packages/ui/src/bootstrap.ts';
+import { bootstrap, mountSharedTemplate } from '../../../packages/ui/src/bootstrap.ts';
+import { startCanonicalBoardCardHydration } from './canonical-board-cards.ts';
+import { startDiscardStateNarration } from './discard-state-narration.ts';
+import { startSimulationDiscardedPileSync } from './pile-presentation.ts';
+import './web-game.css';
+import './web-compact.css';
+import './canonical-hero-cards.css';
 
-void bootstrap(new BrowserPlatform());
+const CANONICAL_HERO_CARDS = [
+  {
+    className: 'cc-web-card-reverse-confession',
+    label: 'Reverse Confession',
+    src: new URL(
+      '../../../packages/cards/assets/CHAOS-133-V1/cards/reverse_confession/fIYGR_01.jpg',
+      import.meta.url,
+    ).href,
+  },
+  {
+    className: 'cc-web-card-paranoia',
+    label: 'Paranoia',
+    src: new URL(
+      '../../../packages/cards/assets/CHAOS-133-V1/cards/paranoia/paranoia_01.jpg',
+      import.meta.url,
+    ).href,
+  },
+  {
+    className: 'cc-web-card-dig-me',
+    label: 'Dig Me',
+    src: new URL(
+      '../../../packages/cards/assets/CHAOS-133-V1/cards/Dig_Me/digme.jpg',
+      import.meta.url,
+    ).href,
+  },
+  {
+    className: 'cc-web-card-nope',
+    label: 'Nope',
+    src: new URL(
+      '../../../packages/cards/assets/CHAOS-133-V1/cards/nope/nope_01.jpg',
+      import.meta.url,
+    ).href,
+  },
+] as const;
+
+function canonicalHeroCardMarkup(): string {
+  return CANONICAL_HERO_CARDS.map(
+    card => `
+      <figure class="cc-web-hero-card ${card.className}" aria-label="${card.label} card">
+        <img class="cc-web-hero-card__image" src="${card.src}" alt="${card.label} card artwork" draggable="false">
+      </figure>
+    `,
+  ).join('');
+}
+
+function mountCribbitChaosHero(): void {
+  const heroHost =
+    document.querySelector<HTMLElement>('.lobby-hero');
+
+  const roomCreation =
+    document.querySelector<HTMLElement>('.setup-panel');
+
+  const startButton =
+    document.querySelector<HTMLButtonElement>(
+      '#startGameButton',
+    );
+
+  if (!heroHost || !roomCreation) {
+    return;
+  }
+
+  roomCreation.id = 'roomCreation';
+
+  heroHost.innerHTML = `
+    <div class="cc-web-hero">
+      <div class="cc-web-cards-bg" aria-hidden="true">
+        ${canonicalHeroCardMarkup()}
+      </div>
+
+      <div class="cc-web-content">
+        <div class="cc-web-eyebrow">
+          <div class="cc-web-eyebrow-dot"></div>
+          <span class="cc-web-eyebrow-text">Now Live</span>
+          <div class="cc-web-eyebrow-sep"></div>
+          <span class="cc-web-eyebrow-tag">Social Card Game</span>
+        </div>
+
+        <div class="cc-web-logo">
+          <div class="cc-web-logo-frog">🐸</div>
+          <div class="cc-web-logo-text">
+            <div class="cc-web-logo-cribbit">Cribbit</div>
+            <div class="cc-web-logo-chaos">CHAOS</div>
+          </div>
+        </div>
+
+        <div class="cc-web-headline">
+          Your friends<br>
+          <em>won't survive</em><br>
+          <span class="cc-web-line-pink">night two.</span>
+        </div>
+
+        <div class="cc-web-stats">
+          <div class="cc-web-stat s1">
+            <div class="cc-web-stat-num">2–10</div>
+            <div class="cc-web-stat-label">Players</div>
+          </div>
+          <div class="cc-web-stat s2">
+            <div class="cc-web-stat-num">7</div>
+            <div class="cc-web-stat-label">Cards Dealt</div>
+          </div>
+          <div class="cc-web-stat s3">
+            <div class="cc-web-stat-num">133</div>
+            <div class="cc-web-stat-label">Cards</div>
+          </div>
+          <div class="cc-web-stat s4">
+            <div class="cc-web-stat-num">∞</div>
+            <div class="cc-web-stat-label">Stories</div>
+          </div>
+        </div>
+
+        <p class="cc-web-description">
+          <span class="cc-web-kicker">Cribbit CHAOS is a shedding card game with a social fuse.</span>
+          Deal seven cards, match color or symbol, then watch the social layer detonate —
+          <span class="cc-web-highlight">truths, dares, paranoia, chaos, duels,</span>
+          and tactical Nopes that can flip a round.
+          First to legally empty their hand wins.
+          <span class="cc-web-highlight">Everyone else explains themselves.</span>
+        </p>
+
+        <div class="cc-web-mechanics">
+          <span class="cc-web-pill p-truth">❓ Truth</span>
+          <span class="cc-web-pill p-dare">⚡ Dare</span>
+          <span class="cc-web-pill p-paranoia">◉ Paranoia</span>
+          <span class="cc-web-pill p-chaos">↻ Chaos</span>
+          <span class="cc-web-pill p-duel">⚔️ Duel</span>
+          <span class="cc-web-pill p-nope">✋ Nope</span>
+        </div>
+
+        <div class="cc-web-infobar">
+          <span class="cc-web-infobar-shield">🛡️</span>
+          <div class="cc-web-infobar-text">
+            <b>Explicit safety controls built in.</b>
+            Pass, Rewind, Nope and Flag keep CHAOS on your terms.
+          </div>
+        </div>
+
+        <div class="cc-web-actions">
+          <a class="button cc-web-create" href="#roomCreation">Create a game</a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  /* Preserve the existing runtime-bound button identity. */
+  if (startButton) {
+    heroHost
+      .querySelector<HTMLElement>('.cc-web-actions')
+      ?.append(startButton);
+  }
+}
+
+function removeLegacyQaOpeningHandControl(): void {
+  const qaToggle = document.querySelector<HTMLInputElement>('#qaHandToggle');
+  if (!qaToggle) return;
+
+  // Normal Web gameplay must never opt into the old all-special QA opening hand.
+  qaToggle.checked = false;
+  qaToggle.closest<HTMLElement>('.knob-row')?.remove();
+}
+
+type PublicSocialCandidate = {
+  actor: string;
+  family: 'truth' | 'dare';
+  prompt: string;
+};
+
+function startPublicSocialMomentNarration(): void {
+  const eventList = document.querySelector<HTMLElement>('#eventList');
+  const activeTitle = document.querySelector<HTMLElement>('#activeChallengeTitle');
+  const activeCopy = document.querySelector<HTMLElement>('#activeChallengeCopy');
+  const currentTurnName = document.querySelector<HTMLElement>('#currentTurnName');
+
+  if (!eventList || !activeTitle || !activeCopy || !currentTurnName) return;
+
+  const recap = document.createElement('div');
+  recap.id = 'publicSocialMomentRecap';
+  recap.className = 'board-callout';
+  recap.hidden = true;
+  recap.setAttribute('role', 'status');
+  recap.setAttribute('aria-live', 'polite');
+  activeCopy.insertAdjacentElement('afterend', recap);
+
+  let candidate: PublicSocialCandidate | null = null;
+  let lastSummary = '';
+  let lastActor = '';
+  let processing = false;
+
+  const readCandidateFromBoard = (): void => {
+    const title = activeTitle.textContent?.trim().toLowerCase() ?? '';
+    const family: 'truth' | 'dare' | null = title.includes('truth resolution')
+      ? 'truth'
+      : title.includes('dare resolution')
+        ? 'dare'
+        : null;
+
+    if (!family) return;
+
+    const actor = currentTurnName.textContent?.trim() ?? '';
+    const prompt = activeCopy.textContent?.trim() ?? '';
+
+    if (
+      !actor ||
+      !prompt ||
+      prompt === 'Complete the active authoritative flow.' ||
+      prompt.startsWith('Match the active color')
+    ) {
+      return;
+    }
+
+    // Keep this only as an internal candidate. It is not exposed until the
+    // authoritative activity stream confirms PROMPT_REVEALED.
+    candidate = { actor, family, prompt };
+  };
+
+  const publishCandidate = (actor: string, family: 'truth' | 'dare'): string | null => {
+    if (!candidate || candidate.actor !== actor || candidate.family !== family) {
+      return null;
+    }
+
+    const label = family === 'dare' ? 'Challenge' : 'Question';
+    const obligation = family === 'dare' ? 'must complete' : 'must answer';
+    const summary = `Last social moment · ${actor} played ${family.toUpperCase()} → ${actor} ${obligation}. ${label}: “${candidate.prompt}”`;
+
+    lastSummary = summary;
+    lastActor = actor;
+    recap.hidden = false;
+    recap.textContent = summary;
+    recap.dataset.tone = family;
+
+    return summary;
+  };
+
+  const syncEvents = (): void => {
+    if (processing) return;
+    processing = true;
+
+    try {
+      readCandidateFromBoard();
+
+      const items = Array.from(eventList.querySelectorAll<HTMLElement>('.event-item'));
+
+      for (const item of items) {
+        const type = item.querySelector<HTMLElement>('.event-item__top b')?.textContent?.trim() ?? '';
+        const messageNode = item.querySelector<HTMLParagraphElement>('p');
+        const message = messageNode?.textContent?.trim() ?? '';
+
+        if (!messageNode) continue;
+
+        if (type === 'PROMPT REVEALED') {
+          const match = message.match(/^(.+?) received the public (truth|dare) prompt\.$/i);
+          if (!match) continue;
+
+          const actor = match[1].trim();
+          const family = match[2].toLowerCase() as 'truth' | 'dare';
+          const summary = publishCandidate(actor, family);
+
+          if (summary && messageNode.textContent !== summary) {
+            messageNode.textContent = summary;
+          }
+
+          continue;
+        }
+
+        if (lastSummary && lastActor && type === 'ANSWER REGISTERED' && message.startsWith(lastActor)) {
+          const resolved = `${lastSummary} ✓ ${lastActor} completed the response.`;
+          recap.hidden = false;
+          recap.textContent = resolved;
+        }
+
+        if (lastSummary && lastActor && type === 'PROMPT PASSED' && message.startsWith(lastActor)) {
+          const passed = `${lastSummary} ${lastActor} passed / Not for Me.`;
+          recap.hidden = false;
+          recap.textContent = passed;
+        }
+      }
+    } finally {
+      processing = false;
+    }
+  };
+
+  const boardObserver = new MutationObserver(() => {
+    readCandidateFromBoard();
+    syncEvents();
+  });
+
+  boardObserver.observe(activeTitle, { childList: true, subtree: true, characterData: true });
+  boardObserver.observe(activeCopy, { childList: true, subtree: true, characterData: true });
+  boardObserver.observe(currentTurnName, { childList: true, subtree: true, characterData: true });
+
+  const eventObserver = new MutationObserver(syncEvents);
+  eventObserver.observe(eventList, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
+
+  readCandidateFromBoard();
+  syncEvents();
+}
+
+function setupHomepageHeaderScroll(): void {
+  const header = document.querySelector<HTMLElement>('.app-header');
+  const lobbyView = document.querySelector<HTMLElement>('[data-view="lobby"]');
+
+  if (!header || !lobbyView) {
+    return;
+  }
+
+  let previousScrollY = window.scrollY;
+
+  const isLobbyActive = (): boolean =>
+    lobbyView.classList.contains('is-active');
+
+  const syncHeaderMode = (): void => {
+    const lobbyActive = isLobbyActive();
+
+    header.classList.toggle('web-lobby-header', lobbyActive);
+
+    if (!lobbyActive) {
+      header.classList.remove('web-secondary-hidden');
+    }
+  };
+
+  const handleScroll = (): void => {
+    if (!isLobbyActive()) {
+      header.classList.remove('web-secondary-hidden');
+      previousScrollY = window.scrollY;
+      return;
+    }
+
+    const currentScrollY = window.scrollY;
+
+    if (currentScrollY < 80) {
+      header.classList.remove('web-secondary-hidden');
+    } else if (currentScrollY > previousScrollY + 5) {
+      header.classList.add('web-secondary-hidden');
+    } else if (currentScrollY < previousScrollY - 5) {
+      header.classList.remove('web-secondary-hidden');
+    }
+
+    previousScrollY = currentScrollY;
+  };
+
+  syncHeaderMode();
+
+  window.addEventListener('scroll', handleScroll, { passive: true });
+
+  const observer = new MutationObserver(syncHeaderMode);
+  observer.observe(lobbyView, {
+    attributes: true,
+    attributeFilter: ['class'],
+  });
+}
+
+async function startWeb(): Promise<void> {
+  const platform = new BrowserPlatform();
+
+  // Compatibility composition is explicit while each surface is transferred.
+  // bootstrap() no longer injects the historical application DOM implicitly.
+  mountSharedTemplate();
+  removeLegacyQaOpeningHandControl();
+  mountCribbitChaosHero();
+
+  await bootstrap(platform, {
+    runtimeMode: 'legacy-compatibility',
+  });
+
+  startCanonicalBoardCardHydration();
+  startSimulationDiscardedPileSync();
+  startPublicSocialMomentNarration();
+  startDiscardStateNarration();
+  setupHomepageHeaderScroll();
+}
+
+void startWeb();

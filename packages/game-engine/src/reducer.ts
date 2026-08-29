@@ -9,8 +9,8 @@ import {
   createAnswerRecord,
   createAuthorshipState,
   createRoulettePresentation,
+  createParanoiaVoteState,
   createDuelRecord,
-  createReactionRecord,
   createSocialState,
   createTurnResolution,
   projectRoulettePresentation,
@@ -72,6 +72,12 @@ function fingerprintCommand(command: GameCommand): string {
       return [command.sessionId, command.type, command.playerId, command.promptId, command.reasonCode ?? ''].join('|');
     case 'SELECT_ANSWER_MODE':
       return [command.sessionId, command.type, command.playerId, command.mode].join('|');
+    case 'SELECT_PARANOIA_PHASE':
+      return [command.sessionId, command.type, command.playerId, command.phase].join('|');
+    case 'SELECT_PARANOIA_CLASSIC_ANSWER':
+      return [command.sessionId, command.type, command.playerId, command.targetId].join('|');
+    case 'SUBMIT_PARANOIA_CLASSIC_DECISION':
+      return [command.sessionId, command.type, command.playerId, command.decision].join('|');
     case 'REVIEW_ANSWER':
       return [command.sessionId, command.type, command.playerId, command.value ?? '', command.choice ?? '', String(command.completionOnly ?? false)].join('|');
     case 'SUBMIT_CHOICE':
@@ -84,6 +90,10 @@ function fingerprintCommand(command: GameCommand): string {
     case 'DUEL_TARGET':
     case 'CHAOS_TARGET':
       return [command.sessionId, command.type, command.playerId, command.targetId].join('|');
+    case 'SUBMIT_PARANOIA_VOTE':
+      return [command.sessionId, command.type, command.playerId, command.vote].join('|');
+    case 'DUEL_VOTE':
+      return [command.sessionId, command.type, command.playerId, command.winnerId].join('|');
     case 'SUBMIT_DUEL_RESPONSE':
       return [command.sessionId, command.type, command.playerId, command.side, command.value ?? '', command.choice ?? '', String(command.completionOnly ?? false)].join('|');
     case 'PLAY_NOPE':
@@ -440,13 +450,20 @@ function isTruthOrDareSocial(social: NonNullable<GameState['social']>): boolean 
   return social.cardKind === 'truth' || social.cardKind === 'dare';
 }
 
+const TRUTH_DARE_PASS_PENALTY_CARDS = 2;
+
 function getSocialParticipantIds(social: NonNullable<GameState['social']>): readonly string[] {
   if (isAllPlayerCompletionSocial(social)) return social.pendingCompletionPlayerIds;
   if (social.cardKind === 'duel') {
     return [social.pendingDuel?.initiatorId ?? social.actorId, ...(social.pendingDuel?.opponentId ? [social.pendingDuel.opponentId] : [])];
   }
   if (social.cardKind === 'paranoia') {
-    return [social.actorId, ...(social.pendingTargetId ? [social.pendingTargetId] : [])];
+    return [...new Set([
+      social.actorId,
+      ...(social.pendingTargetId ? [social.pendingTargetId] : []),
+      ...(social.classicAnswerPlayerId ? [social.classicAnswerPlayerId] : []),
+      ...(social.paranoiaVote?.eligibleVoterIds ?? [])
+    ])];
   }
   return [social.actorId];
 }
@@ -996,19 +1013,495 @@ function handleSelectParanoiaTarget<TState extends GameState>(
   const nextState = cloneState(state);
   const nextSocial = nextState.social!;
   nextSocial.pendingTargetId = command.targetId;
-  nextSocial.roulettePresentation = createRoulettePresentation(nextState, 'PLAYER', command.targetId, nextSocial.pendingTargetIds);
-  nextSocial.resolutionComplete = true;
-  nextSocial.mayAdvanceTurn = true;
-  const actor = nextState.players.find(item => item.id === command.playerId)!;
+  nextSocial.paranoiaPhase = null;
+  nextSocial.paranoiaVote = null;
+  nextSocial.classicAnswerPlayerId = null;
+  nextSocial.classicRevealDecision = null;
+  nextSocial.resolutionComplete = false;
+  nextSocial.mayAdvanceTurn = false;
   const events: GameEvent[] = [
     makeEvent(nextState, 'PARANOIA_TARGET_SELECTED', {
       actorId: command.playerId,
       cardId: nextSocial.cardId,
       targetPlayerId: command.targetId
     }, 0, 'PLAYER_PRIVATE', [command.playerId]),
-    makeEvent(nextState, 'ROULETTE_PRESENTATION_STARTED', projectRoulettePresentation(nextSocial.roulettePresentation), 1, 'PLAYER_PRIVATE', [command.playerId])
+    makeEvent(nextState, 'TARGET_REQUIRED', {
+      actorId: command.playerId,
+      cardId: nextSocial.cardId,
+      cardKind: 'paranoia',
+      targetCount: nextSocial.pendingTargetIds.length
+    }, 1, 'PLAYER_PRIVATE', [command.playerId])
   ];
-  completeSocialResolution(nextState, actor, 'paranoia', events, 1, 'resolved', context.now);
+  nextState.revision = state.revision + 1;
+  events.forEach(event => {
+    event.revision = nextState.revision;
+  });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
+function handleSelectParanoiaPhase<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'SELECT_PARANOIA_PHASE' },
+  context: GameCommandContext
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state, 'paranoia');
+  if (error) return failCommand(state, command, error);
+  if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
+    return failCommand(state, command, createEngineError('NOT_YOUR_TURN', 'Only the triggering player may choose the Paranoia phase.'));
+  }
+  if (!social.pendingTargetId) {
+    return failCommand(state, command, createEngineError('NO_PENDING_TARGET', 'Choose a Paranoia target before selecting a phase.'));
+  }
+  if (!['CLASSIC', 'STRANGER'].includes(command.phase)) {
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'Choose Classic or Stranger for Paranoia.'));
+  }
+
+  const nextState = cloneState(state);
+  const nextSocial = nextState.social!;
+  const target = nextState.players.find(item => item.id === nextSocial.pendingTargetId);
+  if (!target) {
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'The selected Paranoia target could not be resolved.'));
+  }
+  nextSocial.paranoiaPhase = command.phase;
+  nextSocial.paranoiaVote = null;
+  nextSocial.classicAnswerPlayerId = null;
+  nextSocial.classicRevealDecision = null;
+
+  const events: GameEvent[] = [
+    makeEvent(nextState, 'PARANOIA_PHASE_SELECTED', {
+      actorId: command.playerId,
+      cardId: nextSocial.cardId,
+      targetPlayerId: target.id,
+      phase: command.phase
+    }, 0, 'PLAYER_PRIVATE', [command.playerId])
+  ];
+
+  if (command.phase === 'CLASSIC') {
+    nextSocial.resolutionComplete = false;
+    nextSocial.mayAdvanceTurn = false;
+    events.push(
+      makeEvent(nextState, 'PARANOIA_CLASSIC_ANSWER_REQUIRED', {
+        actorId: command.playerId,
+        cardId: nextSocial.cardId,
+        targetPlayerId: target.id
+      }, 1, 'PLAYER_PRIVATE', [target.id])
+    );
+  } else {
+    const eligibleVoterIds = nextState.players
+      .filter(player => player.id !== target.id)
+      .map(player => player.id);
+    nextSocial.paranoiaVote = createParanoiaVoteState('STRANGER', eligibleVoterIds);
+    nextSocial.resolutionComplete = eligibleVoterIds.length === 0;
+    nextSocial.mayAdvanceTurn = eligibleVoterIds.length === 0;
+    if (eligibleVoterIds.length === 0) {
+      nextSocial.answerState = {
+        ...nextSocial.answerState,
+        status: 'SUBMITTED',
+        submittedByPlayerId: command.playerId,
+        submittedAtRevision: state.revision + 1
+      };
+      events.push(
+        makeEvent(nextState, 'PARANOIA_VOTE_RESOLVED', {
+          actorId: command.playerId,
+          cardId: nextSocial.cardId,
+          targetPlayerId: target.id,
+          penaltyApplied: false,
+          believeCount: 0,
+          lyingOrHoldingBackCount: 0
+        }, 1, 'PUBLIC')
+      );
+    } else {
+      events.push(
+        makeEvent(nextState, 'PARANOIA_VOTE_REQUIRED', {
+          actorId: command.playerId,
+          cardId: nextSocial.cardId,
+          targetPlayerId: target.id,
+          eligibleVoterIds
+        }, 1, 'PUBLIC')
+      );
+    }
+  }
+
+  nextState.revision = state.revision + 1;
+  events.forEach(event => {
+    event.revision = nextState.revision;
+  });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
+function handleSelectParanoiaClassicAnswer<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'SELECT_PARANOIA_CLASSIC_ANSWER' },
+  context: GameCommandContext
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state, 'paranoia');
+  if (error) return failCommand(state, command, error);
+  if (social.paranoiaPhase !== 'CLASSIC') {
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'No Classic Paranoia answer player is currently pending.'));
+  }
+  if (!social.pendingTargetId) {
+    return failCommand(state, command, createEngineError('NO_PENDING_TARGET', 'Choose a Paranoia target before selecting a Classic answer player.'));
+  }
+  if (social.pendingTargetId !== command.playerId) {
+    return failCommand(state, command, createEngineError('NOT_YOUR_TURN', 'Only the selected Paranoia target may choose the Classic answer player.'));
+  }
+  if (social.resolutionComplete) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Classic Paranoia is already resolved.'));
+  }
+  const answerPlayer = state.players.find(item => item.id === command.targetId);
+  if (!answerPlayer || answerPlayer.id === social.pendingTargetId) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Choose another eligible player as the Classic answer.'));
+  }
+
+  const nextState = cloneState(state);
+  const nextSocial = nextState.social!;
+  nextSocial.classicAnswerPlayerId = answerPlayer.id;
+  nextSocial.classicRevealDecision = null;
+  nextSocial.resolutionComplete = false;
+  nextSocial.mayAdvanceTurn = false;
+  const events: GameEvent[] = [
+    makeEvent(nextState, 'PARANOIA_CLASSIC_ANSWER_SELECTED', {
+      targetPlayerId: command.playerId,
+      answerPlayerId: answerPlayer.id,
+      cardId: nextSocial.cardId
+    }, 0, 'PLAYER_PRIVATE', [command.playerId, answerPlayer.id])
+  ];
+  nextState.revision = state.revision + 1;
+  events.forEach(event => {
+    event.revision = nextState.revision;
+  });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
+function handleSubmitParanoiaClassicDecision<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'SUBMIT_PARANOIA_CLASSIC_DECISION' },
+  context: GameCommandContext
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state, 'paranoia');
+  if (error) return failCommand(state, command, error);
+  if (social.paranoiaPhase !== 'CLASSIC' || !social.classicAnswerPlayerId) {
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'No Classic Paranoia reveal decision is currently pending.'));
+  }
+  if (social.classicAnswerPlayerId !== command.playerId) {
+    return failCommand(state, command, createEngineError('NOT_YOUR_TURN', 'Only the named Classic answer player may choose Reveal or Keep Secret.'));
+  }
+  if (!['REVEAL', 'KEEP_SECRET'].includes(command.decision)) {
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'Choose Reveal or Keep Secret.'));
+  }
+
+  const nextState = cloneState(state);
+  const nextSocial = nextState.social!;
+  const prompt = nextSocial.prompt;
+  nextSocial.classicRevealDecision = command.decision;
+  nextSocial.resolutionComplete = true;
+  nextSocial.mayAdvanceTurn = true;
+  nextSocial.answerState = {
+    ...nextSocial.answerState,
+    status: 'SUBMITTED',
+    submittedByPlayerId: command.playerId,
+    submittedAtRevision: state.revision + 1
+  };
+  const payload: Record<string, unknown> = {
+    answerPlayerId: command.playerId,
+    targetPlayerId: nextSocial.pendingTargetId,
+    cardId: nextSocial.cardId,
+    decision: command.decision
+  };
+  if (command.decision === 'REVEAL') {
+    payload.promptId = prompt?.id ?? null;
+    payload.promptText = prompt?.text ?? null;
+  }
+  const events: GameEvent[] = [
+    makeEvent(
+      nextState,
+      'PARANOIA_CLASSIC_REVEAL_DECIDED',
+      payload,
+      0,
+      command.decision === 'REVEAL' ? 'PUBLIC' : 'PLAYER_PRIVATE',
+      command.decision === 'REVEAL' ? [] : [command.playerId]
+    )
+  ];
+  nextState.revision = state.revision + 1;
+  events.forEach(event => {
+    event.revision = nextState.revision;
+  });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
+function applyParanoiaStrangerVoteResolution<TState extends GameState>(
+  state: TState,
+  nextSocial: NonNullable<TState['social']>,
+  actor: Player,
+  target: Player,
+  events: GameEvent[]
+): void {
+  const votes = nextSocial.paranoiaVote?.votes ?? {};
+  const voteValues = Object.values(votes);
+  const believeCount = voteValues.filter(vote => vote === 'BELIEVE').length;
+  const lyingOrHoldingBackCount = voteValues.filter(vote => vote === 'LYING' || vote === 'HOLDING_BACK').length;
+  const penaltyApplied = lyingOrHoldingBackCount > believeCount;
+  if (penaltyApplied) {
+    const drawn = drawCards(state, 2, events);
+    target.hand.push(...drawn);
+    events.push(makeEvent(state, 'DRAW_EFFECT_APPLIED', {
+      sourcePlayerId: actor.id,
+      targetPlayerId: target.id,
+      amount: drawn.length,
+      cardId: nextSocial.cardId,
+      drawnCardIds: drawn.map(item => item.id)
+    }, 0, 'PLAYER_PRIVATE', [target.id]));
+  }
+
+  nextSocial.paranoiaVote = nextSocial.paranoiaVote
+    ? {
+        ...nextSocial.paranoiaVote,
+        resolutionApplied: true
+      }
+    : null;
+  nextSocial.resolutionComplete = true;
+  nextSocial.mayAdvanceTurn = true;
+  nextSocial.answerState = {
+    ...nextSocial.answerState,
+    status: 'SUBMITTED',
+    submittedByPlayerId: actor.id,
+    submittedAtRevision: state.revision + 1
+  };
+  events.push(makeEvent(state, 'PARANOIA_VOTE_RESOLVED', {
+    actorId: actor.id,
+    cardId: nextSocial.cardId,
+    targetPlayerId: target.id,
+    penaltyApplied,
+    believeCount,
+    lyingOrHoldingBackCount
+  }, events.length, 'PUBLIC'));
+}
+
+function handleSubmitParanoiaVote<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'SUBMIT_PARANOIA_VOTE' },
+  context: GameCommandContext
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state, 'paranoia');
+  if (error) return failCommand(state, command, error);
+  if (social.paranoiaPhase !== 'STRANGER' || !social.paranoiaVote) {
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'No Stranger vote is currently pending.'));
+  }
+  if (!social.paranoiaVote.eligibleVoterIds.includes(command.playerId)) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Only an eligible Stranger voter may submit a vote.'));
+  }
+  if (social.paranoiaVote.votes[command.playerId]) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already submitted a Stranger vote.'));
+  }
+  if (!['BELIEVE', 'LYING', 'HOLDING_BACK'].includes(command.vote)) {
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'Choose Believe, Lying, or Holding Back.'));
+  }
+
+  const nextState = cloneState(state);
+  const nextSocial = nextState.social!;
+  const target = nextState.players.find(item => item.id === nextSocial.pendingTargetId);
+  const actor = nextState.players.find(item => item.id === nextSocial.actorId)!;
+  if (!target) {
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'The selected Paranoia target could not be resolved.'));
+  }
+  const currentVote = nextSocial.paranoiaVote;
+  if (!currentVote) {
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'No Stranger vote is currently pending.'));
+  }
+  nextSocial.paranoiaVote = {
+    phase: currentVote.phase,
+    eligibleVoterIds: [...currentVote.eligibleVoterIds],
+    resolutionApplied: currentVote.resolutionApplied,
+    votes: {
+      ...currentVote.votes,
+      [command.playerId]: command.vote
+    }
+  };
+
+  const events: GameEvent[] = [
+    makeEvent(nextState, 'PARANOIA_VOTE_SUBMITTED', {
+      voterPlayerId: command.playerId,
+      cardId: nextSocial.cardId,
+      targetPlayerId: target.id,
+      vote: command.vote
+    }, 0, 'PLAYER_PRIVATE', [command.playerId])
+  ];
+
+  const allVotesSubmitted = currentVote.eligibleVoterIds.every(playerId => Boolean(nextSocial.paranoiaVote?.votes[playerId]));
+  if (allVotesSubmitted) {
+    applyParanoiaStrangerVoteResolution(nextState, nextSocial, actor, target, events);
+  }
+
+  nextState.revision = state.revision + 1;
+  events.forEach(event => {
+    event.revision = nextState.revision;
+  });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
+function handleCompleteFlow<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'COMPLETE_FLOW' },
+  context: GameCommandContext
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state);
+  if (error) return failCommand(state, command, error);
+  if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
+    return failCommand(state, command, createEngineError('NOT_YOUR_TURN', 'Only the triggering player may continue the current flow.'));
+  }
+  if (!social.resolutionComplete) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Finish this action before continuing.'));
+  }
+
+  const nextState = cloneState(state);
+  const nextSocial = nextState.social!;
+  const actor = nextState.players.find(item => item.id === command.playerId)!;
+  const events: GameEvent[] = [];
+  completeSocialResolution(nextState, actor, nextSocial.cardKind, events, 1, 'resolved', context.now);
+  nextState.revision = state.revision + 1;
+  events.forEach(event => {
+    event.revision = nextState.revision;
+  });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
+function getDuelEligibleVoterIds(state: GameState, initiatorId: string, opponentId: string): string[] {
+  return state.players
+    .filter(player => player.id !== initiatorId && player.id !== opponentId)
+    .map(player => player.id);
+}
+
+function applyDuelVoteResolution<TState extends GameState>(
+  state: TState,
+  nextSocial: NonNullable<TState['social']>,
+  actor: Player,
+  events: GameEvent[]
+): void {
+  const duel = nextSocial.pendingDuel;
+  if (!duel?.opponentId || !duel.vote || duel.vote.resolutionApplied) return;
+  const candidates = [duel.initiatorId, duel.opponentId];
+  const counts = Object.fromEntries(candidates.map(candidateId => [candidateId, 0])) as Record<string, number>;
+  Object.values(duel.vote.votes).forEach(candidateId => {
+    if (candidateId in counts) counts[candidateId] += 1;
+  });
+  const [initiatorVotes, opponentVotes] = candidates.map(candidateId => counts[candidateId] ?? 0);
+  const winnerId =
+    initiatorVotes > opponentVotes ? duel.initiatorId :
+    opponentVotes > initiatorVotes ? duel.opponentId :
+    null;
+
+  nextSocial.pendingDuel = {
+    ...duel,
+    winnerId,
+    vote: {
+      ...duel.vote,
+      resolutionApplied: true
+    }
+  };
+  nextSocial.resolutionComplete = true;
+  nextSocial.mayAdvanceTurn = true;
+  nextSocial.answerState = {
+    ...nextSocial.answerState,
+    status: 'SUBMITTED',
+    submittedByPlayerId: actor.id,
+    submittedAtRevision: state.revision + 1
+  };
+  events.push(makeEvent(state, 'DUEL_VOTE_RESOLVED', {
+    actorId: actor.id,
+    cardId: nextSocial.cardId,
+    winnerId,
+    votes: counts
+  }, events.length, 'PUBLIC'));
+}
+
+function beginDuelGroupVote<TState extends GameState>(
+  state: TState,
+  nextSocial: NonNullable<TState['social']>,
+  actor: Player,
+  events: GameEvent[]
+): void {
+  const duel = nextSocial.pendingDuel;
+  if (!duel?.opponentId) return;
+  const eligibleVoterIds = getDuelEligibleVoterIds(state, duel.initiatorId, duel.opponentId);
+  nextSocial.pendingDuel = {
+    ...duel,
+    resolutionReady: true,
+    vote: {
+      eligibleVoterIds,
+      votes: {},
+      resolutionApplied: false
+    }
+  };
+  events.push(makeEvent(state, 'DUEL_GROUP_VOTE_REQUIRED', {
+    actorId: actor.id,
+    cardId: nextSocial.cardId,
+    candidates: [duel.initiatorId, duel.opponentId],
+    eligibleVoterIds
+  }, events.length, 'PUBLIC'));
+  if (!eligibleVoterIds.length) {
+    applyDuelVoteResolution(state, nextSocial, actor, events);
+  }
+}
+
+function handleDuelVote<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'DUEL_VOTE' },
+  context: GameCommandContext
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state, 'duel');
+  if (error) return failCommand(state, command, error);
+  const duel = social.pendingDuel;
+  if (!duel?.opponentId || !duel.vote) {
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'No Duel group vote is currently pending.'));
+  }
+  if (!duel.vote.eligibleVoterIds.includes(command.playerId)) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Only eligible non-participants may vote on the Duel winner.'));
+  }
+  if (duel.vote.votes[command.playerId]) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'That player has already submitted a Duel vote.'));
+  }
+  if (![duel.initiatorId, duel.opponentId].includes(command.winnerId)) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Choose one of the two Duel participants.'));
+  }
+
+  const nextState = cloneState(state);
+  const nextSocial = nextState.social!;
+  const nextDuel = nextSocial.pendingDuel!;
+  const actor = nextState.players.find(item => item.id === nextSocial.actorId)!;
+  nextSocial.pendingDuel = {
+    ...nextDuel,
+    vote: {
+      ...nextDuel.vote!,
+      votes: {
+        ...nextDuel.vote!.votes,
+        [command.playerId]: command.winnerId
+      }
+    }
+  };
+  const events: GameEvent[] = [
+    makeEvent(nextState, 'DUEL_VOTE_SUBMITTED', {
+      voterPlayerId: command.playerId,
+      cardId: nextSocial.cardId,
+      winnerId: command.winnerId
+    }, 0, 'PLAYER_PRIVATE', [command.playerId])
+  ];
+  const allVotesSubmitted = nextDuel.vote!.eligibleVoterIds.every(playerId => Boolean(nextSocial.pendingDuel?.vote?.votes[playerId]));
+  if (allVotesSubmitted) {
+    applyDuelVoteResolution(nextState, nextSocial, actor, events);
+  }
+
   nextState.revision = state.revision + 1;
   events.forEach(event => {
     event.revision = nextState.revision;
@@ -1059,24 +1552,12 @@ function handleSelectDuelTarget<TState extends GameState>(
     opponentId: command.targetId,
     prompt: preview.prompt
   };
-  const target = nextState.players.find(item => item.id === command.targetId)!;
-  if (target.hand.some(card => card.kind === 'nope')) {
-    nextSocial.pendingReaction = createReactionRecord('duel', nextSocial.cardId, command.playerId, command.targetId);
-  }
   const recipients = [command.playerId, command.targetId];
   const events: GameEvent[] = [
     makeEvent(nextState, 'DUEL_TARGET_SELECTED', { actorId: command.playerId, cardId: nextSocial.cardId, targetPlayerId: command.targetId, promptId: preview.prompt.id }, 0, 'PLAYER_PRIVATE', recipients),
     makeEvent(nextState, 'ROULETTE_PRESENTATION_STARTED', projectRoulettePresentation(nextSocial.roulettePresentation), 1, 'PLAYER_PRIVATE', recipients),
     makeEvent(nextState, 'PROMPT_SELECTED', { actorId: command.playerId, cardId: nextSocial.cardId, promptId: preview.prompt.id, prompt: preview.prompt }, 2, 'PLAYER_PRIVATE', recipients)
   ];
-  if (nextSocial.pendingReaction) {
-    events.push(makeEvent(nextState, 'NOPE_WINDOW_OPENED', {
-      actorId: command.playerId,
-      targetPlayerId: command.targetId,
-      effectKind: 'duel',
-      cardId: nextSocial.cardId
-    }, 2, 'PLAYER_PRIVATE', recipients));
-  }
   nextState.phase = 'ANSWER_RESOLVE';
   nextState.revision = state.revision + 1;
   events.forEach(event => {
@@ -1114,9 +1595,6 @@ function handleSubmitDuelResponse<TState extends GameState>(
 
   const nextState = cloneState(state);
   const nextSocial = nextState.social!;
-  if (command.side === 'opponent' && nextSocial.pendingReaction?.eligible && !nextSocial.pendingReaction.blocked) {
-    nextSocial.pendingReaction = null;
-  }
   const pendingDuel = nextSocial.pendingDuel!;
   const response = {
     playerId: command.playerId,
@@ -1135,7 +1613,8 @@ function handleSubmitDuelResponse<TState extends GameState>(
       initiatorResponse: response,
       opponentResponse: pendingDuel.opponentResponse,
       resolutionReady: pendingDuel.resolutionReady,
-      winnerId: pendingDuel.winnerId
+      winnerId: pendingDuel.winnerId,
+      vote: pendingDuel.vote
     };
   } else {
     nextSocial.pendingDuel = {
@@ -1145,7 +1624,8 @@ function handleSubmitDuelResponse<TState extends GameState>(
       initiatorResponse: pendingDuel.initiatorResponse,
       opponentResponse: response,
       resolutionReady: pendingDuel.resolutionReady,
-      winnerId: pendingDuel.winnerId
+      winnerId: pendingDuel.winnerId,
+      vote: pendingDuel.vote
     };
   }
   const updatedDuel = nextSocial.pendingDuel!;
@@ -1165,7 +1645,7 @@ function handleSubmitDuelResponse<TState extends GameState>(
     }, 0, 'PLAYER_PRIVATE', [social.actorId, updatedDuel.opponentId!])
   ];
   if (bothSubmitted) {
-    completeSocialResolution(nextState, actor, 'duel', events, 1, 'resolved', context.now);
+    beginDuelGroupVote(nextState, nextSocial, actor, events);
   }
   nextState.revision = state.revision + 1;
   events.forEach(event => {
@@ -1183,57 +1663,7 @@ function handlePlayNope<TState extends GameState>(
 ): GameTransition<TState> {
   const { social, error } = requireSocial(state);
   if (error) return failCommand(state, command, error);
-  if (social.cardKind !== 'duel') {
-    return failCommand(state, command, createEngineError('INELIGIBLE_NOPE', 'The current effect cannot be blocked with Nope.'));
-  }
-  const reaction = social.pendingReaction;
-  if (!reaction) {
-    return failCommand(state, command, createEngineError('NO_PENDING_REACTION', 'No Nope reaction window is currently open.'));
-  }
-  if (!reaction.eligible || reaction.blocked) {
-    return failCommand(state, command, createEngineError('INELIGIBLE_NOPE', 'The current effect cannot be blocked with Nope.'));
-  }
-  if (command.playerId !== reaction.targetPlayerId) {
-    return failCommand(state, command, createEngineError('NOT_YOUR_TURN', 'Only the affected player may play Nope against this effect.'));
-  }
-
-  const nextState = cloneState(state);
-  const nextSocial = nextState.social!;
-  const target = nextState.players.find(item => item.id === command.playerId)!;
-  const nopeIndex = target.hand.findIndex(card => card.id === command.cardId);
-  if (nopeIndex < 0) {
-    return failCommand(state, command, createEngineError('CARD_NOT_IN_HAND', 'That Nope card is not in the reacting player hand.'));
-  }
-  const nopeCard = target.hand[nopeIndex];
-  if (nopeCard.kind !== 'nope') {
-    return failCommand(state, command, createEngineError('NO_NOPE_CARD', 'The selected card is not a Nope card.'));
-  }
-  target.hand.splice(nopeIndex, 1);
-  nextState.discardPile.push(nopeCard);
-  nextSocial.pendingReaction = {
-    ...reaction,
-    blocked: true,
-    blockedByPlayerId: command.playerId,
-    blockedByCardId: nopeCard.id
-  };
-  nextSocial.blockedByNope = true;
-  const actor = nextState.players.find(item => item.id === social.actorId)!;
-  const events: GameEvent[] = [
-    makeEvent(nextState, 'NOPE_PLAYED', {
-      actorId: command.playerId,
-      blockedEffectPlayerId: social.actorId,
-      cardId: nopeCard.id,
-      effectKind: reaction.effectKind
-    }, 0, 'PLAYER_PRIVATE', [social.actorId, command.playerId])
-  ];
-  completeSocialResolution(nextState, actor, social.cardKind, events, 1, 'blocked', context.now);
-  nextState.revision = state.revision + 1;
-  events.forEach(event => {
-    event.revision = nextState.revision;
-  });
-  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
-  committedState.revision = state.revision + 1;
-  return finalise(committedState, true, events);
+  return failCommand(state, command, createEngineError('INELIGIBLE_NOPE', 'Duel cannot be blocked with Nope.'));
 }
 
 function handlePassPrompt<TState extends GameState>(
@@ -1280,6 +1710,10 @@ function handlePassPrompt<TState extends GameState>(
 
     const nextState = cloneState(state);
     const nextSocial = nextState.social!;
+    const events: GameEvent[] = [];
+    const actor = nextState.players.find(item => item.id === command.playerId)!;
+    const drawn = drawCards(nextState, TRUTH_DARE_PASS_PENALTY_CARDS, events);
+    actor.hand.push(...drawn);
     nextSocial.answerState = {
       ...nextSocial.answerState,
       status: 'SUBMITTED',
@@ -1287,15 +1721,21 @@ function handlePassPrompt<TState extends GameState>(
       submittedByPlayerId: command.playerId,
       submittedAtRevision: state.revision + 1
     };
-    const actor = nextState.players.find(item => item.id === command.playerId)!;
-    const events: GameEvent[] = [
+    events.push(
+      makeEvent(nextState, 'DRAW_EFFECT_APPLIED', {
+        sourcePlayerId: command.playerId,
+        targetPlayerId: command.playerId,
+        amount: drawn.length,
+        cardId: nextSocial.cardId,
+        drawnCardIds: drawn.map(item => item.id)
+      }, events.length, 'PLAYER_PRIVATE', [command.playerId]),
       makeEvent(nextState, 'SOCIAL_PASSED', {
         playerId: command.playerId,
         cardKind: nextSocial.cardKind,
         promptId: social.prompt.id,
         completionOnly: true
-      }, 0, 'PLAYER_PRIVATE', [command.playerId])
-    ];
+      }, events.length + 1, 'PLAYER_PRIVATE', [command.playerId])
+    );
     completeSocialResolution(nextState, actor, nextSocial.cardKind, events, 1, 'resolved', context.now);
     nextState.revision = state.revision + 1;
     events.forEach(event => {
@@ -1620,6 +2060,55 @@ function handleTimeoutSocial<TState extends GameState>(
   const nextSocial = nextState.social!;
   clearTimer(nextState);
 
+  if (nextSocial.cardKind === 'paranoia') {
+    const actor = nextState.players.find(item => item.id === nextSocial.actorId);
+    const target = nextState.players.find(item => item.id === nextSocial.pendingTargetId);
+    if (!actor) {
+      return failCommand(state, command, createEngineError('INVALID_COMMAND', 'The active Paranoia actor could not be resolved for the timeout.'));
+    }
+    const events: GameEvent[] = [
+      makeEvent(nextState, 'SOCIAL_TIMED_OUT', {
+        actorId: nextSocial.actorId,
+        cardId: nextSocial.cardId,
+        cardKind: nextSocial.cardKind,
+        deadlineAt: timer.deadlineAt
+      }, 0, 'PUBLIC')
+    ];
+    if (nextSocial.paranoiaPhase === 'STRANGER' && nextSocial.paranoiaVote && target && !nextSocial.paranoiaVote.resolutionApplied) {
+      applyParanoiaStrangerVoteResolution(nextState, nextSocial, actor, target, events);
+    } else if (nextSocial.paranoiaPhase === 'CLASSIC') {
+      nextSocial.classicRevealDecision = 'KEEP_SECRET';
+      nextSocial.resolutionComplete = true;
+      nextSocial.mayAdvanceTurn = true;
+      nextSocial.answerState = {
+        ...nextSocial.answerState,
+        status: 'SUBMITTED',
+        completionOnly: true,
+        submittedByPlayerId: null,
+        submittedAtRevision: null
+      };
+    } else {
+      nextSocial.resolutionComplete = true;
+      nextSocial.mayAdvanceTurn = true;
+      nextSocial.answerState = {
+        ...nextSocial.answerState,
+        status: 'SUBMITTED',
+        completionOnly: true,
+        submittedByPlayerId: null,
+        submittedAtRevision: null
+      };
+    }
+    completeSocialResolution(nextState, actor, nextSocial.cardKind, events, 1, 'resolved', context.now);
+
+    nextState.revision = state.revision + 1;
+    events.forEach(event => {
+      event.revision = nextState.revision;
+    });
+    const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+    committedState.revision = state.revision + 1;
+    return finalise(committedState, true, events);
+  }
+
   if (isAllPlayerCompletionSocial(nextSocial)) {
     for (const playerId of nextSocial.pendingCompletionPlayerIds) {
       if (nextSocial.completedCompletionPlayerIds.includes(playerId)) continue;
@@ -1727,11 +2216,17 @@ export function applyCommand<TState extends GameState>(state: TState, command: G
   if (command.type === 'REWIND_PROMPT') return handleRewindPrompt(state, command, context);
   if (command.type === 'FLAG_PROMPT') return handleFlagPrompt(state, command);
   if (command.type === 'SELECT_PARANOIA_TARGET' || command.type === 'PARANOIA_CHOICE') return handleSelectParanoiaTarget(state, command as GameCommand & { type: 'SELECT_PARANOIA_TARGET' }, context);
+  if (command.type === 'SELECT_PARANOIA_PHASE') return handleSelectParanoiaPhase(state, command as GameCommand & { type: 'SELECT_PARANOIA_PHASE' }, context);
+  if (command.type === 'SELECT_PARANOIA_CLASSIC_ANSWER') return handleSelectParanoiaClassicAnswer(state, command as GameCommand & { type: 'SELECT_PARANOIA_CLASSIC_ANSWER' }, context);
+  if (command.type === 'SUBMIT_PARANOIA_CLASSIC_DECISION') return handleSubmitParanoiaClassicDecision(state, command as GameCommand & { type: 'SUBMIT_PARANOIA_CLASSIC_DECISION' }, context);
+  if (command.type === 'SUBMIT_PARANOIA_VOTE') return handleSubmitParanoiaVote(state, command as GameCommand & { type: 'SUBMIT_PARANOIA_VOTE' }, context);
   if (command.type === 'SELECT_DUEL_TARGET' || command.type === 'DUEL_TARGET') return handleSelectDuelTarget(state, command as GameCommand & { type: 'SELECT_DUEL_TARGET' }, context);
   if (command.type === 'SUBMIT_DUEL_RESPONSE') return handleSubmitDuelResponse(state, command, context);
+  if (command.type === 'DUEL_VOTE') return handleDuelVote(state, command, context);
   if (command.type === 'PLAY_NOPE') return handlePlayNope(state, command, context);
   if (command.type === 'TIMEOUT_TURN') return handleTimeoutTurn(state, command, context);
   if (command.type === 'TIMEOUT_SOCIAL') return handleTimeoutSocial(state, command, context);
+  if (command.type === 'COMPLETE_FLOW') return handleCompleteFlow(state, command, context);
 
   return finalise(state, false, [], createEngineError('COMMAND_NOT_IMPLEMENTED', `The core reducer does not implement ${command.type}.`));
 }

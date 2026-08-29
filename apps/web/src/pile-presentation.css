@@ -1,0 +1,191 @@
+/* Web-only pile presentation. No interaction ownership lives here. */
+
+.table-piles.cc-three-piles {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(10px, 2vw, 28px);
+  align-items: center;
+}
+
+.table-piles.cc-three-piles .table-pile {
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: center;
+  justify-items: center;
+  gap: 12px;
+  overflow: visible;
+}
+
+.table-piles.cc-three-piles .table-pile__label {
+  position: relative;
+  z-index: 10;
+  margin: 0;
+  color: #fff;
+  font-size: 7px;
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 8px rgba(0,0,0,.7);
+}
+
+.cc-play-pile,
+.cc-used-discard-pile {
+  overflow: visible;
+}
+
+.cc-play-pile-slot,
+.cc-used-discard-slot {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+}
+
+/*
+ * The old discard-state narration inserts a tag directly below #discardSlot.
+ * The Play Pile now has a dedicated label row, so this legacy visual badge must
+ * not occupy board space. Narration/event logic itself remains untouched.
+ */
+.cc-play-pile #discardStateStatus {
+  display: none !important;
+}
+
+/*
+ * Keep the current play card bright. In Simulation the compatibility renderer
+ * emits it as a disabled button; it is display-only here, so disabled-hand-card
+ * opacity must not leak into the play pile.
+ */
+.cc-play-pile-slot > .game-card,
+.cc-play-pile-slot .discard-layer.is-top .game-card {
+  position: relative;
+  z-index: 4;
+  opacity: 1 !important;
+  filter: none !important;
+  pointer-events: none !important;
+  cursor: default !important;
+}
+
+/* Physical depth behind the current play card without cloning gameplay DOM. */
+.cc-play-pile-slot::before,
+.cc-play-pile-slot::after {
+  content: '';
+  position: absolute;
+  width: min(94px, 100%);
+  aspect-ratio: 5 / 7;
+  left: 50%;
+  top: 50%;
+  border-radius: 9px;
+  border: 1px solid rgba(54, 208, 255, .25);
+  background:
+    var(--cc-canonical-card-back, linear-gradient(145deg, #071018, #0b1620 52%, #05070b));
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 8px 18px rgba(0,0,0,.22);
+  pointer-events: none;
+}
+
+.cc-play-pile-slot::before {
+  z-index: 1;
+  transform: translate(-56%, -48%) rotate(-4deg) scale(.975);
+  opacity: .72;
+}
+
+.cc-play-pile-slot::after {
+  z-index: 2;
+  transform: translate(-45%, -52%) rotate(3deg) scale(.985);
+  opacity: .84;
+}
+
+/*
+ * Discarded cards are deliberately secondary to the live Play Pile: smaller,
+ * darker, and less saturated. They remain passive presentation only.
+ */
+.cc-used-discard-slot {
+  width: min(82px, 82%);
+}
+
+.cc-used-discard-slot,
+.cc-used-discard-slot * {
+  pointer-events: none !important;
+}
+
+.cc-used-discard-stack {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: visible;
+}
+
+.cc-used-discard-card {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  transform: translate(var(--dx, 0px), var(--dy, 0px)) rotate(var(--rot, 0deg)) scale(var(--scale, 1));
+  opacity: var(--op, .55);
+  z-index: var(--z, 1);
+  filter: saturate(.52) brightness(.62) contrast(.94);
+}
+
+.cc-used-discard-card.is-top {
+  opacity: .68;
+  filter: saturate(.62) brightness(.7) contrast(.96);
+}
+
+.cc-used-discard-card.is-top .game-card {
+  animation: none;
+}
+
+.cc-passive-pile-card {
+  width: 100%;
+  opacity: 1 !important;
+  filter: none !important;
+  pointer-events: none !important;
+  cursor: default !important;
+}
+
+@container gameboard (max-width: 760px) {
+  .table-piles.cc-three-piles {
+    gap: 6px;
+  }
+
+  .table-piles.cc-three-piles .table-pile {
+    gap: 9px;
+  }
+}
+
+@media (max-width: 720px) {
+  .table-piles.cc-three-piles {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .table-piles.cc-three-piles .table-pile {
+    gap: 6px;
+  }
+
+  .cc-play-pile-slot,
+  .table-piles.cc-three-piles .desktop-draw-pile {
+    width: 60px;
+  }
+
+  .cc-used-discard-slot {
+    width: 50px;
+  }
+
+  .cc-play-pile-slot::before,
+  .cc-play-pile-slot::after {
+    width: 60px;
+  }
+
+  .table-piles.cc-three-piles .table-pile__label {
+    font-size: 6px;
+  }
+}
+
+@media (max-width: 390px) {
+  .table-piles.cc-three-piles {
+    gap: 4px;
+  }
+}

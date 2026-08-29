@@ -5,16 +5,21 @@
   "type": "module",
   "workspaces": ["apps/*", "packages/*"],
   "packageManager": "npm@10.9.2",
+  "engines": {
+    "node": ">=24.7.0"
+  },
   "scripts": {
     "dev:web": "vite --config apps/web/vite.config.ts",
     "dev:telegram": "vite --config apps/telegram/vite.config.ts",
     "dev:api": "tsx apps/api/src/index.ts",
+    "start:api": "tsx apps/api/src/index.ts",
+    "migrate:db": "tsx scripts/migrate-db.ts",
     "build:web": "vite build --config apps/web/vite.config.ts",
     "build:telegram": "vite build --config apps/telegram/vite.config.ts",
     "build:api": "tsc -p tsconfig.api.json --noEmit",
     "build": "npm run build:web && npm run build:telegram && npm run build:api",
     "typecheck": "tsc -p tsconfig.check.json --noEmit",
-    "test": "tsx --test packages/game-engine/test/core-engine.test.ts",
+    "test": "tsx --test packages/cards/test/card-assets.test.ts packages/cards/test/card-registry.test.ts packages/game-engine/test/deck-composition.test.ts packages/game-engine/test/validation-matching.test.ts packages/game-engine/test/adaptive-distribution.test.ts packages/game-engine/test/core-engine.test.ts packages/game-engine/test/nope-routing.test.ts apps/api/test/auth.test.ts apps/api/test/guest-auth.test.ts apps/api/test/web-password.test.ts apps/web/test/room-creation-deeplink.test.ts",
     "lint": "node --check scripts/audit-ui.mjs",
     "audit:ui": "node scripts/audit-ui.mjs"
   },
