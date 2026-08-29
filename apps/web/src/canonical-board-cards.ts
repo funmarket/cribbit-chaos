@@ -67,6 +67,10 @@ function hydrateBacks(root: ParentNode): void {
   const backSource = assetByPath.get(resolveCanonicalCardBackPath());
   if (!backSource) return;
 
+  // Expose the canonical back once for passive Web pile depth. This is a CSS
+  // variable only; it does not add or move any gameplay controls.
+  document.documentElement.style.setProperty('--cc-canonical-card-back', `url("${backSource}")`);
+
   root.querySelectorAll<HTMLElement>('.deck-stack, .deck-card, [data-role="draw-pile"], [aria-label*="draw pile" i]')
     .forEach(node => {
       node.style.setProperty('--cc-canonical-card-back', `url("${backSource}")`);
