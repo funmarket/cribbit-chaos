@@ -74,7 +74,7 @@ export function ensureWebPileLayout(): PileSlots | null {
 
 export function buildDiscardedPileMarkup(cards: readonly PileCard[]): string {
   const discarded = cards.slice(0, -1).slice(-4);
-  if (!discarded.length) return '<span class="cc-pile-empty" aria-hidden="true"></span>';
+  if (!discarded.length) return '';
 
   const layers = discarded.map((card, index) => {
     const depth = discarded.length - index - 1;
@@ -83,7 +83,7 @@ export function buildDiscardedPileMarkup(cards: readonly PileCard[]): string {
     const dy = depth * 2;
     const rotation = depth * 1.7 * direction;
     const scale = 1 - Math.min(0.045, depth * 0.012);
-    const opacity = 0.58 + (index / Math.max(1, discarded.length - 1)) * 0.42;
+    const opacity = 0.48 + (index / Math.max(1, discarded.length - 1)) * 0.18;
     const topClass = index === discarded.length - 1 ? ' is-top' : '';
 
     return `<div class="discard-layer cc-used-discard-card${topClass}" style="--dx:${dx}px;--dy:${dy}px;--rot:${rotation}deg;--scale:${scale};--op:${opacity};--z:${index + 1}">${renderStaticCard(card)}</div>`;
