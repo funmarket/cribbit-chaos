@@ -3,6 +3,7 @@ import { ApiError, CribbitApiClient, CribbitRealtimeClient, type RoomSessionResu
 import { isLegalPlay } from '../../../packages/game-engine/src/index.ts';
 import { cribbitAuth } from '../../../packages/ui/src/auth-controller.ts';
 import { openWebAuthDialog } from './web-auth.ts';
+import { renderDiscardedPile } from './pile-presentation.ts';
 
 type LivePlayer = { id:string; name:string; isHuman:boolean };
 type CommandBody<T = GameCommand> = T extends GameCommand ? Omit<T,'commandId'|'playerId'|'expectedRevision'|'sessionId'> : never;
@@ -175,6 +176,7 @@ function renderLiveSession(session:LiveSession, userId:string): void {
   if (handCount) handCount.textContent = `${human?.hand.length ?? 0} cards`;
   const discard = document.querySelector<HTMLElement>('#discardSlot');
   if (discard) discard.innerHTML = top ? renderCard(top,false,false) : '<span class="tag">No discard</span>';
+  renderDiscardedPile(state.discardPile);
   const drawCount = document.querySelector<HTMLElement>('#drawPileCount');
   if (drawCount) drawCount.textContent = `${state.drawPile.length} left`;
   const drawButton = document.querySelector<HTMLButtonElement>('#drawButton');
