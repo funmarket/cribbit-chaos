@@ -6,6 +6,27 @@
   align-items: center;
 }
 
+.table-piles.cc-three-piles .table-pile {
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: center;
+  justify-items: center;
+  gap: 12px;
+  overflow: visible;
+}
+
+.table-piles.cc-three-piles .table-pile__label {
+  position: relative;
+  z-index: 10;
+  margin: 0;
+  color: #fff;
+  font-size: 7px;
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 8px rgba(0,0,0,.7);
+}
+
 .cc-play-pile,
 .cc-used-discard-pile {
   overflow: visible;
@@ -16,6 +37,15 @@
   position: relative;
   isolation: isolate;
   overflow: visible;
+}
+
+/*
+ * The old discard-state narration inserts a tag directly below #discardSlot.
+ * The Play Pile now has a dedicated label row, so this legacy visual badge must
+ * not occupy board space. Narration/event logic itself remains untouched.
+ */
+.cc-play-pile #discardStateStatus {
+  display: none !important;
 }
 
 /*
@@ -64,6 +94,14 @@
   opacity: .84;
 }
 
+/*
+ * Discarded cards are deliberately secondary to the live Play Pile: smaller,
+ * darker, and less saturated. They remain passive presentation only.
+ */
+.cc-used-discard-slot {
+  width: min(82px, 82%);
+}
+
 .cc-used-discard-slot,
 .cc-used-discard-slot * {
   pointer-events: none !important;
@@ -83,35 +121,35 @@
   display: grid;
   place-items: center;
   transform: translate(var(--dx, 0px), var(--dy, 0px)) rotate(var(--rot, 0deg)) scale(var(--scale, 1));
-  opacity: var(--op, .75);
+  opacity: var(--op, .55);
   z-index: var(--z, 1);
-  filter: saturate(.86) brightness(.92);
+  filter: saturate(.52) brightness(.62) contrast(.94);
 }
 
 .cc-used-discard-card.is-top {
-  opacity: 1;
-  filter: none;
+  opacity: .68;
+  filter: saturate(.62) brightness(.7) contrast(.96);
+}
+
+.cc-used-discard-card.is-top .game-card {
+  animation: none;
 }
 
 .cc-passive-pile-card {
-  width: min(94px, 100%);
+  width: 100%;
   opacity: 1 !important;
   filter: none !important;
   pointer-events: none !important;
   cursor: default !important;
 }
 
-.cc-pile-empty {
-  width: 28px;
-  aspect-ratio: 5 / 7;
-  border: 1px solid rgba(54,208,255,.35);
-  border-radius: 9px;
-  background: rgba(54,208,255,.025);
-}
-
 @container gameboard (max-width: 760px) {
   .table-piles.cc-three-piles {
     gap: 6px;
+  }
+
+  .table-piles.cc-three-piles .table-pile {
+    gap: 9px;
   }
 }
 
@@ -123,16 +161,26 @@
     gap: 6px;
   }
 
+  .table-piles.cc-three-piles .table-pile {
+    gap: 6px;
+  }
+
   .cc-play-pile-slot,
-  .cc-used-discard-slot,
   .table-piles.cc-three-piles .desktop-draw-pile {
     width: 60px;
   }
 
+  .cc-used-discard-slot {
+    width: 50px;
+  }
+
   .cc-play-pile-slot::before,
-  .cc-play-pile-slot::after,
-  .cc-passive-pile-card {
+  .cc-play-pile-slot::after {
     width: 60px;
+  }
+
+  .table-piles.cc-three-piles .table-pile__label {
+    font-size: 6px;
   }
 }
 
