@@ -747,17 +747,17 @@ Stop and report if any of these happen:
 - three attempted fixes fail;
 - docs/source/runtime disagree and the current slice does not authorize resolving that disagreement.
 
-## 8. PR / CI ledger
+## 8. PR / CI / Cloudflare ledger
 
 ### PR #9 — Web runtime single owner
 
 - URL: `https://github.com/funmarket/cribbit-chaos/pull/9`
 - Branch: `fix/web-runtime-single-owner`
 - Base: `feature/visual-integration-checkpoint`
-- Commit: `02f6d6e8e06756a0352ff8bac02bf4b325c88b0e`
+- Current commit after ledger update: `955310ed4ebd5d95195ca024f05242eb82ac7bde`.
 - Draft: yes.
 
-GitHub checks at first readback:
+GitHub checks at exact-head readback for `955310ed4ebd5d95195ca024f05242eb82ac7bde`:
 
 - `build-api`: pass.
 - `build-web`: pass.
@@ -766,21 +766,57 @@ GitHub checks at first readback:
 - `typecheck`: pass.
 - `Vercel Preview Comments`: pass.
 
-External deployment checks at first readback:
+Deployment-status correction:
 
-- `Vercel – cribbit-chaos-web`: fail.
-- `Vercel – cribbit-chaos-telegram`: fail.
+- User corrected that the app is in Cloudflare, not Vercel.
+- Repository deployment docs confirm primary frontend hosts are Cloudflare Pages:
+  - Web: `https://cribbit-chaos-web.pages.dev`
+  - Telegram Mini App: `https://cribbit-chaos-telegram.pages.dev`
+  - API: Railway
+- Vercel checks are secondary/fallback only per `docs/DEPLOYMENT.md`; do not treat Vercel failures as the authoritative app deployment blocker for this slice.
 
-Vercel log access attempt:
+Cloudflare readback:
 
 ```sh
-npx vercel inspect dpl_Bac3DDoep1WEPSkSFojUphA1pmxS --logs
+curl -L -sS -o "$LOCALAPPDATA/Temp/cf_probe.tmp" -w '%{http_code} %{url_effective}\n' https://cribbit-chaos-web.pages.dev
+curl -L -sS -o "$LOCALAPPDATA/Temp/cf_probe.tmp" -w '%{http_code} %{url_effective}\n' https://cribbit-chaos-telegram.pages.dev
+curl -L -sS -o "$LOCALAPPDATA/Temp/cf_probe.tmp" -w '%{http_code} %{url_effective}\n' https://cribbit-chaos.bashahookahwholesale.workers.dev
 ```
 
-Result: blocked by Vercel authentication: `A new login is required. Run vercel login to continue.`
+Result:
+
+- `https://cribbit-chaos-web.pages.dev` -> `200`.
+- `https://cribbit-chaos-telegram.pages.dev` -> `200`.
+- `https://cribbit-chaos.bashahookahwholesale.workers.dev` -> `404`.
+
+Cloudflare dashboard readback for Worker `cribbit-chaos`:
+
+- No URLs enabled.
+- `workers.dev` disabled.
+- No custom domains/routes.
+- Invocations: `0`.
+- CPU time: `0 ms`.
+- Errors: `0`.
+- Bindings: `0`.
+- Workers Logs/Traces: disabled.
+- Versions are manual dashboard uploads.
+
+Live Cloudflare Pages HTML probe:
+
+```text
+https://cribbit-chaos-web.pages.dev
+canonical-game-runtime: False
+initializeCanonicalGameRuntime: False
+
+https://cribbit-chaos-telegram.pages.dev
+canonical-game-runtime: False
+initializeCanonicalGameRuntime: False
+```
 
 Current interpretation:
 
-- GitHub exact-head CI for source/build/test passed.
-- Vercel deployment failure is not yet diagnosed because logs require Vercel auth in this environment.
-- Do not claim deployment fixed until Vercel logs are inspected and deployments pass/read back.
+- Source/build/test proof for PR #9 is good.
+- Current public Cloudflare Pages endpoints respond `200` and do not expose the old `canonical-game-runtime` bootstrap in top-level HTML.
+- The Cloudflare Worker URL provided by the user is present in dashboard but currently has no enabled route/URL and returns `404`; it is not serving the app from that workers.dev URL right now.
+- No Cloudflare dashboard settings were mutated.
+- Do not chase Vercel in this repair flow unless the user explicitly asks for secondary/fallback deployment cleanup.
