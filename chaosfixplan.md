@@ -746,3 +746,41 @@ Stop and report if any of these happen:
 - fix requires protected local project edits;
 - three attempted fixes fail;
 - docs/source/runtime disagree and the current slice does not authorize resolving that disagreement.
+
+## 8. PR / CI ledger
+
+### PR #9 — Web runtime single owner
+
+- URL: `https://github.com/funmarket/cribbit-chaos/pull/9`
+- Branch: `fix/web-runtime-single-owner`
+- Base: `feature/visual-integration-checkpoint`
+- Commit: `02f6d6e8e06756a0352ff8bac02bf4b325c88b0e`
+- Draft: yes.
+
+GitHub checks at first readback:
+
+- `build-api`: pass.
+- `build-web`: pass.
+- `build-telegram`: pass.
+- `test`: pass.
+- `typecheck`: pass.
+- `Vercel Preview Comments`: pass.
+
+External deployment checks at first readback:
+
+- `Vercel – cribbit-chaos-web`: fail.
+- `Vercel – cribbit-chaos-telegram`: fail.
+
+Vercel log access attempt:
+
+```sh
+npx vercel inspect dpl_Bac3DDoep1WEPSkSFojUphA1pmxS --logs
+```
+
+Result: blocked by Vercel authentication: `A new login is required. Run vercel login to continue.`
+
+Current interpretation:
+
+- GitHub exact-head CI for source/build/test passed.
+- Vercel deployment failure is not yet diagnosed because logs require Vercel auth in this environment.
+- Do not claim deployment fixed until Vercel logs are inspected and deployments pass/read back.
