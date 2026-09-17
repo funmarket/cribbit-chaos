@@ -219,23 +219,18 @@ Multiple physical draws are selected sequentially from the current adaptive stat
 
 ## Active integration task
 
-The shared engine now owns **which real physical card is selected**. The actual Web board still boots through the transitional compatibility runtime, so the remaining integration task is to make that board consume the shared authority and route selected immediate-interaction cards into the one forced-interaction FIFO dispatcher.
+PR #11 merged the shared CHAOS Pulse board seam and canonical forced-on-draw FIFO guards. The active follow-up is now bot stability through one shared backend policy, not separate Web-vs-Telegram bot fixes.
 
-Required convergence:
+Verified Phase 1 backend-contract facts:
 
 ```text
-shared adaptive opening dealer
--> actual board starting hands
-
-shared CHAOS Pulse draw selector
--> actual board draw/penalty paths
--> hand-resident card OR immediate-interaction queue
--> existing family flow
--> FIFO resolution
--> turn/win continuation only when queue is clear
+Web live room -> packages/api-client -> Railway API -> game_sessions state -> shared game-engine reducer -> API bot advancement
+Telegram live room -> packages/api-client -> Railway API -> game_sessions state -> shared game-engine reducer -> API bot advancement
 ```
 
-Do not implement a second CHAOS Pulse inside the legacy runtime.
+Current source still has local QA/simulation surfaces for fallback/demo use, but they are not the live multiplayer authority.
+
+Do not implement separate Web bot behavior and Telegram bot behavior. Fix bot decisions at the shared API/game-engine boundary, then let both clients render the same resulting state.
 
 ## Repository guardrails
 
@@ -245,12 +240,12 @@ Runtime-affecting work is not accepted until browser/live-Web verification confi
 
 ## Current next task
 
-**Migrate the main compatibility board's deck/deal/draw seam to the shared CHAOS Pulse engine and connect post-start interaction draws to the shared FIFO resolver.**
+**Phase 2 — extract one deterministic shared BotPolicy / legal-action enumerator for API bot advancement.**
 
 Verification checklist:
 
-- [ ] actual board opening hands consume the shared 133-card adaptive dealer
-- [ ] post-start interaction draws route into FIFO forced resolution instead of silently entering hand
-- [ ] no second CHAOS Pulse algorithm is copied into the compatibility runtime
-- [ ] accepted social/safety/card flows remain covered and passing
-- [ ] browser/live-Web verification confirms runtime behavior before acceptance
+- [x] Phase 1 contract guard proves live Web and Telegram both use the API session adapter.
+- [x] Phase 1 contract guard proves API command processing applies the shared reducer before backend bot advancement.
+- [ ] move bot decision logic out of `apps/api/src/game-service.ts` into a shared tested module.
+- [ ] legal-action enumeration returns only commands accepted by the reducer.
+- [ ] no frontend-specific bot rule path is introduced.

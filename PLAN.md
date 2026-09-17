@@ -474,13 +474,12 @@ Do not silently mark these complete while working on gameplay:
 
 ## Current Next Task
 
-**Migrate the main compatibility board's deck/deal/draw seam to the shared CHAOS Pulse engine and connect post-start interaction draws to the shared FIFO resolver.**
+**Phase 2 — extract one deterministic shared BotPolicy / legal-action enumerator for API bot advancement.**
 
-1. Prove the current Web board still uses the legacy compatibility boot path before editing.
-2. Locate the exact legacy deck/deal/draw owners in `packages/legacy-runtime/src/runtime.ts`.
-3. Add or update the smallest regression coverage proving actual board opening hands consume the shared 133-card dealer.
-4. Add or update coverage proving post-start interaction draws route into FIFO forced resolution instead of silently entering hand.
-5. Migrate by importing/using the existing shared `packages/game-engine` helpers; do not copy CHAOS Pulse into legacy runtime.
-6. Preserve accepted Truth/Dare, Paranoia, Duel, Nope, Pass/Rewind/Flag, Ghost, TAG, Hijack, Machiavelli, and win-boundary behavior.
-7. Run focused engine/runtime tests, `npm run typecheck`, and the GitHub source CI on the exact candidate.
-8. Perform browser/live-Web verification before claiming runtime acceptance.
+1. Keep live multiplayer authority in the Railway API/shared game-engine path.
+2. Do not create separate Web and Telegram bot fixes.
+3. Move current backend bot-decision code out of `apps/api/src/game-service.ts` into a shared, tested module.
+4. Enumerate legal bot actions from authoritative state before choosing a command.
+5. Ensure every chosen command is accepted by `applyCommand()` and persisted through the same `game_sessions` path.
+6. Add regression tests for bot-owned states before broadening to missing special-family behavior.
+7. Score the phase and revise before moving on if the score is below 8.5.

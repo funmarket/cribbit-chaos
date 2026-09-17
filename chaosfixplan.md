@@ -1112,3 +1112,46 @@ Proof:
 Score: `8.7/10`.
 
 Reason for score: the live Web compatibility runtime now enforces the canonical forced-on-draw FIFO path and Dare target-first guard, with source/build/test proof. Score is not higher until this PR is pushed, exact-head CI passes, and a browser/live Cloudflare readback confirms the updated runtime is deployed.
+
+### Phase 1 — shared backend bot authority contract
+
+Branch: `fix/shared-bot-policy-phase1`.
+
+Scope:
+
+- Confirm the bot issue is a shared backend/API/game-engine authority issue, not separate Web-vs-Telegram gameplay logic.
+- Keep Web and Telegram as frontend adapters that submit commands and render returned state.
+- Establish the Phase 2 target as one deterministic shared BotPolicy / legal-action enumerator.
+
+Change:
+
+- Added `apps/api/test/bot-authority-contract.test.ts` to lock the live-room authority contract:
+  - API command processing imports shared `applyCommand()` / `createGame()` from `packages/game-engine`.
+  - API applies a human command through the shared reducer before running `advanceBots()`.
+  - API persists state through `game_sessions`.
+  - Web live rooms use `packages/api-client` `createRoom()`, `getSnapshot()`, and `sendCommand()` instead of owning bot advancement.
+  - Telegram live rooms use the same API adapter; local simulation remains fallback QA only.
+- Added the new contract test to `npm run test`.
+- Updated `PLAN.md` and `docs/LIVING_STATUS.md` so the active next task is Phase 2 shared BotPolicy, not separate Web/Telegram fixes.
+
+Proof commands:
+
+```sh
+npx tsx --test apps/api/test/bot-authority-contract.test.ts
+npx tsx --test apps/api/test/bot-authority-contract.test.ts apps/api/test/game-command-boundary.test.ts apps/web/test/room-creation-deeplink.test.ts
+npm run typecheck
+npm test
+git diff --check
+```
+
+Proof:
+
+- New bot authority contract guard: `3 pass / 0 fail`.
+- Focused API/Web adapter guard set: `9 pass / 0 fail`.
+- `npm run typecheck`: pass.
+- `git diff --check`: pass.
+- Full `npm test`: `125 pass / 1 fail`; the only failure is the known local Node Argon2id blocker in `apps/api/test/web-password.test.ts`, not introduced by Phase 1.
+
+Score: `9.0/10`.
+
+Reason for score: Phase 1 now has source-backed and test-backed proof that live Web and Telegram route through the same API/shared-engine authority boundary, and the next phase is constrained to one shared BotPolicy rather than frontend-specific fixes. Score is not higher because Phase 1 did not yet extract/implement the BotPolicy itself; that is Phase 2.
