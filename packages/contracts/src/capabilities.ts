@@ -7,6 +7,8 @@ export type RequiredActionKind =
   | 'SELECT_ANSWER_MODE'
   | 'SUBMIT_COMPLETION'
   | 'CAST_VOTE'
+  | 'SELECT_OPTION'
+  | 'CONTINUE'
   | 'WAIT';
 
 export type LegalCommandCategory =
@@ -16,7 +18,9 @@ export type LegalCommandCategory =
   | 'TARGET'
   | 'ANSWER_MODE'
   | 'COMPLETION'
-  | 'VOTE';
+  | 'VOTE'
+  | 'CHOICE'
+  | 'CONTINUE';
 
 export interface LegalCommandPresentation {
   category: LegalCommandCategory;
@@ -26,6 +30,7 @@ export interface LegalCommandPresentation {
   color?: CardColor;
   answerMode?: 'ANSWERED_LIVE';
   voteForPlayerId?: string;
+  choiceKey?: string;
 }
 
 export interface LegalCommandOption {

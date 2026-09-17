@@ -474,13 +474,13 @@ Do not silently mark these complete while working on gameplay:
 
 ## Current Next Task
 
-**Phase 2 — shared legal-action enumerator, then deterministic BotPolicy for API bot advancement.**
+**Phase 2B — deterministic shared BotPolicy is implemented; next gate is live deployment/readback.**
 
 1. Keep live multiplayer authority in the Cloudflare/API/shared game-engine path.
 2. Do not create separate Web and Telegram bot fixes.
-3. Build legal action enumeration in `packages/game-engine` first so every bot option is server-derived.
-4. Ensure every advertised command is accepted by `applyCommand()` before a bot can choose it.
-5. Fail closed for unresolved special families; do not make bots invent card rules.
-6. Next sub-step: move API bot decision selection out of `apps/api/src/game-service.ts` into a shared policy module that chooses from `projectDecisionCapabilities()`.
-7. Add regression tests for bot-owned states before broadening to missing special-family behavior.
+3. `packages/game-engine` now exposes `projectDecisionCapabilities()` and `chooseBotOption()`.
+4. API bot advancement now chooses from server-projected legal options instead of hardcoded card-family branches.
+5. Phase 2B covers bot settlement for Truth, Dare, Chaos, Paranoia, Duel, TAG, Truth or Chaos, Hijack, Taboo, Machiavelli, Reverse Confession, and DIG ME.
+6. Ghost remains intentionally separate because its armed/flip lifecycle is not part of the forced social/special family fix.
+7. Next gate: publish the branch through PR/CI/deployment, then run browser/live-game readback before declaring the user-facing bot simulation fixed.
 8. Score each sub-step and revise before moving on if the score is below 8.5.

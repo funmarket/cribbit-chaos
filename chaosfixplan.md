@@ -1236,3 +1236,50 @@ Proof:
 Score: `8.8/10`.
 
 Reason for score: Phase 2A establishes the key safe boundary: server-derived legal commands exist in the shared engine and are verified against `applyCommand()`. Score is not higher because API bot advancement still needs to be rewired from hardcoded `apps/api/src/game-service.ts` branches to choose from `projectDecisionCapabilities()` in the next Phase 2 sub-step.
+
+### Phase 2B — shared deterministic BotPolicy and special-family no-stall coverage
+
+Branch: `fix/shared-bot-policy-phase1`.
+
+Scope:
+
+- Move API bot advancement to a shared deterministic policy that chooses only server-projected legal commands.
+- Keep Web and Telegram as frontend adapters; no separate frontend bot brains.
+- Cover the card families that previously left bots stuck: `tag`, `truth_or_chaos`, `hijack`, `taboo`, `machiavelli`, `reverse_confession`, and `dig_me`.
+- Preserve the locked rule boundary that bots must not fabricate spoken/typed answers; bot completions use Answered Live / completion-only where rules allow premade/live questions.
+- Prefer human players as targets when target-card legal options include humans; otherwise choose deterministically among legal bot targets.
+
+Change:
+
+- Added shared `packages/game-engine/src/bot-policy.ts` with `chooseBotOption()`.
+- Rewired `apps/api/src/game-service.ts` `advanceBots()` to select from `projectDecisionCapabilities()` and run the chosen command through `applyCommand()`.
+- Extended shared social/capability contracts for Phase 2B special-family commands.
+- Added premade prompt definitions for Truth or Chaos, Taboo, DIG ME, and Reverse Confession so question-required cards do not stall.
+- Enabled reducer/capability handling for TAG, Truth or Chaos, Hijack, Taboo, Machiavelli, Reverse Confession, and DIG ME.
+- Added focused tests in `packages/game-engine/test/bot-policy.test.ts` for legal-command-only bot choices, human-target preference, and all listed special families settling without unresolved bot social state.
+- Updated capability and validation tests from fail-closed special-family behavior to Phase 2B playable/supported behavior.
+
+Proof commands:
+
+```sh
+npx tsx --test packages/game-engine/test/bot-policy.test.ts
+npx tsx --test packages/game-engine/test/bot-policy.test.ts packages/game-engine/test/bot-capabilities.test.ts packages/game-engine/test/validation-matching.test.ts
+npm run typecheck
+npm test
+npm run build:api
+git diff --check
+```
+
+Proof:
+
+- Focused BotPolicy test: `4 pass / 0 fail`.
+- Focused BotPolicy/capabilities/validation set: `12 pass / 0 fail`.
+- Full `npm test`: `135 pass / 0 fail`.
+- `npm run typecheck`: pass.
+- `npm run build:api`: pass.
+- `git diff --check`: pass.
+- The no-stall regression exercises `truth`, `dare`, `chaos`, `paranoia`, `duel`, `tag`, `truth_or_chaos`, `hijack`, `taboo`, `machiavelli`, `reverse_confession`, and `dig_me` through reducer-accepted bot commands until no unresolved bot social/pending effect remains.
+
+Score: `8.9/10`.
+
+Reason for score: Phase 2B fixes the shared backend bot policy path and verifies every requested special family in deterministic reducer tests, with full source tests green. Score is not higher until this branch is pushed, exact-head CI passes, deployed Cloudflare readback is done, and a live browser game/simulation smoke confirms the UI observes the same no-stall behavior.

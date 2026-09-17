@@ -38,6 +38,7 @@ export type {
   TimerState
 } from '@cribbit/contracts';
 
+export { chooseBotOption, type BotDecision, type BotPolicyOptions } from './bot-policy.ts';
 export { projectDecisionCapabilities } from './capabilities.ts';
 export { createEngineError } from './errors.ts';
 export { CANONICAL_DECK_COUNTS, CANONICAL_DECK_SIZE, CANONICAL_DECK_SPEC_ID, buildCoreDeck, drawCards, recycleDiscardPile } from './deck.ts';

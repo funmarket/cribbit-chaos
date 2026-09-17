@@ -1,7 +1,20 @@
 import type { AnswerMode, AuthorshipMode, ParanoiaClassicRevealDecision, ParanoiaPhase, ParanoiaVoteChoice, PromptDestination } from './index.ts';
 
 export type PromptWorld = 'UNDER_18_CLEAN' | '18+_ADULT';
-export type SocialCardKind = 'truth' | 'dare' | 'paranoia' | 'chaos' | 'duel' | 'nope';
+export type SocialCardKind =
+  | 'truth'
+  | 'dare'
+  | 'paranoia'
+  | 'chaos'
+  | 'duel'
+  | 'nope'
+  | 'tag'
+  | 'truth_or_chaos'
+  | 'hijack'
+  | 'taboo'
+  | 'machiavelli'
+  | 'reverse_confession'
+  | 'dig_me';
 export type SocialTargeting = 'current' | 'specific' | 'all';
 export type SocialAnswerStatus = 'WAITING' | 'MODE_SELECTED' | 'CAPTURING' | 'REVIEW' | 'SUBMITTED';
 export type RevealState = 'SEALED' | 'REVEALED';

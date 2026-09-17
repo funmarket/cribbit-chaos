@@ -16,7 +16,7 @@ function option(option: LegalCommandOption): LegalCommandOption {
   return option;
 }
 
-function targetOptions(state: GameState, playerId: string, type: 'SELECT_DUEL_TARGET' | 'SELECT_PARANOIA_TARGET', targetIds: readonly string[]): LegalCommandOption[] {
+function targetOptions(state: GameState, playerId: string, type: 'SELECT_DUEL_TARGET' | 'SELECT_PARANOIA_TARGET' | 'SELECT_PARANOIA_CLASSIC_ANSWER' | 'SELECT_SOCIAL_TARGET', targetIds: readonly string[]): LegalCommandOption[] {
   return targetIds
     .filter(targetId => targetId !== playerId)
     .map(targetId => option({
@@ -94,6 +94,37 @@ function voteOptions(state: GameState, playerId: string, candidates: readonly st
     }));
 }
 
+function continueOption(state: GameState, playerId: string): LegalCommandOption {
+  return option({
+    optionId: 'continue:complete-flow',
+    command: {
+      ...commandBase(state, playerId, 'COMPLETE_FLOW'),
+      type: 'COMPLETE_FLOW'
+    },
+    presentation: {
+      category: 'CONTINUE'
+    }
+  });
+}
+
+const MACHIAVELLI_EFFECTS = ['CONVERT_THE_WEAK', 'TABOO_FOR_ALL', 'NO_MERCY', 'PARANOIA_SPREADS', 'DOUBLE_THE_PRESSURE', 'REVERSE_CONFESSION'] as const;
+
+function machiavelliOptions(state: GameState, playerId: string): LegalCommandOption[] {
+  return MACHIAVELLI_EFFECTS.map(effect => option({
+    optionId: `machiavelli:${effect}`,
+    command: {
+      ...commandBase(state, playerId, `SELECT_MACHIAVELLI_EFFECT:${effect}`),
+      type: 'SELECT_MACHIAVELLI_EFFECT',
+      effect
+    } as GameCommand,
+    presentation: { category: 'CHOICE', choiceKey: effect }
+  }));
+}
+
+function isAllPlayerCompletionSocial(social: NonNullable<GameState['social']>): boolean {
+  return (social.cardKind === 'chaos' || social.cardKind === 'truth_or_chaos') && social.promptSelection?.selection.targeting === 'all';
+}
+
 function socialCapabilities(state: GameState, playerId: string): PlayerDecisionCapabilities {
   const social = state.social;
   if (!social || social.resolutionComplete) return { requiredAction: null, options: [] };
@@ -119,6 +150,37 @@ function socialCapabilities(state: GameState, playerId: string): PlayerDecisionC
     if (!social.pendingTargetId && social.actorId === playerId && social.pendingTargetIds.length) {
       return { requiredAction: 'SELECT_TARGET', options: targetOptions(state, playerId, 'SELECT_PARANOIA_TARGET', social.pendingTargetIds) };
     }
+    if (social.pendingTargetId && !social.paranoiaPhase && social.actorId === playerId) {
+      return {
+        requiredAction: 'SELECT_OPTION',
+        options: ['CLASSIC', 'STRANGER'].map(phase => option({
+          optionId: `paranoia-phase:${phase}`,
+          command: {
+            ...commandBase(state, playerId, `SELECT_PARANOIA_PHASE:${phase}`),
+            type: 'SELECT_PARANOIA_PHASE',
+            phase
+          } as GameCommand,
+          presentation: { category: 'CHOICE', choiceKey: phase }
+        }))
+      };
+    }
+    if (social.paranoiaPhase === 'CLASSIC' && social.pendingTargetId === playerId && !social.classicAnswerPlayerId) {
+      return { requiredAction: 'SELECT_TARGET', options: targetOptions(state, playerId, 'SELECT_PARANOIA_CLASSIC_ANSWER', state.players.map(item => item.id)) };
+    }
+    if (social.paranoiaPhase === 'CLASSIC' && social.classicAnswerPlayerId === playerId && !social.classicRevealDecision) {
+      return {
+        requiredAction: 'SELECT_OPTION',
+        options: ['KEEP_SECRET', 'REVEAL'].map(decision => option({
+          optionId: `paranoia-classic-decision:${decision}`,
+          command: {
+            ...commandBase(state, playerId, `SUBMIT_PARANOIA_CLASSIC_DECISION:${decision}`),
+            type: 'SUBMIT_PARANOIA_CLASSIC_DECISION',
+            decision
+          } as GameCommand,
+          presentation: { category: 'CHOICE', choiceKey: decision }
+        }))
+      };
+    }
     if (social.paranoiaVote && social.paranoiaVote.eligibleVoterIds.includes(playerId) && !social.paranoiaVote.votes[playerId]) {
       return {
         requiredAction: 'CAST_VOTE',
@@ -135,12 +197,28 @@ function socialCapabilities(state: GameState, playerId: string): PlayerDecisionC
     }
   }
 
-  const isAllPlayerCompletion = social.pendingCompletionPlayerIds.length > 0;
+  if (['tag', 'hijack', 'taboo', 'dig_me'].includes(social.cardKind)) {
+    if (!social.pendingTargetId && social.actorId === playerId && social.pendingTargetIds.length) {
+      return { requiredAction: 'SELECT_TARGET', options: targetOptions(state, playerId, 'SELECT_SOCIAL_TARGET', social.pendingTargetIds) };
+    }
+    if ((social.cardKind === 'taboo' || social.cardKind === 'dig_me') && social.pendingTargetId === playerId) {
+      if (!social.answerState.mode) return { requiredAction: 'SELECT_ANSWER_MODE', options: [answeredLiveModeOption(state, playerId)] };
+      if (social.answerState.mode === 'ANSWERED_LIVE' && social.answerState.status !== 'SUBMITTED') return { requiredAction: 'SUBMIT_COMPLETION', options: [markAnsweredLiveOption(state, playerId)] };
+    }
+    return { requiredAction: null, options: [] };
+  }
+
+  if (social.cardKind === 'machiavelli') {
+    if (social.actorId === playerId) return { requiredAction: 'SELECT_OPTION', options: machiavelliOptions(state, playerId) };
+    return { requiredAction: null, options: [] };
+  }
+
+  const isAllPlayerCompletion = isAllPlayerCompletionSocial(social);
   if (isAllPlayerCompletion) {
     if (!social.pendingCompletionPlayerIds.includes(playerId) || social.completedCompletionPlayerIds.includes(playerId)) {
       return { requiredAction: null, options: [] };
     }
-    const record = social.completionRecords[playerId] ?? social.answerState;
+    const record = social.completionRecords[playerId];
     if (!record?.mode) return { requiredAction: 'SELECT_ANSWER_MODE', options: [answeredLiveModeOption(state, playerId)] };
     if (record.mode === 'ANSWERED_LIVE' && record.status !== 'SUBMITTED') return { requiredAction: 'SUBMIT_COMPLETION', options: [markAnsweredLiveOption(state, playerId)] };
     return { requiredAction: null, options: [] };
@@ -157,6 +235,11 @@ function socialCapabilities(state: GameState, playerId: string): PlayerDecisionC
 
 export function projectDecisionCapabilities(state: GameState, playerId: string): PlayerDecisionCapabilities {
   if (state.status === 'FINISHED') return { requiredAction: null, options: [] };
+
+  if (state.social?.resolutionComplete) {
+    if (state.social.actorId !== playerId || state.currentPlayerId !== playerId) return { requiredAction: null, options: [] };
+    return { requiredAction: 'CONTINUE', options: [continueOption(state, playerId)] };
+  }
 
   if (state.pendingEffect?.type === 'WILD_COLOR') {
     if (state.pendingEffect.playerId !== playerId || state.currentPlayerId !== playerId) return { requiredAction: null, options: [] };

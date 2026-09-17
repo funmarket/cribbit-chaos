@@ -248,7 +248,9 @@ Verification checklist:
 - [x] Phase 1 contract guard proves API command processing applies the shared reducer before backend bot advancement.
 - [x] Phase 2A adds a shared engine `projectDecisionCapabilities()` legal-action enumerator.
 - [x] Phase 2A tests prove advertised options are accepted by the reducer for play/draw, Wild color, Truth completion-only, and Duel target/response/vote flows.
-- [x] Phase 2A tests prove unresolved special families are not advertised as playable bot options.
-- [ ] move API bot decision selection out of `apps/api/src/game-service.ts` into the shared policy module.
-- [ ] wire API bot advancement to choose from `projectDecisionCapabilities()` instead of hardcoded card-family branches.
-- [ ] no frontend-specific bot rule path is introduced.
+- [x] Phase 2A tests established the fail-closed legal-action boundary.
+- [x] Phase 2B moves API bot decision selection out of hardcoded card-family branches into shared `chooseBotOption()`.
+- [x] Phase 2B wires API bot advancement to choose from `projectDecisionCapabilities()`.
+- [x] Phase 2B adds no frontend-specific bot rule path.
+- [x] Phase 2B verifies bot settlement for Truth, Dare, Chaos, Paranoia, Duel, TAG, Truth or Chaos, Hijack, Taboo, Machiavelli, Reverse Confession, and DIG ME.
+- [ ] live browser/deployed-game readback after PR/CI/deployment.

@@ -136,7 +136,7 @@ test('duel flow advertises target, participant completion, and eligible voter co
   assertAdvertisedOptionsAreAccepted(state, 'p3');
 });
 
-test('unresolved special families are not advertised as playable bot options', () => {
+test('phase-2B special families are advertised as playable bot options', () => {
   const state = baseState('bot-capabilities-unresolved');
   setTopDiscard(state, makeCard('discard-lime-7', 'number', { color: 'lime', value: 7, symbol: '7' }));
   state.players[0].hand = [
@@ -152,6 +152,6 @@ test('unresolved special families are not advertised as playable bot options', (
   const capabilities = projectDecisionCapabilities(state, 'p1');
 
   assert.equal(capabilities.requiredAction, 'PLAY_OR_DRAW');
-  assert.deepEqual(capabilities.options.map(option => option.optionId), ['draw:p1']);
+  assert.deepEqual(capabilities.options.map(option => option.optionId), ['play:tag-1', 'play:truth-or-chaos-1', 'play:hijack-1', 'play:taboo-1', 'play:machiavelli-1', 'play:reverse-confession-1', 'play:dig-me-1', 'draw:p1']);
   assertAdvertisedOptionsAreAccepted(state, 'p1');
 });

@@ -22,21 +22,22 @@ function activeCardMatches(state: GameState, card: Card): boolean {
     case 'paranoia':
     case 'chaos':
     case 'duel':
-      return true;
-    case 'number':
-      return Boolean(card.color && card.color === state.activeColor) || String(card.value) === state.activeSymbol;
-    case 'nope':
-      return false;
     case 'tag':
     case 'truth_or_chaos':
     case 'hijack':
     case 'taboo':
     case 'machiavelli':
-    case 'ghost':
     case 'reverse_confession':
     case 'dig_me':
-      // These families are present in the physical deck but their reducer handlers
-      // are not migrated yet. Do not remove a card from hand only to fail later.
+      return true;
+    case 'number':
+      return Boolean(card.color && card.color === state.activeColor) || String(card.value) === state.activeSymbol;
+    case 'nope':
+      return false;
+    case 'ghost':
+      // Ghost is intentionally excluded from the Phase 2B bot-special fix: it is
+      // not forced-on-draw and its armed/flip lifecycle is separate from the
+      // social/special card families being resolved here.
       return false;
   }
 }

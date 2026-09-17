@@ -1,4 +1,4 @@
-import type { Card, GameCommand, GameEvent, GameState, GameTransition, Player, SocialAnswerRecord, SocialCardKind, SocialDuelResponseRecord } from '@cribbit/contracts';
+import type { Card, GameCommand, GameEvent, GameState, GameTransition, MachiavelliEffect, Player, SocialAnswerRecord, SocialCardKind, SocialDuelResponseRecord } from '@cribbit/contracts';
 import { getEligiblePrompts } from '@cribbit/prompts';
 import { createEngineError } from './errors.ts';
 import { drawCards } from './deck.ts';
@@ -86,10 +86,13 @@ function fingerprintCommand(command: GameCommand): string {
       return [command.sessionId, command.type, command.playerId].join('|');
     case 'SELECT_PARANOIA_TARGET':
     case 'SELECT_DUEL_TARGET':
+    case 'SELECT_SOCIAL_TARGET':
     case 'PARANOIA_CHOICE':
     case 'DUEL_TARGET':
     case 'CHAOS_TARGET':
       return [command.sessionId, command.type, command.playerId, command.targetId].join('|');
+    case 'SELECT_MACHIAVELLI_EFFECT':
+      return [command.sessionId, command.type, command.playerId, command.effect].join('|');
     case 'SUBMIT_PARANOIA_VOTE':
       return [command.sessionId, command.type, command.playerId, command.vote].join('|');
     case 'DUEL_VOTE':
@@ -146,12 +149,12 @@ function resolveNormalTurn<TState extends GameState>(state: TState, player: Play
 }
 
 function isSocialCardKind(kind: Card['kind']): kind is SocialCardKind {
-  return kind === 'truth' || kind === 'dare' || kind === 'paranoia' || kind === 'chaos' || kind === 'duel';
+  return kind === 'truth' || kind === 'dare' || kind === 'paranoia' || kind === 'chaos' || kind === 'duel' || kind === 'tag' || kind === 'truth_or_chaos' || kind === 'hijack' || kind === 'taboo' || kind === 'machiavelli' || kind === 'reverse_confession' || kind === 'dig_me';
 }
 
 function socialTargetingForKind(kind: SocialCardKind): 'current' | 'specific' | 'all' {
-  if (kind === 'paranoia' || kind === 'duel') return 'specific';
-  if (kind === 'chaos') return 'all';
+  if (kind === 'paranoia' || kind === 'duel' || kind === 'tag' || kind === 'hijack' || kind === 'taboo' || kind === 'dig_me') return 'specific';
+  if (kind === 'chaos' || kind === 'truth_or_chaos') return 'all';
   return 'current';
 }
 
@@ -165,15 +168,15 @@ function startSocialCardPlay<TState extends GameState>(
   const kind = card.kind as SocialCardKind;
   events.push(makeEvent(state, 'SOCIAL_CARD_TRIGGERED', { playerId: player.id, cardId: card.id, cardKind: kind }, 0, 'PUBLIC'));
 
-  if (kind === 'truth' || kind === 'dare' || kind === 'chaos') {
-    const targeting = kind === 'chaos' ? 'all' : 'current';
+  if (kind === 'truth' || kind === 'dare' || kind === 'chaos' || kind === 'truth_or_chaos' || kind === 'reverse_confession') {
+    const targeting = socialTargetingForKind(kind);
     const selected = selectPromptForSocialEffect(state, kind, targeting, context);
     if ('code' in selected) return selected;
     const social = createSocialState(state, card.id, kind, player.id, selected.prompt, selected.selection, {
-      type: kind === 'chaos' ? 'CHAOS' : 'PROMPT',
+      type: kind === 'chaos' || kind === 'truth_or_chaos' ? 'CHAOS' : 'PROMPT',
       candidateResultIds: selected.candidateResultIds
     }, context);
-    social.pendingTargetId = player.id;
+    social.pendingTargetId = targeting === 'current' ? player.id : null;
     social.pendingTargetIds = targeting === 'all' ? state.players.map(item => item.id) : [player.id];
     social.answerState = createAnswerRecord();
     state.social = social;
@@ -210,6 +213,25 @@ function startSocialCardPlay<TState extends GameState>(
     startTimer(state, 'SOCIAL', player.id, context.now);
     state.phase = 'ANSWER_RESOLVE';
     events.push(makeEvent(state, 'TARGET_REQUIRED', { actorId: player.id, cardId: card.id, cardKind: kind, targetCount: social.pendingTargetIds.length }, 0, 'PUBLIC'));
+    return null;
+  }
+
+  if (kind === 'tag' || kind === 'hijack' || kind === 'taboo' || kind === 'dig_me') {
+    const social = createSocialState(state, card.id, kind, player.id, null, null, undefined, context);
+    social.pendingTargetIds = state.players.filter(item => item.id !== player.id).map(item => item.id);
+    state.social = social;
+    startTimer(state, 'SOCIAL', player.id, context.now);
+    state.phase = 'ANSWER_RESOLVE';
+    events.push(makeEvent(state, 'TARGET_REQUIRED', { actorId: player.id, cardId: card.id, cardKind: kind, targetCount: social.pendingTargetIds.length }, 0, 'PUBLIC'));
+    return null;
+  }
+
+  if (kind === 'machiavelli') {
+    const social = createSocialState(state, card.id, kind, player.id, null, null, undefined, context);
+    state.social = social;
+    startTimer(state, 'SOCIAL', player.id, context.now);
+    state.phase = 'ANSWER_RESOLVE';
+    events.push(makeEvent(state, 'MACHIAVELLI_EFFECT_REQUIRED', { actorId: player.id, cardId: card.id }, 0, 'PLAYER_PRIVATE', [player.id]));
     return null;
   }
 
@@ -301,7 +323,7 @@ function handlePlayCard<TState extends GameState>(
     return finalise(nextState, false, [], validation.error);
   }
 
-  if (validation.card.kind === 'truth' || validation.card.kind === 'dare' || validation.card.kind === 'paranoia' || validation.card.kind === 'chaos') {
+  if (validation.card.kind === 'truth' || validation.card.kind === 'dare' || validation.card.kind === 'paranoia' || validation.card.kind === 'chaos' || validation.card.kind === 'truth_or_chaos' || validation.card.kind === 'taboo' || validation.card.kind === 'reverse_confession' || validation.card.kind === 'dig_me') {
     const preview = selectPromptForSocialEffect(state, validation.card.kind, socialTargetingForKind(validation.card.kind), context);
     if ('code' in preview) {
       const nextState = cacheOutcome(state, command, { ok: false, error: preview, events: [] }, state.revision);
@@ -443,7 +465,15 @@ function completeSocialResolution<TState extends GameState>(
 }
 
 function isAllPlayerCompletionSocial(social: NonNullable<GameState['social']>): boolean {
-  return social.cardKind === 'chaos' && social.promptSelection?.selection.targeting === 'all';
+  return (social.cardKind === 'chaos' || social.cardKind === 'truth_or_chaos') && social.promptSelection?.selection.targeting === 'all';
+}
+
+function isTargetCompletionSocial(social: NonNullable<GameState['social']>): boolean {
+  return (social.cardKind === 'taboo' || social.cardKind === 'dig_me') && Boolean(social.pendingTargetId);
+}
+
+function targetCompletionPlayerId(social: NonNullable<GameState['social']>): string | null {
+  return isTargetCompletionSocial(social) ? social.pendingTargetId : null;
 }
 
 function isTruthOrDareSocial(social: NonNullable<GameState['social']>): boolean {
@@ -584,6 +614,29 @@ function handleSelectAnswerMode<TState extends GameState>(
     events.forEach(event => {
       event.revision = nextState.revision;
     });
+    const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+    committedState.revision = state.revision + 1;
+    return finalise(committedState, true, events);
+  }
+
+  const targetCompletionId = targetCompletionPlayerId(social);
+  if (targetCompletionId) {
+    if (targetCompletionId !== command.playerId) {
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Only the selected target may choose an answer mode.'));
+    }
+    const nextState = cloneState(state);
+    const nextSocial = nextState.social!;
+    nextSocial.answerState = {
+      ...nextSocial.answerState,
+      status: 'MODE_SELECTED',
+      mode: command.mode,
+      completionOnly: command.mode === 'ANSWERED_LIVE'
+    };
+    const events: GameEvent[] = [
+      makeEvent(nextState, 'ANSWER_MODE_SELECTED', { playerId: command.playerId, mode: command.mode, cardKind: nextSocial.cardKind }, 0, 'PLAYER_PRIVATE', [command.playerId])
+    ];
+    nextState.revision = state.revision + 1;
+    events.forEach(event => { event.revision = nextState.revision; });
     const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
     committedState.revision = state.revision + 1;
     return finalise(committedState, true, events);
@@ -973,6 +1026,35 @@ function handleMarkAnsweredLive<TState extends GameState>(
       context
     );
   }
+  const targetCompletionId = targetCompletionPlayerId(social);
+  if (targetCompletionId) {
+    if (targetCompletionId !== command.playerId) {
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Only the selected target may mark completion.'));
+    }
+    if (!social.answerState.mode || social.answerState.mode !== 'ANSWERED_LIVE') {
+      return failCommand(state, command, createEngineError('INVALID_SOCIAL_RESPONSE', 'Answered Live must be selected before marking completion.'));
+    }
+    const nextState = cloneState(state);
+    const nextSocial = nextState.social!;
+    const actor = nextState.players.find(item => item.id === nextSocial.actorId)!;
+    nextSocial.answerState = {
+      ...nextSocial.answerState,
+      status: 'SUBMITTED',
+      completionOnly: true,
+      submittedByPlayerId: command.playerId,
+      submittedAtRevision: state.revision + 1
+    };
+    const events: GameEvent[] = [
+      makeEvent(nextState, 'ANSWERED_LIVE_MARKED', { playerId: command.playerId, cardKind: nextSocial.cardKind, completionOnly: true }, 0, 'PLAYER_PRIVATE', [command.playerId])
+    ];
+    completeSocialResolution(nextState, actor, nextSocial.cardKind, events, 1, 'resolved', context.now);
+    nextState.revision = state.revision + 1;
+    events.forEach(event => { event.revision = nextState.revision; });
+    const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+    committedState.revision = state.revision + 1;
+    return finalise(committedState, true, events);
+  }
+
   if (social.cardKind === 'duel') {
     return failCommand(state, command, createEngineError('INVALID_COMMAND', 'Use SUBMIT_DUEL_RESPONSE for Duel resolution.'));
   }
@@ -991,6 +1073,168 @@ function handleMarkAnsweredLive<TState extends GameState>(
     [command.playerId],
     context
   );
+}
+
+function choosePromptForSpecificSocial<TState extends GameState>(
+  state: TState,
+  social: NonNullable<TState['social']>,
+  targetId: string,
+  context: GameCommandContext
+): { ok: true; prompt: NonNullable<NonNullable<TState['social']>['prompt']>; selection: NonNullable<NonNullable<TState['social']>['promptSelection']>['selection']; candidateResultIds: readonly string[] } | ReturnType<typeof createEngineError> {
+  const selected = selectPromptForSocialEffect(state, social.cardKind, 'specific', context);
+  if ('code' in selected) return selected;
+  return { ok: true, prompt: selected.prompt, selection: selected.selection, candidateResultIds: selected.candidateResultIds };
+}
+
+function handleSelectSocialTarget<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'SELECT_SOCIAL_TARGET' },
+  context: GameCommandContext
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state);
+  if (error) return failCommand(state, command, error);
+  if (!['tag', 'hijack', 'taboo', 'dig_me'].includes(social.cardKind)) {
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', `SELECT_SOCIAL_TARGET is not available for ${social.cardKind}.`));
+  }
+  if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
+    return failCommand(state, command, createEngineError('NOT_YOUR_TURN', 'Only the triggering player may choose this target.'));
+  }
+  if (!social.pendingTargetIds.includes(command.targetId) || command.targetId === command.playerId) {
+    return failCommand(state, command, createEngineError('INVALID_SOCIAL_TARGET', 'Choose another eligible player.'));
+  }
+
+  const nextState = cloneState(state);
+  const nextSocial = nextState.social!;
+  nextSocial.pendingTargetId = command.targetId;
+  const actor = nextState.players.find(item => item.id === command.playerId)!;
+  const target = nextState.players.find(item => item.id === command.targetId)!;
+  const events: GameEvent[] = [
+    makeEvent(nextState, 'SOCIAL_TARGET_SELECTED', { actorId: command.playerId, cardId: nextSocial.cardId, cardKind: nextSocial.cardKind, targetPlayerId: command.targetId }, 0, 'PUBLIC')
+  ];
+
+  if (nextSocial.cardKind === 'taboo' || nextSocial.cardKind === 'dig_me') {
+    const selected = choosePromptForSpecificSocial(nextState, nextSocial, command.targetId, context);
+    if ('code' in selected) return failCommand(state, command, selected);
+    nextSocial.prompt = selected.prompt;
+    nextSocial.promptSelection = {
+      promptId: selected.prompt.id,
+      prompt: selected.prompt,
+      selection: selected.selection,
+      selectedByPlayerId: command.playerId,
+      selectedAtRevision: state.revision + 1
+    };
+    nextSocial.roulettePresentation = createRoulettePresentation(nextState, 'PLAYER', selected.prompt.id, selected.candidateResultIds);
+    nextSocial.authorship = createAuthorshipState(selected.prompt, context);
+    nextSocial.answerState = createAnswerRecord();
+    events.push(
+      makeEvent(nextState, 'PROMPT_SELECTED', { actorId: command.playerId, cardId: nextSocial.cardId, promptId: selected.prompt.id, prompt: selected.prompt }, 1, 'PLAYER_PRIVATE', [command.playerId, command.targetId]),
+      makeEvent(nextState, 'ANSWER_REQUIRED', { actorId: command.playerId, targetPlayerId: command.targetId, cardId: nextSocial.cardId, cardKind: nextSocial.cardKind }, 2, 'PUBLIC')
+    );
+  } else if (nextSocial.cardKind === 'hijack') {
+    const actorIndex = nextState.players.findIndex(item => item.id === command.playerId);
+    const targetIndex = nextState.players.findIndex(item => item.id === command.targetId);
+    if (actorIndex >= 0 && targetIndex >= 0) {
+      const actorSeat = nextState.players[actorIndex].seat;
+      nextState.players[actorIndex].seat = nextState.players[targetIndex].seat;
+      nextState.players[targetIndex].seat = actorSeat;
+      const drawn = drawCards(nextState, 1, events);
+      target.hand.push(...drawn);
+      events.push(makeEvent(nextState, 'DRAW_EFFECT_APPLIED', {
+        sourcePlayerId: command.playerId,
+        targetPlayerId: command.targetId,
+        amount: drawn.length,
+        cardId: nextSocial.cardId,
+        drawnCardIds: drawn.map(item => item.id)
+      }, events.length, 'PLAYER_PRIVATE', [command.targetId]));
+    }
+    completeSocialResolution(nextState, actor, nextSocial.cardKind, events, 1, 'resolved', context.now);
+  } else {
+    completeSocialResolution(nextState, actor, nextSocial.cardKind, events, 1, 'resolved', context.now);
+  }
+
+  nextState.revision = state.revision + 1;
+  events.forEach(event => { event.revision = nextState.revision; });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
+function grantCard(state: GameState, player: Player, kind: Card['kind'], seed: string): void {
+  player.hand.push({ id: `generated:${state.id}:${state.revision}:${player.id}:${seed}`, kind, symbol: kind });
+}
+
+function transformCards(cards: Card[], from: Card['kind'], to: Card['kind']): Card[] {
+  return cards.map(card => card.kind === from ? { ...card, kind: to, symbol: to } : card);
+}
+
+function applyMachiavelliEffect(state: GameState, effect: MachiavelliEffect): void {
+  if (effect === 'CONVERT_THE_WEAK') {
+    state.players.forEach(player => { player.hand = transformCards(player.hand, 'skip', 'draw'); });
+    state.drawPile = transformCards(state.drawPile, 'skip', 'draw');
+    state.discardPile = transformCards(state.discardPile, 'skip', 'draw');
+    return;
+  }
+  if (effect === 'TABOO_FOR_ALL') {
+    state.players.forEach((player, index) => grantCard(state, player, 'taboo', `taboo:${index}`));
+    return;
+  }
+  if (effect === 'NO_MERCY') {
+    state.players.forEach(player => { player.hand = player.hand.filter(card => card.kind !== 'nope'); });
+    state.drawPile = state.drawPile.filter(card => card.kind !== 'nope');
+    state.discardPile = state.discardPile.filter(card => card.kind !== 'nope');
+    return;
+  }
+  if (effect === 'PARANOIA_SPREADS') {
+    state.players.forEach((player, index) => grantCard(state, player, index % 2 === 0 ? 'truth' : 'paranoia', `paranoia-spreads:${index}`));
+    return;
+  }
+  if (effect === 'DOUBLE_THE_PRESSURE') {
+    const duplicates = state.drawPile
+      .filter(card => card.kind === 'truth' || card.kind === 'dare')
+      .map((card, index) => ({ ...card, id: `generated:${state.id}:${state.revision}:pressure:${index}:${card.id}` }));
+    state.drawPile.push(...duplicates);
+    return;
+  }
+  if (effect === 'REVERSE_CONFESSION') {
+    state.players.forEach((player, index) => grantCard(state, player, 'reverse_confession', `reverse-confession:${index}`));
+  }
+}
+
+function handleSelectMachiavelliEffect<TState extends GameState>(
+  state: TState,
+  command: GameCommand & { type: 'SELECT_MACHIAVELLI_EFFECT' },
+  context: GameCommandContext
+): GameTransition<TState> {
+  const { social, error } = requireSocial(state, 'machiavelli');
+  if (error) return failCommand(state, command, error);
+  if (social.actorId !== command.playerId || state.currentPlayerId !== command.playerId) {
+    return failCommand(state, command, createEngineError('NOT_YOUR_TURN', 'Only the triggering player may choose a Machiavelli effect.'));
+  }
+  const allowed: readonly MachiavelliEffect[] = ['CONVERT_THE_WEAK', 'TABOO_FOR_ALL', 'NO_MERCY', 'PARANOIA_SPREADS', 'DOUBLE_THE_PRESSURE', 'REVERSE_CONFESSION'];
+  if (!allowed.includes(command.effect)) {
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'Choose one of the six Machiavelli effects.'));
+  }
+  const nextState = cloneState(state);
+  const nextSocial = nextState.social!;
+  const actor = nextState.players.find(item => item.id === command.playerId)!;
+  applyMachiavelliEffect(nextState, command.effect);
+  nextSocial.answerState = {
+    ...nextSocial.answerState,
+    status: 'SUBMITTED',
+    completionOnly: true,
+    choice: command.effect,
+    submittedByPlayerId: command.playerId,
+    submittedAtRevision: state.revision + 1
+  };
+  const events: GameEvent[] = [
+    makeEvent(nextState, 'MACHIAVELLI_EFFECT_SELECTED', { actorId: command.playerId, cardId: nextSocial.cardId, effect: command.effect }, 0, 'PUBLIC')
+  ];
+  completeSocialResolution(nextState, actor, nextSocial.cardKind, events, 1, 'resolved', context.now);
+  nextState.revision = state.revision + 1;
+  events.forEach(event => { event.revision = nextState.revision; });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
 }
 
 function handleSelectParanoiaTarget<TState extends GameState>(
@@ -2215,6 +2459,8 @@ export function applyCommand<TState extends GameState>(state: TState, command: G
   if (command.type === 'PASS_PROMPT') return handlePassPrompt(state, command, context);
   if (command.type === 'REWIND_PROMPT') return handleRewindPrompt(state, command, context);
   if (command.type === 'FLAG_PROMPT') return handleFlagPrompt(state, command);
+  if (command.type === 'SELECT_SOCIAL_TARGET') return handleSelectSocialTarget(state, command as GameCommand & { type: 'SELECT_SOCIAL_TARGET' }, context);
+  if (command.type === 'SELECT_MACHIAVELLI_EFFECT') return handleSelectMachiavelliEffect(state, command as GameCommand & { type: 'SELECT_MACHIAVELLI_EFFECT' }, context);
   if (command.type === 'SELECT_PARANOIA_TARGET' || command.type === 'PARANOIA_CHOICE') return handleSelectParanoiaTarget(state, command as GameCommand & { type: 'SELECT_PARANOIA_TARGET' }, context);
   if (command.type === 'SELECT_PARANOIA_PHASE') return handleSelectParanoiaPhase(state, command as GameCommand & { type: 'SELECT_PARANOIA_PHASE' }, context);
   if (command.type === 'SELECT_PARANOIA_CLASSIC_ANSWER') return handleSelectParanoiaClassicAnswer(state, command as GameCommand & { type: 'SELECT_PARANOIA_CLASSIC_ANSWER' }, context);

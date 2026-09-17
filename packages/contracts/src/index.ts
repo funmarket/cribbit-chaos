@@ -56,6 +56,7 @@ export type AnswerMode = 'SPEAK' | 'TYPE' | 'CHOOSE' | 'ANSWERED_LIVE';
 export type ParanoiaPhase = 'CLASSIC' | 'STRANGER';
 export type ParanoiaVoteChoice = 'BELIEVE' | 'LYING' | 'HOLDING_BACK';
 export type ParanoiaClassicRevealDecision = 'REVEAL' | 'KEEP_SECRET';
+export type MachiavelliEffect = 'CONVERT_THE_WEAK' | 'TABOO_FOR_ALL' | 'NO_MERCY' | 'PARANOIA_SPREADS' | 'DOUBLE_THE_PRESSURE' | 'REVERSE_CONFESSION';
 export type GamePhase = 'TURN_START' | 'PLAY_DRAW' | 'TRIGGER' | 'ANSWER_RESOLVE' | 'WIN_CHECK' | 'NEXT_TURN' | 'PENDING_WILD_COLOR' | 'FINISHED';
 export type GameStatus = 'ACTIVE' | 'FINISHED';
 export type PlayerStatus = 'ACTIVE' | 'ELIMINATED';
@@ -150,6 +151,8 @@ export type GameCommand =
   | (CommandMeta & { type: 'SUBMIT_PARANOIA_CLASSIC_DECISION'; decision: ParanoiaClassicRevealDecision })
   | (CommandMeta & { type: 'SUBMIT_PARANOIA_VOTE'; vote: ParanoiaVoteChoice })
   | (CommandMeta & { type: 'SELECT_DUEL_TARGET'; targetId: string })
+  | (CommandMeta & { type: 'SELECT_SOCIAL_TARGET'; targetId: string })
+  | (CommandMeta & { type: 'SELECT_MACHIAVELLI_EFFECT'; effect: MachiavelliEffect })
   | (CommandMeta & { type: 'SUBMIT_DUEL_RESPONSE'; side: 'initiator' | 'opponent'; value?: string; choice?: string; completionOnly?: boolean })
   | (CommandMeta & { type: 'PLAY_NOPE'; cardId: string })
   | (CommandMeta & { type: 'PARANOIA_CHOICE'; targetId: string })
