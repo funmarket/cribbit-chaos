@@ -1267,7 +1267,12 @@ npx tsx --test packages/game-engine/test/bot-policy.test.ts packages/game-engine
 npm run typecheck
 npm test
 npm run build:api
+npm run build
 git diff --check
+gh pr view 12 --repo funmarket/cribbit-chaos --json number,state,mergedAt,mergeCommit,url,headRefOid
+gh run watch 35238603450 --repo funmarket/cribbit-chaos --exit-status
+curl -L -sS -o "$LOCALAPPDATA/Temp/cribbit-web-phase2b-after-merge.html" -w 'web %{http_code} %{url_effective}\n' https://cribbit-chaos-web.pages.dev/
+curl -L -sS -o "$LOCALAPPDATA/Temp/cribbit-telegram-phase2b-after-merge.html" -w 'telegram %{http_code} %{url_effective}\n' https://cribbit-chaos-telegram.pages.dev/
 ```
 
 Proof:
@@ -1277,9 +1282,14 @@ Proof:
 - Full `npm test`: `135 pass / 0 fail`.
 - `npm run typecheck`: pass.
 - `npm run build:api`: pass.
+- Full `npm run build`: pass for Web, Telegram, and API.
 - `git diff --check`: pass.
+- PR `#12` merged at `2026-09-17T15:11:32Z` with merge commit `f03028be7e20a9610f56e9ae62512a43b7b6262b`.
+- Post-merge main CI run `35238603450` completed successfully at exact head `f03028be7e20a9610f56e9ae62512a43b7b6262b`.
+- Cloudflare Web endpoint readback: `web 200 https://cribbit-chaos-web.pages.dev/`.
+- Cloudflare Telegram endpoint readback: `telegram 200 https://cribbit-chaos-telegram.pages.dev/`.
 - The no-stall regression exercises `truth`, `dare`, `chaos`, `paranoia`, `duel`, `tag`, `truth_or_chaos`, `hijack`, `taboo`, `machiavelli`, `reverse_confession`, and `dig_me` through reducer-accepted bot commands until no unresolved bot social/pending effect remains.
 
-Score: `8.9/10`.
+Score: `9.2/10`.
 
-Reason for score: Phase 2B fixes the shared backend bot policy path and verifies every requested special family in deterministic reducer tests, with full source tests green. Score is not higher until this branch is pushed, exact-head CI passes, deployed Cloudflare readback is done, and a live browser game/simulation smoke confirms the UI observes the same no-stall behavior.
+Reason for score: Phase 2B now has shared backend BotPolicy implementation proof, full local verification, exact-head PR/main CI, merge readback, and Cloudflare endpoint readback. Score is not higher because browser automation and desktop preview could not complete a live click-through game/simulation smoke, so deployed UI behavior is endpoint-proven but not visually/click-through proven in this session.
