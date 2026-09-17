@@ -727,6 +727,31 @@ Phase 4 score: `8.6/10`.
 
 Reason for score: Roulette/prompt authority tests pass and the conflicting browser owner is removed from served and built Web output. Score is limited because desktop/browser interactive verification was blocked by tool instability, so this is source/runtime-readback plus automated test proof, not a full visual click-through.
 
+### Slice 5 — Phase 5 runtime debt classification
+
+- Status: classified; no deletion performed.
+- Evidence commands/files:
+  - searched `canonical-game-runtime|initializeCanonicalGameRuntime|legacy-compatibility|live-entry|live-session|stopImmediatePropagation` across repo;
+  - read `apps/web/src/live-entry.ts`;
+  - read `apps/web/src/main.ts:364-384`;
+  - read `packages/ui/src/bootstrap.ts:89-91`;
+  - read `apps/web/src/live-session.ts:331-410`.
+
+Classification:
+
+| Target | Classification | Evidence | Action now |
+| --- | --- | --- | --- |
+| `apps/web/src/canonical-game-runtime.ts` | `REFERENCE ONLY / DEAD FOR WEB BOOT` | `apps/web/index.html` no longer imports it; served Cloudflare Pages Web HTML and built Web dist do not contain `canonical-game-runtime` or `initializeCanonicalGameRuntime`. File still contains the old browser runtime and capture owner, so deleting it needs a separate stale-file deletion gate. | Do not boot; do not delete in this slice. |
+| `packages/legacy-runtime/src/runtime.ts` | `ACTIVE TRANSITIONAL OWNER` | `apps/web/src/main.ts:373-375` calls `bootstrap(... runtimeMode: 'legacy-compatibility')`; `packages/ui/src/bootstrap.ts:89-91` imports legacy runtime for that mode. | Keep for now; it is the current Web display/runtime bridge after direct canonical bootstrap removal. |
+| `apps/web/src/live-entry.ts` | `ACTIVE BRIDGE` | imports `startWebAuthUI` and `startWebLiveRooms`; waits for `window.__CRIBBIT_API__`, `#app`, and `#joinCode`; starts auth/live rooms once. | Keep. |
+| `apps/web/src/live-session.ts` | `ACTIVE COMMAND BRIDGE` | capture handler sends API/realtime commands for create/join/play/draw/prompt actions and unsubscribes on teardown. It still uses capture and `stopImmediatePropagation()`, but after canonical bootstrap removal it no longer competes with the direct canonical runtime owner. | Keep; later backend-authority slice must continue reducing client authority. |
+| Web capture listeners | `ACTIVE BUT SINGLE CURRENT OWNER PATH` | canonical capture owner is no longer booted; live-session capture remains active for command submission. | Keep and monitor with regression. |
+| Telegram capture listeners | `BLOCKED FROM THIS WEB SLICE` | `apps/telegram/src/main.ts` still has capture interception and `legacy-compatibility`; Phase 9 covers Telegram convergence. | Do not edit in this slice. |
+
+Phase 5 score: `8.8/10`.
+
+Reason for score: every candidate in Phase 5 has a concrete classification and no uncertain deletion was made. Score is not higher because stale file deletion and Telegram convergence are intentionally deferred to later authorized slices.
+
 ### Independent review — Phase 3/4
 
 - Status: passed.
