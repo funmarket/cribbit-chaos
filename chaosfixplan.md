@@ -858,10 +858,10 @@ Stop and report if any of these happen:
 - URL: `https://github.com/funmarket/cribbit-chaos/pull/9`
 - Branch: `fix/web-runtime-single-owner`
 - Base: `feature/visual-integration-checkpoint`
-- Current commit after ledger update: `0d21e2ff08ea5788c9eb40fbbf222cdc96ad931c`.
+- Phase 7 code/test commit: `dc6a4495f92e8fe0b4f90d5be20dae384429575b`.
 - Draft: yes.
 
-GitHub checks at exact-head readback for `0d21e2ff08ea5788c9eb40fbbf222cdc96ad931c`:
+GitHub checks at exact-head readback for Phase 7 code/test commit `dc6a4495f92e8fe0b4f90d5be20dae384429575b`:
 
 - `build-api`: pass.
 - `build-web`: pass.
