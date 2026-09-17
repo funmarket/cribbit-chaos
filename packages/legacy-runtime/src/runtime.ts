@@ -2,6 +2,7 @@
 // Phase-1 compatibility runtime extracted verbatim from the approved V4 prototype.
 // Migrate command/state logic into packages/game-engine incrementally without changing UX behavior.
 import { announce, toast } from './feedback.ts';
+import { createGame, drawCards } from '@cribbit/game-engine';
 (() => {
     'use strict';
 
@@ -710,36 +711,39 @@ import { announce, toast } from './feedback.ts';
       return card.kind;
     }
 
-    function buildDeck(seed = Date.now()) {
-      const deck = [];
-      const colors = Object.keys(COLOR_META);
-      colors.forEach(color => {
-        deck.push(createCard('number', { color, value: 0, symbol: '0' }));
-        for (let value = 1; value <= 9; value += 1) {
-          deck.push(createCard('number', { color, value, symbol: String(value) }));
-          deck.push(createCard('number', { color, value, symbol: String(value) }));
-        }
-        ['skip','reverse','draw'].forEach(kind => {
-          deck.push(createCard(kind, { color, symbol: kind }));
-          deck.push(createCard(kind, { color, symbol: kind }));
-        });
-      });
-      for (let i = 0; i < 4; i += 1) deck.push(createCard('wild', { symbol: 'wild' }));
-      const socialCounts = { truth: 5, dare: 5, paranoia: 4, chaos: 4, duel: 3, nope: 3 };
-      Object.entries(socialCounts).forEach(([kind, count]) => {
-        for (let i = 0; i < count; i += 1) deck.push(createCard(kind, { symbol: kind }));
-      });
-      return shuffle(deck, seededRandom(seed));
+    function drawFromDeck(session, count = 1) {
+      const engineState = syncEngineStateFromSession(session);
+      const cards = drawCards(engineState, count);
+      syncSessionFromEngineState(session, engineState);
+      return cards;
     }
 
-    function drawFromDeck(session, count = 1) {
-      const cards = [];
-      for (let i = 0; i < count; i += 1) {
-        if (!session.deck.length) recycleDiscard(session);
-        const card = session.deck.pop();
-        if (card) cards.push(card);
+    function syncEngineStateFromSession(session) {
+      const engineState = session.engineState;
+      engineState.revision = state.revision;
+      engineState.drawPile = session.deck;
+      engineState.discardPile = session.discard;
+      engineState.players = session.players.map(player => ({
+        id: player.id,
+        seat: player.seat ?? (Number(player.id.replace(/^p/, '')) || 0),
+        status: 'ACTIVE',
+        hand: player.hand
+      }));
+      engineState.currentPlayerId = currentPlayer()?.id || session.players[session.currentIndex]?.id;
+      engineState.activeColor = session.activeColor;
+      engineState.activeSymbol = session.activeSymbol;
+      engineState.direction = session.direction;
+      return engineState;
+    }
+
+    function syncSessionFromEngineState(session, engineState) {
+      session.deck = engineState.drawPile;
+      session.discard = engineState.discardPile;
+      session.adaptiveProbability = engineState.adaptiveProbability;
+      for (const enginePlayer of engineState.players) {
+        const legacyPlayer = session.players.find(player => player.id === enginePlayer.id);
+        if (legacyPlayer) legacyPlayer.hand = enginePlayer.hand;
       }
-      return cards;
     }
 
     function recycleDiscard(session) {
@@ -842,12 +846,6 @@ import { announce, toast } from './feedback.ts';
       </div>`;
     }
 
-    function starterCardFromDeck(session) {
-      let index = session.deck.findIndex(card => card.kind === 'number');
-      if (index < 0) index = session.deck.length - 1;
-      const [starter] = session.deck.splice(index, 1);
-      return starter;
-    }
 
     function ensureDemoPromptCoverage() {
       const coverage = [
@@ -886,18 +884,36 @@ import { announce, toast } from './feedback.ts';
       state.commandCache.clear();
       state.events = [];
       const players = makePlayers(state.setup.playerCount, state.setup.profileName, state.setup.ceiling);
+      const seed = `${state.setup.roomName}:${Date.now()}`;
+      const engineResult = createGame({
+        seed,
+        startingHandCount: state.knobs.startingHand,
+        drawPenalty: state.knobs.drawPenalty,
+        allowVoluntaryDraw: state.knobs.voluntaryDraw,
+        contentWorld: state.setup.world === 'adult' ? '18+_ADULT' : 'UNDER_18_CLEAN',
+        turnTimeoutMs: state.knobs.turnTimer * 1000,
+        socialTimeoutMs: 45000
+      }, players.map((player, index) => ({ id: player.id, seat: index })));
+      if (!engineResult.ok) throw engineResult.error;
+      const engineState = engineResult.state;
+      players.forEach(player => {
+        const enginePlayer = engineState.players.find(item => item.id === player.id);
+        player.hand = enginePlayer ? [...enginePlayer.hand] : [];
+      });
       const session = {
         id: uid('session'),
         roomName: state.setup.roomName,
         mode: state.setup.mode,
         world: state.setup.world,
         players,
-        deck: buildDeck(Date.now()),
-        discard: [],
+        deck: engineState.drawPile,
+        discard: engineState.discardPile,
+        engineState,
+        adaptiveProbability: engineState.adaptiveProbability,
         lastDiscardId: null,
-        activeColor: null,
-        activeSymbol: null,
-        direction: 1,
+        activeColor: engineState.activeColor,
+        activeSymbol: engineState.activeSymbol,
+        direction: engineState.direction,
         currentIndex: 0,
         phase: 'TURN_START',
         round: 1,
@@ -915,19 +931,8 @@ import { announce, toast } from './feedback.ts';
       };
       state.session = session;
       const handSize = state.knobs.startingHand;
-      if (state.setup.qaHand) {
-        const qaKinds = ['truth','dare','paranoia','chaos','duel','nope','wild'];
-        const qaCards = qaKinds.slice(0, handSize).map(kind => createCard(kind, { symbol:kind }));
-        players[0].hand.push(...qaCards);
-        while (players[0].hand.length < handSize) players[0].hand.push(...drawFromDeck(session, 1));
-      } else {
-        players[0].hand.push(...drawFromDeck(session, handSize));
-      }
-      players.slice(1).forEach(player => player.hand.push(...drawFromDeck(session, handSize)));
-      const starter = starterCardFromDeck(session);
-      session.discard.push(starter);
-      session.activeColor = starter.color;
-      session.activeSymbol = cardSymbol(starter);
+      const starter = session.discard.at(-1);
+      if (!starter) throw new Error('The shared engine did not provide a starter card.');
       addEvent('SESSION_CREATED', `${session.roomName} created in ${mode.label} mode with ${players.length} players.`, 'lime');
       addEvent('CARDS_DEALT', `${handSize} starting cards dealt. Starter card establishes ${COLOR_META[session.activeColor]?.label || session.activeColor} / ${session.activeSymbol}.`, 'cyan');
       beginTurn();

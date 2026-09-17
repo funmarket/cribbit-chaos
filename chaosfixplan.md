@@ -1026,3 +1026,46 @@ git ls-tree -r --name-only HEAD | grep 'chaos-pulse-lab' || true
 Score: `9.0/10`.
 
 Reason for score: the plan now points at the real app path instead of a removed trial UI and explicitly blocks copying CHAOS Pulse into a second runtime. Score is not higher because the actual runtime seam migration and browser/live-Web proof remain unfinished.
+
+### Phase 9 — main Web compatibility board CHAOS Pulse seam
+
+Branch: `fix/shared-chaos-pulse-board`.
+
+Scope:
+
+- Keep the actual app surface on `apps/web/src/main.ts` / `packages/legacy-runtime/src/runtime.ts`.
+- Do not revive `apps/web/src/chaos-pulse-lab.ts` or any removed trial panel.
+- Move main-board start/deal/draw ownership onto the shared `@cribbit/game-engine` CHAOS Pulse deck path.
+
+Change:
+
+- Added `packages/legacy-runtime/test/shared-chaos-pulse-board.test.ts` as the RED/GREEN guard.
+- `packages/legacy-runtime/src/runtime.ts` now imports `createGame` and `drawCards` from `@cribbit/game-engine`.
+- Removed the local `buildDeck()` physical deck constructor from the compatibility runtime.
+- `commandStartGame()` now creates the session from shared `createGame()` state, including canonical opening hands, starter discard, draw pile, and adaptive probability state.
+- `drawFromDeck()` now delegates to shared `drawCards()` and syncs the legacy session view back from the engine state.
+
+Proof commands:
+
+```sh
+npx tsx --test packages/legacy-runtime/test/shared-chaos-pulse-board.test.ts
+npx tsx --test packages/game-engine/test/adaptive-distribution.test.ts
+npm run typecheck
+npm run build:web
+git diff --check
+```
+
+Proof:
+
+- New legacy-runtime guard: `2 pass / 0 fail`.
+- Existing adaptive-distribution suite: `12 pass / 0 fail`.
+- `npm run typecheck`: pass.
+- `npm run build:web`: pass; Vite transformed 212 modules and produced `dist/` assets.
+- `npm run build`: pass for Web, Telegram, and API.
+- Full `npm run test`: `119 pass / 1 fail`; the only failure is the known local Node Argon2id blocker in `apps/api/test/web-password.test.ts`, not this runtime seam.
+- `git diff --check`: pass.
+- Local visual/browser automation remains blocked by local browser harness startup failure and desktop preview non-response; no live browser click-through proof claimed yet.
+
+Score: `8.6/10`.
+
+Reason for score: the real main-board deck/deal/draw seam now points at shared CHAOS Pulse with tests, typecheck, and Web build proof. Score is not higher until a live browser click-through confirms start-game rendering and the next slice routes post-start interaction draws through FIFO forced interaction resolution.
