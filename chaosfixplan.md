@@ -903,9 +903,9 @@ Stop and report if any of these happen:
 - Branch: `fix/web-runtime-single-owner`
 - Base: `feature/visual-integration-checkpoint`
 - Phase 8 deck-authority commit: `eaf21b0be0aa9deb1e1cc960f03aa2c6b7bea72f`.
-- Draft: yes.
+- Ready for review: yes, marked ready after exact-head source checks passed.
 
-GitHub source checks at exact-head readback for Phase 8 deck-authority commit `eaf21b0be0aa9deb1e1cc960f03aa2c6b7bea72f`:
+GitHub source checks at exact-head readback for Phase 8 review-fix commit `52f600105739ea343c5b6110b72450ef8f0a1fe3`:
 
 - `build-api`: pass.
 - `build-web`: pass.
