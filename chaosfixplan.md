@@ -1347,7 +1347,10 @@ Proof:
 - `npm run build`: Web, Telegram, and API builds pass.
 - Canonical rule-source scan found owner-approved provenance markers only in `Game_rules.md`.
 - `git diff --check`: pass.
+- Commit pushed to `main`: `491680be1ebdaa065b4da688b207b788036e4c8b`.
+- GitHub main CI run `35244038712`: passed `test`, `build-web`, `build-telegram`, `build-api`, and `typecheck`.
+- Cloudflare endpoint readbacks returned `200`, but the asset hashes were still the previous deployed bundles during readback (`web /assets/index-Dt7LGRda.js`, `telegram /assets/index-Bf9_jV9o.js`), so deployment propagation/live client proof is not yet complete.
 
-Score: `9.0/10`.
+Score: `8.9/10`.
 
-Reason for score: the attached rule file is now the repo's single canonical rules document, and Web/Telegram adapters now ask the same shared engine capability projection for legal human/bot decisions instead of maintaining separate frontend rule controls. Score is not higher until the change is pushed, CI/deploy readback passes, and live deployed click-through confirms both clients show the same special-card decisions.
+Reason for score: the attached rule file is now the repo's single canonical rules document, and Web/Telegram adapters now ask the same shared engine capability projection for legal human/bot decisions instead of maintaining separate frontend rule controls. Score is not higher because Cloudflare readback still showed stale deployed bundles; next step is Cloudflare deployment/readback plus live click-through.
