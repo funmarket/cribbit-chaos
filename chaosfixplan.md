@@ -1071,3 +1071,44 @@ Proof:
 Score: `8.6/10`.
 
 Reason for score: the real main-board deck/deal/draw seam now points at shared CHAOS Pulse with tests, typecheck, and Web build proof. Score is not higher until a live browser click-through confirms start-game rendering and the next slice routes post-start interaction draws through FIFO forced interaction resolution.
+
+### Phase 10 — live-runtime canonical GameRules enforcement
+
+User reported the live game still was not enforcing `C:\Users\GrowB\Downloads\p0-preservation\p0-preservation\gamerules.md`.
+
+Rules enforced in this slice:
+
+- `RULE-ACQUISITION-003` / `RULE-ACQUISITION-004`: post-setup drawn immediate-interaction cards enter their card flow immediately instead of being saved in hand.
+- `RULE-ACQUISITION-010` / `RULE-ACQUISITION-011`: multiple forced-on-draw interaction cards resolve through FIFO before play continues.
+- Dare target-first behavior: Dare now opens an explicit target selection step and rejects self-targeting before prompt source/roulette selection.
+
+Change:
+
+- Added `packages/legacy-runtime/test/gamerules-live-runtime.test.ts` to bind the live Web compatibility runtime to the canonical local GameRules file.
+- Added `FORCED_ON_DRAW_KINDS`, `enqueueForcedInteractions()`, `queueForcedInteractionResolution()`, and `beginNextForcedInteraction()` to `packages/legacy-runtime/src/runtime.ts`.
+- Updated normal draw and Draw-effect penalty paths so ordinary drawn cards stay in hand, forced interaction cards are queued/discarded into active resolution, and turn advancement waits for the forced queue to empty.
+- Added `SOCIAL_TARGET` command/UI handling for Dare and bot auto-targeting for non-human Dare flows.
+- Duel target selection now stores the selected opponent instead of incorrectly self-targeting the actor.
+- Added the GameRules guard to `npm run test`.
+
+Proof commands:
+
+```sh
+npx tsx --test packages/legacy-runtime/test/gamerules-live-runtime.test.ts packages/legacy-runtime/test/shared-chaos-pulse-board.test.ts
+npm run typecheck
+npm run build
+npx tsx --test packages/cards/test/card-assets.test.ts packages/cards/test/card-registry.test.ts packages/game-engine/test/deck-composition.test.ts packages/game-engine/test/validation-matching.test.ts packages/game-engine/test/adaptive-distribution.test.ts packages/game-engine/test/core-engine.test.ts packages/game-engine/test/nope-routing.test.ts apps/api/test/auth.test.ts apps/api/test/guest-auth.test.ts apps/api/test/game-command-boundary.test.ts packages/cards/test/deck-docs-consistency.test.ts packages/legacy-runtime/test/shared-chaos-pulse-board.test.ts packages/legacy-runtime/test/gamerules-live-runtime.test.ts apps/web/test/room-creation-deeplink.test.ts apps/web/test/runtime-single-owner.test.ts
+git diff --check
+```
+
+Proof:
+
+- GameRules/live-runtime focused guard: `5 pass / 0 fail`.
+- `npm run typecheck`: pass.
+- `npm run build`: pass for Web, Telegram, and API.
+- Local source suite excluding known Node Argon2id blocker: `121 pass / 0 fail`.
+- `git diff --check`: pass.
+
+Score: `8.7/10`.
+
+Reason for score: the live Web compatibility runtime now enforces the canonical forced-on-draw FIFO path and Dare target-first guard, with source/build/test proof. Score is not higher until this PR is pushed, exact-head CI passes, and a browser/live Cloudflare readback confirms the updated runtime is deployed.
