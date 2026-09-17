@@ -474,12 +474,13 @@ Do not silently mark these complete while working on gameplay:
 
 ## Current Next Task
 
-**Phase 2 — extract one deterministic shared BotPolicy / legal-action enumerator for API bot advancement.**
+**Phase 2 — shared legal-action enumerator, then deterministic BotPolicy for API bot advancement.**
 
-1. Keep live multiplayer authority in the Railway API/shared game-engine path.
+1. Keep live multiplayer authority in the Cloudflare/API/shared game-engine path.
 2. Do not create separate Web and Telegram bot fixes.
-3. Move current backend bot-decision code out of `apps/api/src/game-service.ts` into a shared, tested module.
-4. Enumerate legal bot actions from authoritative state before choosing a command.
-5. Ensure every chosen command is accepted by `applyCommand()` and persisted through the same `game_sessions` path.
-6. Add regression tests for bot-owned states before broadening to missing special-family behavior.
-7. Score the phase and revise before moving on if the score is below 8.5.
+3. Build legal action enumeration in `packages/game-engine` first so every bot option is server-derived.
+4. Ensure every advertised command is accepted by `applyCommand()` before a bot can choose it.
+5. Fail closed for unresolved special families; do not make bots invent card rules.
+6. Next sub-step: move API bot decision selection out of `apps/api/src/game-service.ts` into a shared policy module that chooses from `projectDecisionCapabilities()`.
+7. Add regression tests for bot-owned states before broadening to missing special-family behavior.
+8. Score each sub-step and revise before moving on if the score is below 8.5.

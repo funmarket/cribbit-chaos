@@ -1,4 +1,11 @@
 export type {
+  LegalCommandOption,
+  LegalCommandPresentation,
+  PlayerDecisionCapabilities,
+  RequiredActionKind
+} from './capabilities.ts';
+
+export type {
   DuelJudgingMode,
   DuelObjectiveEvaluation,
   PromptEligibilityRequest,

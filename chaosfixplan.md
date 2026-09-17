@@ -1195,3 +1195,44 @@ Proof:
 Score: `9.2/10`.
 
 Reason for score: the local Argon2id blocker is removed without downgrading the password hash contract or faking a non-Argon2 fallback, and the full suite now passes. Score is not higher only because this has not yet gone through remote CI/readback.
+
+
+### Phase 2A — server-derived legal-action enumerator
+
+Branch: `fix/shared-bot-policy-phase1`.
+
+Scope:
+
+- Return to the safe plan after reviewing the parked Python bot-driver proposal.
+- Do not start Python, LangGraph, or deployment work.
+- Add the authoritative TypeScript legal-action enumerator first, so bots can later choose only server-derived commands.
+
+Change:
+
+- Added `packages/contracts/src/capabilities.ts` with `RequiredActionKind`, `LegalCommandOption`, and `PlayerDecisionCapabilities` transport types.
+- Added `packages/game-engine/src/capabilities.ts` with `projectDecisionCapabilities(state, playerId)`.
+- Exported capability types/functions from the shared contracts and game-engine indexes.
+- Added `packages/game-engine/test/bot-capabilities.test.ts` and included it in `npm test`.
+- Updated `PLAN.md` and `docs/LIVING_STATUS.md` to keep Phase 2 split into legal-action enumeration first, then shared BotPolicy wiring.
+
+Proof commands:
+
+```sh
+npx tsx --test packages/game-engine/test/bot-capabilities.test.ts
+npm run typecheck
+npm test
+git diff --check
+```
+
+Proof:
+
+- Focused bot capability test: `5 pass / 0 fail`.
+- Full `npm test`: `131 pass / 0 fail`.
+- `npm run typecheck`: pass.
+- `git diff --check`: pass.
+- Advertised options are reducer-accepted for active play/draw, Wild color, Truth completion-only flow, and Duel target/response/vote flow.
+- Unresolved special families (`tag`, `truth_or_chaos`, `hijack`, `taboo`, `machiavelli`, `reverse_confession`, `dig_me`) are not advertised as playable bot options, so this phase fails closed rather than inventing rules.
+
+Score: `8.8/10`.
+
+Reason for score: Phase 2A establishes the key safe boundary: server-derived legal commands exist in the shared engine and are verified against `applyCommand()`. Score is not higher because API bot advancement still needs to be rewired from hardcoded `apps/api/src/game-service.ts` branches to choose from `projectDecisionCapabilities()` in the next Phase 2 sub-step.

@@ -246,6 +246,9 @@ Verification checklist:
 
 - [x] Phase 1 contract guard proves live Web and Telegram both use the API session adapter.
 - [x] Phase 1 contract guard proves API command processing applies the shared reducer before backend bot advancement.
-- [ ] move bot decision logic out of `apps/api/src/game-service.ts` into a shared tested module.
-- [ ] legal-action enumeration returns only commands accepted by the reducer.
+- [x] Phase 2A adds a shared engine `projectDecisionCapabilities()` legal-action enumerator.
+- [x] Phase 2A tests prove advertised options are accepted by the reducer for play/draw, Wild color, Truth completion-only, and Duel target/response/vote flows.
+- [x] Phase 2A tests prove unresolved special families are not advertised as playable bot options.
+- [ ] move API bot decision selection out of `apps/api/src/game-service.ts` into the shared policy module.
+- [ ] wire API bot advancement to choose from `projectDecisionCapabilities()` instead of hardcoded card-family branches.
 - [ ] no frontend-specific bot rule path is introduced.
