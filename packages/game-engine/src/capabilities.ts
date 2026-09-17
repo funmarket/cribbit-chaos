@@ -197,11 +197,11 @@ function socialCapabilities(state: GameState, playerId: string): PlayerDecisionC
     }
   }
 
-  if (['tag', 'hijack', 'taboo', 'dig_me'].includes(social.cardKind)) {
+  if (['truth', 'dare', 'tag', 'hijack', 'taboo', 'reverse_confession', 'dig_me'].includes(social.cardKind)) {
     if (!social.pendingTargetId && social.actorId === playerId && social.pendingTargetIds.length) {
       return { requiredAction: 'SELECT_TARGET', options: targetOptions(state, playerId, 'SELECT_SOCIAL_TARGET', social.pendingTargetIds) };
     }
-    if ((social.cardKind === 'taboo' || social.cardKind === 'dig_me') && social.pendingTargetId === playerId) {
+    if ((social.cardKind === 'truth' || social.cardKind === 'dare' || social.cardKind === 'taboo' || social.cardKind === 'reverse_confession' || social.cardKind === 'dig_me') && social.pendingTargetId === playerId) {
       if (!social.answerState.mode) return { requiredAction: 'SELECT_ANSWER_MODE', options: [answeredLiveModeOption(state, playerId)] };
       if (social.answerState.mode === 'ANSWERED_LIVE' && social.answerState.status !== 'SUBMITTED') return { requiredAction: 'SUBMIT_COMPLETION', options: [markAnsweredLiveOption(state, playerId)] };
     }

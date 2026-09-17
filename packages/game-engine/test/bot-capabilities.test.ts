@@ -90,21 +90,27 @@ test('wild color pending state advertises only legal color commands to the ownin
   assertAdvertisedOptionsAreAccepted(state, 'p1');
 });
 
-test('truth flow advertises completion-only answer commands instead of bot speech fabrication', () => {
+test('truth flow advertises target-first then target completion-only answer commands instead of bot speech fabrication', () => {
   let state = baseState('bot-capabilities-truth');
   state.players[0].hand = [makeCard('truth-1', 'truth', { symbol: 'truth' })];
   state = play(state, 'truth-1');
 
   let capabilities = projectDecisionCapabilities(state, 'p1');
-  assert.equal(capabilities.requiredAction, 'SELECT_ANSWER_MODE');
-  assert.deepEqual(capabilities.options.map(option => option.optionId), ['answer-mode:ANSWERED_LIVE']);
+  assert.equal(capabilities.requiredAction, 'SELECT_TARGET');
+  assert.deepEqual(capabilities.options.map(option => option.optionId).sort(), ['target:p2', 'target:p3']);
   assertAdvertisedOptionsAreAccepted(state, 'p1');
 
+  state = unwrap(applyCommand(state, capabilities.options.find(option => option.optionId === 'target:p2')!.command, { now: 1250, promptPool: promptDefinitions }));
+  capabilities = projectDecisionCapabilities(state, 'p2');
+  assert.equal(capabilities.requiredAction, 'SELECT_ANSWER_MODE');
+  assert.deepEqual(capabilities.options.map(option => option.optionId), ['answer-mode:ANSWERED_LIVE']);
+  assertAdvertisedOptionsAreAccepted(state, 'p2');
+
   state = unwrap(applyCommand(state, capabilities.options[0].command, { now: 1300, promptPool: promptDefinitions }));
-  capabilities = projectDecisionCapabilities(state, 'p1');
+  capabilities = projectDecisionCapabilities(state, 'p2');
   assert.equal(capabilities.requiredAction, 'SUBMIT_COMPLETION');
   assert.deepEqual(capabilities.options.map(option => option.command.type), ['MARK_ANSWERED_LIVE']);
-  assertAdvertisedOptionsAreAccepted(state, 'p1');
+  assertAdvertisedOptionsAreAccepted(state, 'p2');
 });
 
 test('duel flow advertises target, participant completion, and eligible voter commands', () => {

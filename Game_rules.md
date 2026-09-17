@@ -1,16 +1,24 @@
 # Canonical rule provenance and IDs
 
-P0 documentary annotation only. The supplied rule wording below is preserved verbatim, including all LOCKED and UNRESOLVED distinctions. IDs identify source clauses; assigning an ID never approves an unresolved recommendation, example, or future rule.
+P0 canonical gameplay specification with permanent rule IDs.
 
-Authority: explicit approved owner decisions, then this supplied canonical specification. The Foundation Report and existing runtimes are not rule authorities. No gameplay wording was changed. The source snapshot remains external to the old repository.
+Authority: explicit approved owner decisions, then this canonical specification. The Foundation Report, current runtime behavior, legacy registry strings, card art, and outdated documents are not rule authorities.
 
-Source: `021a30d8-bad8-40d0-9289-26e765ba2e85.md`, SHA-256: **2fdbe99c64b6c4a910ea57c1887b0d2db9327d616feafe476bf0a41073f235c0**.
+Original source snapshot: `021a30d8-bad8-40d0-9289-26e765ba2e85.md`, SHA-256: **2fdbe99c64b6c4a910ea57c1887b0d2db9327d616feafe476bf0a41073f235c0**.
 
-IDs are permanent once assigned: never regenerate/resequence them after an edit. Add new IDs for approved additions, retain retired IDs with supersession records, and keep exact source/version provenance. Tests cite clause IDs plus applicable approved decision IDs; not foundation prose. Mixed sections retain unresolved clauses explicitly.
+This revision incorporates later owner-approved gameplay decisions. Permanent IDs are never regenerated or resequenced. When an older clause is superseded, its ID remains recorded in the supersession register and executable tests must cite the active replacement rule ID.
 
-A CI traceability gate must require rule IDs for every claimed LOCKED behavior/test, resolve IDs against the register, reject missing/retired/unresolved-only references for executable assertions, and require an explicit decision for changed wording. Examples are not independent rule authority.
+A CI traceability gate must require rule IDs for every claimed LOCKED behavior/test, resolve IDs against the active register, reject missing/retired/unresolved-only references for executable assertions, and require an explicit owner decision for changed wording. Examples are not independent rule authority.
 
-<!-- BEGIN VERBATIM SOURCE WITH ID ANNOTATIONS -->
+## Supersession register — owner-approved later decisions
+
+- `RULE-PROMPTS-003` Truth ordering is superseded in part by `RULE-TRUTH-TARGET-001` through `RULE-TRUTH-TARGET-006`.
+- `RULE-TRUTH-002` is superseded by `RULE-TRUTH-TARGET-001` through `RULE-TRUTH-TARGET-006`.
+- `RULE-TAG-002` through `RULE-TAG-012` are superseded by `RULE-TAG-DRAW-001` through `RULE-TAG-DRAW-010`.
+- `RULE-REVERSE-CONFESSION-002` and `RULE-REVERSE-CONFESSION-003` are superseded by `RULE-REVERSE-CONFESSION-TARGET-001` through `RULE-REVERSE-CONFESSION-TARGET-006`.
+- `RULE-TRUTH-OR-CHAOS-003` through `RULE-TRUTH-OR-CHAOS-011` remain active but are clarified by `RULE-TRUTH-OR-CHAOS-CONSENSUS-001` through `RULE-TRUTH-OR-CHAOS-CONSENSUS-004`: matching answers are the success condition; no external answer key is required.
+
+<!-- BEGIN CANONICAL SOURCE WITH ID ANNOTATIONS -->
 # Cribbit CHAOS — GameRules.md
 
 > **Canonical local rule snapshot**
@@ -389,12 +397,23 @@ Prompt-driven families reuse shared prompt infrastructure, but their ordering is
 <!-- RULE-PROMPTS-002 | supplied source lines 314-314 -->
 Current locked ordering:
 
-<!-- RULE-PROMPTS-003 | supplied source lines 316-340 -->
+<!-- RULE-PROMPTS-003 | RETIRED IN PART: Truth ordering superseded; Dare/Paranoia/Duel ordering retained -->
+
+<!-- RULE-TRUTH-TARGET-001 | owner-approved superseding decision -->
+Truth is target-first and is not self-targeted.
+
+<!-- RULE-TRUTH-TARGET-002 | owner-approved superseding decision -->
+The Truth actor chooses one other eligible player before prompt-source selection.
+
+<!-- RULE-TRUTH-TARGET-003 | owner-approved superseding decision -->
+Canonical prompt ordering:
+
 ```text
 TRUTH:
-prompt source
-→ prompt
-→ answer
+target
+→ prompt source
+→ Truth question
+→ target response
 
 DARE:
 target
@@ -454,23 +473,43 @@ The physical social card represents a mechanic/family; gameplay must not depend 
 
 ---
 
-# 14. Truth — LOCKED
+# 14. Truth — LOCKED TARGET-FIRST RULE
 
 <!-- RULE-TRUTH-001 | supplied source lines 372-372 -->
 Canonical flow:
 
-<!-- RULE-TRUTH-002 | supplied source lines 374-384 -->
+<!-- RULE-TRUTH-002 | RETIRED: superseded by RULE-TRUTH-TARGET-001..006 -->
+
+<!-- RULE-TRUTH-TARGET-004 | owner-approved superseding decision -->
+The player who plays or auto-triggers Truth chooses **one other eligible player**.
+
+<!-- RULE-TRUTH-TARGET-005 | owner-approved superseding decision -->
+Canonical flow:
+
 ```text
-Play / auto-trigger TRUTH
+Player A plays / draws TRUTH
+→ A chooses another eligible Player B
 → choose Manual or Roulette
-→ establish one Truth question
-→ affected player answers
+→ establish one Truth question for B
+→ B answers
    OR
-   chooses Pass / Not for Me
-→ resolve penalties/forced interactions
+   B chooses Pass / Not for Me
+→ resolve penalties / forced interactions
 → Truth resolves
 → win check
 ```
+
+<!-- RULE-TRUTH-TARGET-006 | owner-approved superseding decision -->
+Rules:
+
+- actor and target are different identities;
+- actor chooses the Truth target;
+- target selection happens before prompt establishment;
+- Manual Truth is authored by the Truth actor for the selected target;
+- Roulette Truth selects an eligible Truth question for the selected target;
+- selected target owns answer, Pass and relevant safety controls;
+- bots use the same target-selection rule;
+- runtime must never silently set `target = actor`.
 
 <!-- RULE-TRUTH-003 | supplied source lines 386-386 -->
 Supported answer modes may include:
@@ -483,12 +522,12 @@ Supported answer modes may include:
 
 ## Truth refusal
 
-<!-- RULE-TRUTH-005 | supplied source lines 395-395 -->
-If the affected Truth player chooses Pass / Not for Me:
+<!-- RULE-TRUTH-005 | active with target-first clarification -->
+If selected Truth target B chooses Pass / Not for Me:
 
-<!-- RULE-TRUTH-006 | supplied source lines 397-402 -->
+<!-- RULE-TRUTH-006 | active with target-first clarification -->
 ```text
-affected player draws exactly 2 real cards
+B draws exactly 2 real cards
 → process forced-on-draw interactions FIFO
 → Truth resolves
 → win check
@@ -497,8 +536,8 @@ affected player draws exactly 2 real cards
 <!-- RULE-TRUTH-007 | supplied source lines 404-404 -->
 The Draw 2 occurs before the win check.
 
-<!-- RULE-TRUTH-008 | supplied source lines 406-406 -->
-A player cannot win by playing their final Truth and then refusing the Truth.
+<!-- RULE-TRUTH-008 | clarified under target-first Truth -->
+The actor does not take the selected target's refusal penalty. A zero-card victory cannot be confirmed while the Truth interaction, refusal penalty, or forced-on-draw queue remains unresolved.
 
 ---
 
@@ -887,64 +926,64 @@ Reverse, Skip, reconnect, bots, replay and future Hijacks use the new order.
 
 ---
 
-# 22. TAG / TAG ALONG — LOCKED CORE
+# 22. TAG / TAG ALONG — LOCKED
 
 <!-- RULE-TAG-001 | supplied source lines 728-728 -->
 TAG does **not** permanently move anyone.
 
-<!-- RULE-TAG-002 | supplied source lines 730-730 -->
-> **Choose another player. That player tags along on your current turn and receives one bonus Play-or-Draw action. The target still keeps their own regular scheduled turn.**
+<!-- RULE-TAG-002 | RETIRED: old bonus Play-or-Draw model superseded by RULE-TAG-DRAW-001..010 -->
+<!-- RULE-TAG-003 | RETIRED: old bonus Play-or-Draw model superseded by RULE-TAG-DRAW-001..010 -->
+<!-- RULE-TAG-004 | RETIRED: old bonus Play-or-Draw model superseded by RULE-TAG-DRAW-001..010 -->
+<!-- RULE-TAG-005 | RETIRED: old example superseded -->
+<!-- RULE-TAG-006 | RETIRED: old example superseded -->
+<!-- RULE-TAG-007 | RETIRED: target no longer receives a bonus Play-or-Draw action -->
+<!-- RULE-TAG-008 | RETIRED: target no longer receives a bonus Play-or-Draw action -->
+<!-- RULE-TAG-009 | RETIRED: superseded by TAG draw-along rule -->
+<!-- RULE-TAG-010 | RETIRED: superseded by TAG draw-along rule -->
+<!-- RULE-TAG-011 | RETIRED: superseded by TAG draw-along rule -->
+<!-- RULE-TAG-012 | RETIRED: nested bonus-action question no longer applies -->
 
-<!-- RULE-TAG-003 | supplied source lines 732-732 -->
+<!-- RULE-TAG-DRAW-001 | owner-approved superseding decision -->
+TAG is target-first. The actor chooses **one other eligible player** to tag along.
+
+<!-- RULE-TAG-DRAW-002 | owner-approved superseding decision -->
+The tagged player does **not** receive a bonus Play-or-Draw action and does not throw/play a card as part of TAG.
+
+<!-- RULE-TAG-DRAW-003 | owner-approved superseding decision -->
 Canonical flow:
 
-<!-- RULE-TAG-004 | supplied source lines 734-743 -->
 ```text
 Player A plays / auto-triggers TAG
-→ A chooses Player B
-→ B becomes TAGGED ALONG
-→ B immediately receives one bonus Play-or-Draw action
-→ resolve that bonus action and any forced interactions completely
+→ A chooses another eligible Player B
+→ B becomes TAGGED ALONG for A's current turn/effect
+→ when A performs the relevant real draw, B also draws exactly 1 extra real card
+→ B does not play a card as part of this TAG draw
+→ resolve B's forced-on-draw interaction, if any
 → TAG resolves
 → normal rotation continues
 → B still receives B's regular scheduled turn later
 ```
 
-<!-- RULE-TAG-005 | supplied source lines 745-745 -->
-Example:
+<!-- RULE-TAG-DRAW-004 | owner-approved superseding decision -->
+The tagged player's extra card is a **real physical draw**, not a direct grant or transfer.
 
-<!-- RULE-TAG-006 | supplied source lines 747-758 -->
-```text
-Normal order:
-Anna → Ben → Carla → Diego
+<!-- RULE-TAG-DRAW-005 | owner-approved superseding decision -->
+Therefore any forced-on-draw family drawn by the tagged player enters the normal authoritative forced-interaction queue.
 
-Anna TAGS Carla
+<!-- RULE-TAG-DRAW-006 | owner-approved superseding decision -->
+TAG does not consume the tagged player's normal scheduled turn.
 
-Anna plays TAG
-→ Carla immediately gets one bonus Play-or-Draw action
-→ Ben later takes normal turn
-→ Carla still receives Carla's normal turn
-→ Diego
-```
+<!-- RULE-TAG-DRAW-007 | owner-approved superseding decision -->
+TAG does not permanently change authoritative turn order.
 
-<!-- RULE-TAG-007 | supplied source lines 760-760 -->
-The target may therefore act twice in the same rotation:
+<!-- RULE-TAG-DRAW-008 | owner-approved superseding decision -->
+TAG does not automatically force Draw 2; the tagged player draws exactly the one additional card required by TAG.
 
-<!-- RULE-TAG-008 | supplied source lines 762-763 -->
-1. TAG bonus action;
-2. normal scheduled turn.
+<!-- RULE-TAG-DRAW-009 | owner-approved superseding decision -->
+The TAG target and TAG actor are distinct identities.
 
-<!-- RULE-TAG-009 | supplied source lines 765-765 -->
-If the target chooses Draw during the bonus action, that is a normal physical draw and forced-on-draw rules apply.
-
-<!-- RULE-TAG-010 | supplied source lines 767-767 -->
-TAG does not automatically force a Draw 2.
-
-<!-- RULE-TAG-011 | supplied source lines 769-769 -->
-TAG does not consume the target's normal turn.
-
-<!-- RULE-TAG-012 | supplied source lines 771-771 -->
-**UNRESOLVED:** whether a TAG bonus action may play another TAG and create a nested TAG chain has not yet been explicitly locked.
+<!-- RULE-TAG-DRAW-010 | owner-approved superseding decision -->
+Implementation must not model TAG as a temporary current-player takeover, bonus play action, or opportunity for the target to throw a card.
 
 ---
 
@@ -985,6 +1024,19 @@ Good formats include:
 
 <!-- RULE-TRUTH-OR-CHAOS-009 | supplied source lines 802-802 -->
 Free-text equivalence should not be used to decide whether answers match.
+
+<!-- RULE-TRUTH-OR-CHAOS-CONSENSUS-001 | owner-approved clarification -->
+Truth or Chaos is a **consensus-match challenge**. The success condition is that all affected players give the same comparable answer.
+
+<!-- RULE-TRUTH-OR-CHAOS-CONSENSUS-002 | owner-approved clarification -->
+For this card, "everyone gives the same answer" is the game's definition of the group being correct. No separate external/canonical answer key is required.
+
+<!-- RULE-TRUTH-OR-CHAOS-CONSENSUS-003 | owner-approved clarification -->
+If all affected answers match, the Truth outcome succeeds and there is no group punishment.
+
+<!-- RULE-TRUTH-OR-CHAOS-CONSENSUS-004 | owner-approved clarification -->
+If any affected answer differs, the Chaos outcome applies and the instigator initiates one collective group Dare/group punishment.
+
 
 ## Matching result
 
@@ -1423,23 +1475,43 @@ Play / auto-trigger DIG ME
 
 ---
 
-# 36. Reverse Confession — LOCKED CORE / RESOLUTION UNRESOLVED
+# 36. Reverse Confession — LOCKED TARGET-FIRST CORE / RESOLUTION UNRESOLVED
 
 <!-- RULE-REVERSE-CONFESSION-001 | supplied source lines 1151-1151 -->
 Core card identity:
 
-<!-- RULE-REVERSE-CONFESSION-002 | supplied source lines 1153-1153 -->
-> **Confess something about yourself. It may be real or made up. Do not say which one it is.**
+<!-- RULE-REVERSE-CONFESSION-002 | RETIRED: old self-confession identity superseded -->
+<!-- RULE-REVERSE-CONFESSION-003 | RETIRED: old self-confession flow superseded -->
 
-<!-- RULE-REVERSE-CONFESSION-003 | supplied source lines 1155-1159 -->
+<!-- RULE-REVERSE-CONFESSION-TARGET-001 | owner-approved superseding decision -->
+Reverse Confession is target-first and is not self-targeted.
+
+<!-- RULE-REVERSE-CONFESSION-TARGET-002 | owner-approved superseding decision -->
+The player who plays or auto-triggers Reverse Confession chooses **one other eligible player**.
+
+<!-- RULE-REVERSE-CONFESSION-TARGET-003 | owner-approved superseding decision -->
+Canonical flow:
+
 ```text
-Play / auto-trigger REVERSE CONFESSION
-→ player gives one confession
-→ player does NOT reveal whether it is true or fabricated
+Player A plays / draws REVERSE CONFESSION
+→ A chooses another eligible Player B
+→ B gives one confession ABOUT B
+→ B may make the confession real or fabricated
+→ B does NOT reveal whether it is true or fabricated
+→ resolve the approved Reverse Confession completion path
 ```
 
+<!-- RULE-REVERSE-CONFESSION-TARGET-004 | owner-approved superseding decision -->
+The confession subject is the **chosen target**, not the card actor/drawer.
+
+<!-- RULE-REVERSE-CONFESSION-TARGET-005 | owner-approved superseding decision -->
+Actor and target are different identities. Runtime must never silently convert Reverse Confession into actor-self-confession.
+
+<!-- RULE-REVERSE-CONFESSION-TARGET-006 | owner-approved superseding decision -->
+The target must not reveal whether the confession is real or fabricated.
+
 <!-- RULE-REVERSE-CONFESSION-004 | supplied source lines 1161-1161 -->
-The exact group-response/resolution mechanic is **UNRESOLVED**.
+The exact downstream group-response/resolution mechanic is **UNRESOLVED**.
 
 <!-- RULE-REVERSE-CONFESSION-005 | supplied source lines 1163-1163 -->
 Do not invent a truth/lie vote unless explicitly approved later.
@@ -1709,24 +1781,23 @@ No premature win while a required effect remains unresolved.
 <!-- RULE-UNRESOLVED-001 | supplied source lines 1375-1375 -->
 These are intentionally unresolved and must not be guessed:
 
-<!-- RULE-UNRESOLVED-002 | supplied source lines 1377-1393 -->
+<!-- RULE-UNRESOLVED-002 | updated after owner-approved Truth/TAG/Reverse Confession decisions -->
 1. whether normal Draw 2 also removes the penalized player's normal turn;
 2. Taboo timeout consequence;
 3. Hijack final-card/takeover win-boundary detail;
-4. TAG chaining/nested TAG actions;
-5. Truth or Chaos group-Dare refusal consequence;
-6. whether Truth or Chaos instigator also answers;
-7. Chaos effect-selection weighting;
-8. Blind Swap with fewer than 3 cards;
-9. whether Blind Swap "left" means permanent physical seat-left;
-10. Machiavelli Paranoia Spreads exact probability split;
-11. Ghost interaction with mandatory penalty draws;
-12. confirmation that the old Ghost target Draw 2 + Skip attack is removed;
-13. DIG ME Pass/refusal consequence;
-14. Reverse Confession final group-response mechanic;
-15. whether Nope also cancels Truth or Chaos;
-16. additional Chaos effects beyond Blind Swap and Reverse Order;
-17. final CHAOS Pulse tuning constants.
+4. Truth or Chaos group-Dare refusal consequence;
+5. whether Truth or Chaos instigator also answers;
+6. Chaos effect-selection weighting;
+7. Blind Swap with fewer than 3 cards;
+8. whether Blind Swap "left" means permanent physical seat-left;
+9. Machiavelli Paranoia Spreads exact probability split;
+10. Ghost interaction with mandatory penalty draws;
+11. confirmation that the old Ghost target Draw 2 + Skip attack is removed;
+12. DIG ME Pass/refusal consequence;
+13. Reverse Confession final downstream group-response mechanic;
+14. whether Nope also cancels Truth or Chaos;
+15. additional Chaos effects beyond Blind Swap and Reverse Order;
+16. final CHAOS Pulse tuning constants.
 
 ---
 
@@ -1765,7 +1836,7 @@ If implementation conflicts with this file, implementation is wrong until the ru
 
 ---
 
-# 50. Local Snapshot Warning
+# 50. Canonical Rule Change Protocol
 
 <!-- RULE-RULE-CHANGES-001 | supplied source lines 1428-1428 -->
 This file is intended to be kept locally as a stable gameplay-design snapshot.

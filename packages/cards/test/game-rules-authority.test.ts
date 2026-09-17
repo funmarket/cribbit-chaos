@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-const EXPECTED_CANONICAL_RULES_SHA256 = '1e2c032aa49cd868a9784fb2e84ea95de8f5719a67d2c1d1699768c234a6d041';
+const EXPECTED_CANONICAL_RULES_SHA256 = 'ed909b9228ff3f2c5a74de0bac8ec5cd5d6554212e477e29c8603e7941529b62';
 
 function readRepoFile(path: string): string {
   return readFileSync(join(process.cwd(), path), 'utf8');
@@ -15,8 +15,11 @@ test('Game_rules.md is the owner-approved annotated canonical rules snapshot', (
   const digest = createHash('sha256').update(rules.replace(/\r\n/g, '\n')).digest('hex');
 
   assert.equal(digest, EXPECTED_CANONICAL_RULES_SHA256);
-  assert.match(rules, /Authority: explicit approved owner decisions, then this supplied canonical specification\./);
+  assert.match(rules, /Authority: explicit approved owner decisions, then this canonical specification\./);
   assert.match(rules, /RULE-ACQUISITION-004/);
+  assert.match(rules, /RULE-TRUTH-TARGET-001/);
+  assert.match(rules, /RULE-TAG-DRAW-001/);
+  assert.match(rules, /RULE-REVERSE-CONFESSION-TARGET-001/);
   assert.match(rules, /RULE-BOTS-001/);
   assert.match(rules, /RULE-PROVENANCE-002/);
   assert.match(rules, /RULE-UNRESOLVED-002/);

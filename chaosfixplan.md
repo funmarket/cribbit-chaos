@@ -1354,3 +1354,38 @@ Proof:
 Score: `8.9/10`.
 
 Reason for score: the attached rule file is now the repo's single canonical rules document, and Web/Telegram adapters now ask the same shared engine capability projection for legal human/bot decisions instead of maintaining separate frontend rule controls. Score is not higher because Cloudflare readback still showed stale deployed bundles; next step is Cloudflare deployment/readback plus live click-through.
+
+### Phase 2D — corrected owner GameRules synchronization and stale-rule behavior cleanup
+
+User supplied `Downloads/GameRules_CORRECTED.md` as the only active game rules authority and requested implementation cleanup anywhere card behavior could remain stale.
+
+Change:
+
+- Replaced `Game_rules.md` with the corrected owner-approved canonical specification, including the supersession register and new active rule IDs for Truth target-first behavior, TAG draw-along behavior, Reverse Confession target-first behavior, and Truth or Chaos consensus clarification.
+- Updated `packages/cards/test/game-rules-authority.test.ts` to pin the corrected normalized rules SHA (`ed909b9228ff3f2c5a74de0bac8ec5cd5d6554212e477e29c8603e7941529b62`) and require corrected-rule markers.
+- Updated shared reducer behavior so Truth, Dare, and Reverse Confession select another eligible target before prompt/answer flow; the selected target, not the actor, owns completion/pass where applicable.
+- Updated TAG so the selected target draws exactly one real card and does not receive the retired bonus Play-or-Draw action.
+- Updated shared capability projection and prompt targeting so Web, Telegram, API bots, and tests derive these decisions from the same engine path.
+- Added `packages/game-engine/test/corrected-rules-behavior.test.ts` covering Truth target-first, Reverse Confession target-first, and TAG draw-along behavior.
+- Updated stale core/capability tests that still encoded the retired self-target/current-prompt and TAG bonus-action assumptions.
+
+Proof commands:
+
+```sh
+npm run typecheck
+npm test
+npm run build
+git diff --check
+```
+
+Proof:
+
+- `npm run typecheck`: pass.
+- Full `npm test`: `140 pass / 0 fail / 6 skipped`.
+- Full `npm run build`: Web, Telegram, and API builds pass.
+- `git diff --check`: pass.
+- Build produced new local bundles: Web `dist/assets/index-LFRIS5Pn.js`; Telegram `dist/assets/index-kEj17VmA.js`.
+
+Score: `9.0/10`.
+
+Reason for score: the corrected attached rules are now the repo rule authority and the most important superseded gameplay behaviors are enforced in shared engine/capability paths with regression coverage. Score is not higher until the commit is pushed, main CI passes, Cloudflare serves the new bundles, and live Web/Telegram click-through readback proves the deployed clients are no longer stale.
