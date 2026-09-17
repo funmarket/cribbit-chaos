@@ -96,21 +96,32 @@ The separate Railway project named `Cribbit` belongs to another product and must
 
 ## Canonical playable deck
 
-The current production target is exactly **112 playable cards**:
+The canonical physical deck is `CHAOS-133-V1`: exactly **133 playable physical card instances**.
 
-- 92 colored engine cards
-  - per color: 0 x1, 1–9 x2, Skip x1, Reverse x1, Draw x2
-- Wild x4
+- Number cards: 76 total
+  - per color: 0 x1 and 1–9 x2 across lime, orange, cyan, and purple
+- Skip x6
+- Reverse x6
+- Draw x6
+- Wild x3
 - Truth x3
 - Dare x3
 - Paranoia x3
 - Chaos x3
-- Duel x2
-- Nope x2
+- Duel x3
+- Nope x3
+- Tag x3
+- Truth or Chaos x3
+- Hijack x3
+- Taboo x3
+- Machiavelli x1
+- Ghost x1
+- Reverse Confession x3
+- Dig Me x1
 
 Pass, Rewind, Flag, Spice Dial, Speak, Type, Choose, and Answered Live are controls/systems, not hand-card inventory.
 
-`packages/game-engine` is the canonical gameplay/deck boundary. Client-local deck builders are transitional debt and must be removed as the migration completes.
+`packages/cards` owns the canonical physical card registry/assets. `packages/game-engine` imports that registry for the authoritative playable deck boundary. Client-local deck builders are transitional debt and must be removed as the migration completes.
 
 ## Shared packages
 
@@ -218,9 +229,9 @@ Update affected technical/operational docs at the same time. Remove resolved blo
 
 Phases 0–3 remain complete.
 
-The active mechanics/card migration is converting the shared engine to the canonical 112-card deck and converging Telegram on the Web card presentation before rules/buttons/audio polish.
+The active mechanics/card migration has `packages/cards` and `packages/game-engine` aligned on the canonical `CHAOS-133-V1` 133-card physical deck. The remaining work is to keep Web and Telegram on that shared deck/rule authority while removing legacy client-local deck seams.
 
-The shared deck builder now produces 112 cards. Typecheck passes, but current CI is not green because three stale assertions in the large legacy core-engine test still expect the previous 104-card core-only deck. Builds were skipped after that test failure. This must be repaired before the PNG asset package is deleted.
+Current deck authority is covered by `packages/cards/test/card-registry.test.ts`, `packages/cards/test/card-assets.test.ts`, `packages/game-engine/test/deck-composition.test.ts`, and `packages/cards/test/deck-docs-consistency.test.ts`.
 
 See `PLAN.md` and `docs/LIVING_STATUS.md` for the exact active task and verified status.
 

@@ -831,6 +831,50 @@ Phase 7 score: `8.7/10`.
 
 Reason for score: this slice proves the route/auth/session/player boundary fails closed before command mutation and registers the coverage in the repo test script. Score is not higher because it intentionally does not claim the full gameplay API is production-authoritative end-to-end; DB-backed valid-command runtime smoke remains a separate later slice.
 
+### Slice 8 — Phase 8 canonical deck/rule reconciliation
+
+- Status: implemented as a documentation/source-truth reconciliation and regression guard; no card runtime behavior changed in this slice.
+- Files updated:
+  - `README.md`
+  - `packages/cards/test/deck-docs-consistency.test.ts`
+  - `package.json`
+  - `chaosfixplan.md`
+
+Source evidence:
+
+- `packages/cards/src/cards.ts` exports `DECK_SPEC_ID = "CHAOS-133-V1"` and `CANONICAL_DECK_SIZE = 133`.
+- `packages/game-engine/src/deck.ts` imports the cards registry and exports the same deck spec/count into the engine boundary.
+- `packages/cards/test/card-registry.test.ts` verifies the registry exposes 133 unique physical card instances and exact family counts.
+- `packages/cards/test/card-assets.test.ts` verifies the asset manifest is bound to `CHAOS-133-V1` and has 133 playable entries.
+- `packages/game-engine/test/deck-composition.test.ts` verifies `buildCoreDeck()` is exactly `CHAOS-133-V1` with 133 cards and matching family counts.
+
+Regression coverage added:
+
+- `packages/cards/test/deck-docs-consistency.test.ts` guards project-control docs against preserving obsolete deck-count authority.
+- RED was observed before the README patch: the new test failed because `README.md` still named the obsolete 112-card deck authority.
+
+Verification after the README patch:
+
+```sh
+npx tsx --test packages/cards/test/deck-docs-consistency.test.ts
+npx tsx --test packages/cards/test/card-registry.test.ts packages/cards/test/card-assets.test.ts packages/game-engine/test/deck-composition.test.ts
+npm run typecheck
+git diff --check
+```
+
+Result: focused Phase 8 verification passed.
+
+- `packages/cards/test/deck-docs-consistency.test.ts`: `1 pass / 0 fail`.
+- `packages/cards/test/card-registry.test.ts`, `packages/cards/test/card-assets.test.ts`, `packages/game-engine/test/deck-composition.test.ts`: `10 pass / 0 fail`.
+- `npm run typecheck`: pass.
+- `git diff --check`: pass.
+
+Full local `npm run test` result after adding the docs consistency test: `117 pass / 1 fail`; the remaining local failure is the known `apps/api/test/web-password.test.ts` Node.js Argon2id runtime blocker, not introduced by Phase 8.
+
+Phase 8 score: `8.9/10`.
+
+Reason for score: the active project-control README now matches the canonical card registry, asset manifest, and game-engine deck tests, and a regression test prevents reintroducing obsolete 112/104-card authority into the living docs. Score is not higher because legacy client-local deck seams remain to be removed in later runtime convergence slices.
+
 ### Independent review — Phase 3/4
 
 - Status: passed.
