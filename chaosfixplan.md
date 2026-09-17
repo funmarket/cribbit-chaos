@@ -764,16 +764,14 @@ GitHub checks at exact-head readback for `955310ed4ebd5d95195ca024f05242eb82ac7b
 - `build-telegram`: pass.
 - `test`: pass.
 - `typecheck`: pass.
-- `Vercel Preview Comments`: pass.
-
 Deployment-status correction:
 
-- User corrected that the app is in Cloudflare, not Vercel.
-- Repository deployment docs confirm primary frontend hosts are Cloudflare Pages:
+- User corrected that the app is in Cloudflare.
+- Primary frontend hosts are Cloudflare Pages:
   - Web: `https://cribbit-chaos-web.pages.dev`
   - Telegram Mini App: `https://cribbit-chaos-telegram.pages.dev`
   - API: Railway
-- Vercel checks are secondary/fallback only per `docs/DEPLOYMENT.md`; do not treat Vercel failures as the authoritative app deployment blocker for this slice.
+- Non-Cloudflare deployment checks are outside this repair path and must not be chased for Cribbit unless the user explicitly requests that separate cleanup.
 
 Cloudflare readback:
 
@@ -819,4 +817,4 @@ Current interpretation:
 - Current public Cloudflare Pages endpoints respond `200` and do not expose the old `canonical-game-runtime` bootstrap in top-level HTML.
 - The Cloudflare Worker URL provided by the user is present in dashboard but currently has no enabled route/URL and returns `404`; it is not serving the app from that workers.dev URL right now.
 - No Cloudflare dashboard settings were mutated.
-- Do not chase Vercel in this repair flow unless the user explicitly asks for secondary/fallback deployment cleanup.
+- Do not chase non-Cloudflare deployment providers in this repair flow unless the user explicitly asks for separate cleanup.
