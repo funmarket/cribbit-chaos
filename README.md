@@ -37,8 +37,6 @@ Primary live endpoints:
 - Telegram: `https://cribbit-chaos-telegram.pages.dev`
 - API: `https://api-production-2556.up.railway.app`
 
-Vercel projects remain secondary/fallback deployments only. They are not the source of truth.
-
 The authoritative multiplayer state lives on the server/shared game boundary. Clients render UI and submit commands; they do not own card legality, effects, timers, prompt eligibility, or winner state.
 
 ## Repository structure
@@ -177,7 +175,7 @@ See:
 
 Client-safe public values include the Railway API/WS URLs. Server secrets stay Railway-only.
 
-Never put `DATABASE_URL`, Telegram bot/OIDC secrets, session credentials, or other server secrets in README files, Cloudflare Pages public variables, Vercel public variables, or Vite bundles.
+Never put `DATABASE_URL`, Telegram bot/OIDC secrets, session credentials, or other server secrets in README files, Cloudflare Pages public variables, or Vite bundles.
 
 ## Deployments
 
@@ -187,11 +185,6 @@ Primary:
 - Telegram: Cloudflare Pages
 - API: Railway
 - PostgreSQL: Railway
-
-Secondary/fallback:
-
-- Web: Vercel
-- Telegram: Vercel
 
 Operational notes live in:
 

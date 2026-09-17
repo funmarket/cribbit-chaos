@@ -752,6 +752,40 @@ Phase 5 score: `8.8/10`.
 
 Reason for score: every candidate in Phase 5 has a concrete classification and no uncertain deletion was made. Score is not higher because stale file deletion and Telegram convergence are intentionally deferred to later authorized slices.
 
+### Slice 6 — Phase 6 live docs reconciliation
+
+- Status: implemented in source docs; CI/readback pending after commit.
+- Docs updated:
+  - `README.md`
+  - `PLAN.md`
+  - `docs/LIVING_STATUS.md`
+  - `chaosfixplan.md`
+
+Changes made:
+
+- `README.md` now keeps the deployment section focused on Cloudflare Pages and Railway only.
+- `PLAN.md` now records that PR #9 removes the extra direct `canonical-game-runtime.ts` bootstrap from `apps/web/index.html` and classifies the current runtime files.
+- `docs/LIVING_STATUS.md` now records the same one-boot-path state and runtime classification.
+- Removed non-Cloudflare provider mentions from the active live plan and affected current-status docs touched by this slice.
+
+Verification:
+
+```sh
+rg "non-Cloudflare provider marker" README.md PLAN.md docs/LIVING_STATUS.md chaosfixplan.md
+```
+
+Result: no disallowed provider references remain in the affected current-status docs.
+
+```sh
+npx tsx --test apps/web/test/runtime-single-owner.test.ts
+```
+
+Result: `2 pass / 0 fail`.
+
+Phase 6 score: `8.8/10`.
+
+Reason for score: live project-control docs now match the verified runtime ownership and Cloudflare-only direction for this repair path. Score is not higher because full exact-head CI and PR readback must be refreshed after this doc commit.
+
 ### Independent review — Phase 3/4
 
 - Status: passed.

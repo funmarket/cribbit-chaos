@@ -176,7 +176,15 @@ Status: **BUILD VERIFIED — USER/BROWSER TRIAL PENDING**.
 
 ## Important compatibility boundary
 
-The current main Web gameplay board still boots under `runtimeMode: legacy-compatibility`.
+The current main Web gameplay board now has one boot path: `apps/web/src/main.ts` starts the shared UI and requests `runtimeMode: legacy-compatibility`.
+
+PR #9 removed the extra direct `canonical-game-runtime.ts` bootstrap from `apps/web/index.html`, so the Web shell no longer starts both the canonical browser runtime and the compatibility path at page load.
+
+Current runtime classification:
+
+- `apps/web/src/canonical-game-runtime.ts` is reference/dead for Web boot and must not be imported by `apps/web/index.html`.
+- `packages/legacy-runtime/src/runtime.ts` remains the active transitional board runtime.
+- `apps/web/src/live-entry.ts` and `apps/web/src/live-session.ts` remain active auth/live-room command bridges.
 
 That legacy runtime still contains its own old local deck/deal/draw implementation. Therefore:
 
