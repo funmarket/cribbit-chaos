@@ -23,7 +23,7 @@ Cloudflare Web --------\
 Cloudflare Telegram ---/
 ```
 
-`DATABASE_URL` is Railway-only and must never appear in Cloudflare Pages, Vercel public variables, or Vite client bundles.
+`DATABASE_URL` is Railway-only and must never appear in Cloudflare Pages public variables or Vite client bundles.
 
 ## Identity model
 

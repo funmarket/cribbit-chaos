@@ -44,4 +44,4 @@ For every implementation slice:
 
 If documentation and verified reality disagree, documentation must be corrected before starting another implementation slice.
 
-Primary current frontend staging is Cloudflare Pages; Railway owns API/PostgreSQL; GitHub is the source of truth. Vercel is secondary/fallback only.
+Current frontend staging is Cloudflare Pages; Railway owns API/PostgreSQL; GitHub is the source of truth.

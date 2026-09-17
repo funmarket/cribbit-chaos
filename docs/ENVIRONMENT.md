@@ -19,7 +19,7 @@ VITE_API_URL=https://api-production-2556.up.railway.app
 VITE_WS_URL=https://api-production-2556.up.railway.app
 ```
 
-These values may also exist on secondary/fallback Vercel projects, but Vercel is not the primary current staging host.
+These values belong to the current Cloudflare Pages frontend staging hosts.
 
 ## Railway/server variables
 
@@ -56,7 +56,7 @@ Railway-only secrets:
 - `TELEGRAM_LOGIN_REDIRECT_URI`
 - server session/JWT secrets
 
-Never place these in Cloudflare Pages, Vercel public variables, or Vite client bundles.
+Never place these in Cloudflare Pages public variables or Vite client bundles.
 
 Never commit `.env` or real credentials.
 

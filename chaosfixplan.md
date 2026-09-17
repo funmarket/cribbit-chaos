@@ -966,3 +966,35 @@ Current interpretation:
 - The Cloudflare Worker URL provided by the user is present in dashboard but currently has no enabled route/URL and returns `404`; it is not serving the app from that workers.dev URL right now.
 - No Cloudflare dashboard settings were mutated.
 - Do not chase non-Cloudflare deployment providers in this repair flow unless the user explicitly asks for separate cleanup.
+
+### PR #8 — integration checkpoint cleanup
+
+PR #8 remains the integration PR from `feature/visual-integration-checkpoint` into `main`; it now includes merged PR #9 through merge commit `002df9bea60510c2785685b04b561eadf2380093`.
+
+Cleanup slice started after user asked to resume work on PR #8:
+
+- removed obsolete frontend-provider config files from `apps/web` and `apps/telegram`;
+- removed stale non-Cloudflare-provider references from living project-control docs;
+- kept current hosting authority as GitHub source -> Cloudflare Pages clients -> Railway API -> Railway PostgreSQL;
+- did not change gameplay rules, backend contracts, Cloudflare dashboard settings, Railway settings, or the protected local project.
+
+Proof commands:
+
+```sh
+python -m json.tool docs/cleanup-manifest.json >/dev/null
+npx tsx --test packages/cards/test/deck-docs-consistency.test.ts
+npm run typecheck
+git diff --check
+```
+
+Proof:
+
+- JSON cleanup manifest parses.
+- `packages/cards/test/deck-docs-consistency.test.ts`: `1 pass / 0 fail`.
+- `npm run typecheck`: pass.
+- `git diff --check`: pass.
+- Visible tracked-source search for obsolete provider names: zero matches.
+
+Score: `8.9/10`.
+
+Reason for score: PR #8 now has a cleaner source/control-document path toward the real Cloudflare/Railway app and removes stale provider config from the branch, with docs consistency and typecheck passing locally. Score is not higher until PR #8 body is updated, exact-head CI passes, and final PR readback confirms the remaining blockers.

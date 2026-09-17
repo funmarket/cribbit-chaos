@@ -60,7 +60,7 @@ Both primary clients are configured with the shared Railway API/WS URL:
 
 Railway accepts the exact two Cloudflare production origins.
 
-Vercel historical deployments remain useful as old evidence/fallbacks only. They are not the current Phase 3.5 staging source and do not block progress.
+Historical non-Cloudflare deployments are not the current Phase 3.5 staging source and do not block progress.
 
 ## Telegram launch status
 

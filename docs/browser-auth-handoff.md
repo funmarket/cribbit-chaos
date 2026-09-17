@@ -24,7 +24,7 @@ The handoff code must be short-lived, single-use, bound to the login flow, and r
 
 Until this flow is implemented and live-verified, Web Telegram login remains incomplete and must fail closed.
 
-Vercel may remain a secondary/fallback frontend, but it is not the primary browser-auth return surface for current staging.
+Cloudflare Pages is the browser-auth return surface for current staging.
 
 ## Railway boundary
 

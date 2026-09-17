@@ -148,7 +148,7 @@ Web and Telegram may use different responsive layout composition, but game seman
 
 Primary product architecture is GitHub source -> client deployments -> Railway API -> Railway PostgreSQL.
 
-Vercel deployments are secondary/fallback only and must not become an alternate source of truth.
+Cloudflare Pages is the current frontend deployment target and must not become an alternate source of truth; GitHub source remains authoritative.
 
 Cribbit CHAOS Railway resources belong only to the dedicated Cribbit CHAOS project. Never use or mutate unrelated Railway projects.
 

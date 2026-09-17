@@ -19,7 +19,7 @@ Primary frontend URLs:
 - Web: `https://cribbit-chaos-web.pages.dev`
 - Telegram: `https://cribbit-chaos-telegram.pages.dev`
 
-Vercel remains secondary/fallback only.
+Cloudflare Pages is the only current frontend staging target.
 
 ## Dedicated Railway foundation
 
@@ -133,6 +133,6 @@ Still open:
 - same Telegram account resolving to the same Cribbit UUID from both clients
 - shared profile update/read proof across both clients
 
-Vercel Git deployment freshness is not a Phase 3.5 blocker while the current-head Cloudflare staging path remains healthy.
+Obsolete preview-provider deployment freshness is not a Phase 3.5 blocker while the current-head Cloudflare staging path remains healthy.
 
 After each auth/staging implementation slice, synchronize this file, `PLAN.md`, relevant deployment/environment/database docs, and the active PR description.

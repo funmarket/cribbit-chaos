@@ -45,16 +45,11 @@ Primary hosting:
 - API: Railway
 - PostgreSQL: Railway
 
-Secondary/fallback hosting:
-
-- Web: Vercel
-- Telegram Mini App: Vercel
-
 Source control and deployable-source authority:
 
 - GitHub
 
-Vercel, Cloudflare, and Railway runtime configuration must not become an alternate source of application code.
+Cloudflare and Railway runtime configuration must not become an alternate source of application code.
 
 ## R3 — Multiplayer authority
 
@@ -187,7 +182,7 @@ Duplicate or retried gameplay commands must not apply game effects twice.
 
 Never expose server secrets in Vite.
 
-Never put `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, Telegram OIDC secrets, session credentials, or JWT/session secrets in Cloudflare Pages or Vercel public client variables.
+Never put `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, Telegram OIDC secrets, session credentials, or JWT/session secrets in Cloudflare Pages public client variables.
 
 Validate incoming commands server-side.
 

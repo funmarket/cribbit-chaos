@@ -19,7 +19,6 @@ No entry below is marked `UNKNOWN`.
 | `webappchaos/` | `OBSOLETE` | None | No | No | No | No | No | No | No | Delete | Empty legacy project shell with no production use. |
 | `telegramchaos/` | `OBSOLETE` | None | No | No | No | No | No | No | No | Delete | Empty legacy project shell with no production use. |
 | `reference/legacy-migration/` | `OBSOLETE` | `reference/approved-v4-template.html` | No | No | No | No | No | No | No | Delete | Empty placeholder folder after the useful reference asset was canonicalized elsewhere. |
-| `docs/VERCEL_SETUP.md` | `DUPLICATE_REFERENCE` | `docs/DEPLOYMENT.md`, `README.md` | No | No | No | No | No | Yes | No | Delete | Its useful deployment notes were folded into the canonical deployment documentation. |
 | `docs/RAILWAY_SETUP.md` | `DUPLICATE_REFERENCE` | `docs/DEPLOYMENT.md`, `docs/TESTING.md`, `README.md` | No | No | No | No | No | Yes | No | Delete | Its useful deployment notes were folded into the canonical deployment documentation. |
 | `docs/TELEGRAM_SETUP.md` | `DUPLICATE_REFERENCE` | `docs/TELEGRAM.md`, `README.md` | No | No | No | No | No | Yes | No | Delete | Its useful Telegram security notes were folded into the canonical Telegram documentation. |
 | `docs/GITHUB_SETUP.md` | `OBSOLETE` | `README.md`, `PLAN.md` | No | No | No | No | No | Yes | No | Delete | GitHub workflow guidance is now captured in the root governance docs and branch/PR workflow. |

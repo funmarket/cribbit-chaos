@@ -31,7 +31,7 @@ Backend:
 - Railway project: `Cribbit Chaos` (`e2b0a674-43d9-4aac-ad8d-3e72b3ff486f`)
 - Railway PostgreSQL service: `951b9c62-7cd3-404b-b9f0-c93e2c2a51d7`
 
-Vercel Web and Telegram projects are secondary/fallback deployments only.
+There is no secondary frontend source of truth for the active Cribbit CHAOS staging app; Cloudflare Pages is the only current frontend hosting target documented for this project.
 
 The separate Railway project `Cribbit` (`1440dc2c-e7fd-4bee-8ef7-57e663b8c735`) belongs to another product and must never be used for Cribbit CHAOS.
 

@@ -11,7 +11,7 @@ GitHub is the canonical source of truth for deployable source.
 - API: Railway — `https://api-production-2556.up.railway.app`
 - PostgreSQL: Railway, shared by both clients through the API
 
-Vercel Web and Telegram projects remain secondary/fallback deployments only. They do not block current staging progress and must not become an alternate application source.
+Cloudflare Pages is the only current frontend staging target. Obsolete preview-provider statuses do not block current staging progress and must not become an alternate application source.
 
 ## Canonical flow
 
@@ -61,7 +61,7 @@ Cloudflare monorepo build configuration:
 
 ## Current staging rule
 
-Cloudflare Pages is the active primary frontend staging path. Vercel may be synchronized later as a fallback, but Vercel status must not block Phase 3.5 while current-head Cloudflare deployments are healthy.
+Cloudflare Pages is the active frontend staging path. Obsolete preview-provider status must not block Phase 3.5 while current-head Cloudflare deployments are healthy.
 
 After every deployment-related implementation slice, update this file, `PLAN.md`, and the active PR description if deployment state or blockers changed.
 

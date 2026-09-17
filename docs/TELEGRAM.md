@@ -8,7 +8,7 @@ The Telegram Mini App primary live client is hosted on Cloudflare Pages:
 
 It shares the same Railway API, realtime channel, PostgreSQL database, internal account model, design system, and shared packages as the Web client.
 
-Vercel remains a secondary/fallback frontend host only.
+Cloudflare Pages is the only current Telegram Mini App frontend host documented for staging.
 
 ## Security boundary
 

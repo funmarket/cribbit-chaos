@@ -6,7 +6,7 @@ C3 ingested the supplied canonical card package into `packages/cards` and genera
 
 No renderer replacement happened in C3. Telegram and Web still need C4/C5 to actually display these images.
 
-No backend, database, game-rule, Railway, Vercel, Cloudflare, auth, or Phase 4 multiplayer work happened in C3.
+No backend, database, game-rule, Railway, Cloudflare, auth, or Phase 4 multiplayer work happened in C3.
 
 ## Source package
 

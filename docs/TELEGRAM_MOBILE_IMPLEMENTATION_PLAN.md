@@ -84,7 +84,7 @@ Do not implement during T1–T6:
 - Phase 4 authoritative multiplayer
 - alternate Railway project/database
 - Cloudflare backend
-- Vercel migration
+- alternate frontend-provider migration
 
 ## Database/API boundary
 
