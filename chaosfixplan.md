@@ -1392,3 +1392,41 @@ Proof:
 Score: `9.0/10`.
 
 Reason for score: the corrected attached rules are now the repo rule authority and the most important superseded gameplay behaviors are enforced in shared engine/capability paths with regression coverage, pushed source, and exact-head main CI proof. Score is not higher because Cloudflare still served stale Web/Telegram bundles after the push, so deployed-client click-through/readback remains blocked until Pages refreshes.
+
+### Phase 2E — Railway production target correction and corrected-rules deploy
+
+User identified that Cribbit CHAOS production uses Railway project `e2b0a674-43d9-4aac-ad8d-3e72b3ff486f`, not the previously checked Cloudflare Pages frontend URLs.
+
+Diagnosis:
+
+- Railway project `Cribbit Chaos` contains service `api` (`c255714c-95a2-4194-8bb0-e1846a5e4cf1`) and `Postgres`.
+- The live API public domain is `https://api-production-2556.up.railway.app`.
+- Before correction, the Railway `api` service was connected to branch `feature/visual-integration-checkpoint` and its latest successful deployment was commit `002df9bea60510c2785685b04b561eadf2380093`, which predates the corrected GameRules work.
+- Later deployments from that old branch were skipped because watched files did not change.
+
+Change:
+
+- Updated the Railway `api` service source to repo `funmarket/cribbit-chaos`, branch `main`.
+- Redeployed the Railway `api` service from source.
+- Updated `docs/DEPLOYMENT.md` so Railway project `Cribbit Chaos` is the active production deployment authority for the backend/database path, replacing the stale Cloudflare-primary wording.
+
+Proof commands:
+
+```sh
+railway status --project e2b0a674-43d9-4aac-ad8d-3e72b3ff486f --environment production --json
+railway service list --project e2b0a674-43d9-4aac-ad8d-3e72b3ff486f --environment production --json
+railway service source connect --project e2b0a674-43d9-4aac-ad8d-3e72b3ff486f --environment production --service api --repo funmarket/cribbit-chaos --branch main --json
+railway redeploy --project e2b0a674-43d9-4aac-ad8d-3e72b3ff486f --environment production --service api --from-source --yes --json
+railway deployment list --project e2b0a674-43d9-4aac-ad8d-3e72b3ff486f --environment production --service api --limit 3 --json
+curl -i -sS https://api-production-2556.up.railway.app/health
+```
+
+Proof:
+
+- Railway `api` service source is now `funmarket/cribbit-chaos`, branch `main`.
+- Railway deployment `23406abb-8b97-4ea8-8a1b-cca3ff2c6d13` succeeded from branch `main` at commit `c1cfbe3e8177208054f41b7b2fc353ce60001868`.
+- `/health` readback returned `HTTP 200` with `{"ok":true,"service":"cribbit-chaos-api","database":true,...}`.
+
+Score: `9.1/10`.
+
+Reason for score: the actual Railway API production service now points at `main`, deployed the corrected rules commit successfully, and health/database readback passed. Score is not higher until the real Web/Telegram client entrypoints that call this Railway API are identified and click-through gameplay verifies the corrected rules end-to-end.
