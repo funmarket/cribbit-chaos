@@ -2,6 +2,7 @@
 // Phase-1 compatibility runtime extracted verbatim from the approved V4 prototype.
 // Migrate command/state logic into packages/game-engine incrementally without changing UX behavior.
 import { announce, toast } from './feedback.ts';
+import { createGame, drawCards } from '@cribbit/game-engine';
 (() => {
     'use strict';
 
@@ -508,7 +509,7 @@ import { announce, toast } from './feedback.ts';
     }
 
     function auditInteractiveControls() {
-      const knownActions = new Set(['toggle-left-rail','toggle-right-rail','toggle-focus-mode','toggle-fullscreen','close-rail-drawers','simulate-disconnect','reset-demo','reconnect-now','join-room','open-mobile-nav','open-global-search','open-notifications','open-profile','save-profile','toggle-activity','apply-room-config','add-to-room','remove-from-room','advance-submission','prompt-detail','draw-card','play-card','card-detail','choose-wild','prompt-source','submit-manual-prompt','spin-roulette','publish-prompt','answer-mode','finish-speak','review-typed-answer','review-choice-answer','review-live-answer','submit-answer','edit-answer','complete-flow','safety-pass','safety-rewind','safety-flag','use-nope','nope-reaction','paranoia-choice','paranoia-phase','paranoia-classic-answer','paranoia-classic-decision','paranoia-vote','duel-target','duel-timer','duel-vote','chaos-target','resolve-chaos','save-prompt','focus-create-prompt','lab-add-card','lab-one-card','lab-human-turn','lab-trigger-draw','lab-queue-chaos','retry-last-command','force-recap','clear-log','flow-close-request','play-again','share-recap','cycle-fixture']);
+      const knownActions = new Set(['toggle-left-rail','toggle-right-rail','toggle-focus-mode','toggle-fullscreen','close-rail-drawers','simulate-disconnect','reset-demo','reconnect-now','join-room','open-mobile-nav','open-global-search','open-notifications','open-profile','save-profile','toggle-activity','apply-room-config','add-to-room','remove-from-room','advance-submission','prompt-detail','draw-card','play-card','card-detail','choose-wild','prompt-source','social-target','submit-manual-prompt','spin-roulette','publish-prompt','answer-mode','finish-speak','review-typed-answer','review-choice-answer','review-live-answer','submit-answer','edit-answer','complete-flow','safety-pass','safety-rewind','safety-flag','use-nope','nope-reaction','paranoia-choice','paranoia-phase','paranoia-classic-answer','paranoia-classic-decision','paranoia-vote','duel-target','duel-timer','duel-vote','chaos-target','resolve-chaos','save-prompt','focus-create-prompt','lab-add-card','lab-one-card','lab-human-turn','lab-trigger-draw','lab-queue-chaos','retry-last-command','force-recap','clear-log','flow-close-request','play-again','share-recap','cycle-fixture']);
       const missing = [...document.querySelectorAll('[data-action]')].map(node => node.dataset.action).filter(action => action && !knownActions.has(action));
       if (missing.length) console.error('Unregistered data-action controls:', [...new Set(missing)]);
       return missing;
@@ -641,6 +642,7 @@ import { announce, toast } from './feedback.ts';
         case 'DRAW_CARD': return commandDrawCard(payload, key);
         case 'CHOOSE_WILD': return commandChooseWild(payload, key);
         case 'SELECT_PROMPT_SOURCE': return commandSelectPromptSource(payload, key);
+        case 'SOCIAL_TARGET': return commandSocialTarget(payload, key);
         case 'SUBMIT_MANUAL_PROMPT': return commandSubmitManualPrompt(payload, key);
         case 'REVEAL_PROMPT': return commandRevealPrompt(payload, key);
         case 'PUBLISH_PROMPT': return commandPublishPrompt(payload, key);
@@ -710,36 +712,94 @@ import { announce, toast } from './feedback.ts';
       return card.kind;
     }
 
-    function buildDeck(seed = Date.now()) {
-      const deck = [];
-      const colors = Object.keys(COLOR_META);
-      colors.forEach(color => {
-        deck.push(createCard('number', { color, value: 0, symbol: '0' }));
-        for (let value = 1; value <= 9; value += 1) {
-          deck.push(createCard('number', { color, value, symbol: String(value) }));
-          deck.push(createCard('number', { color, value, symbol: String(value) }));
-        }
-        ['skip','reverse','draw'].forEach(kind => {
-          deck.push(createCard(kind, { color, symbol: kind }));
-          deck.push(createCard(kind, { color, symbol: kind }));
-        });
-      });
-      for (let i = 0; i < 4; i += 1) deck.push(createCard('wild', { symbol: 'wild' }));
-      const socialCounts = { truth: 5, dare: 5, paranoia: 4, chaos: 4, duel: 3, nope: 3 };
-      Object.entries(socialCounts).forEach(([kind, count]) => {
-        for (let i = 0; i < count; i += 1) deck.push(createCard(kind, { symbol: kind }));
-      });
-      return shuffle(deck, seededRandom(seed));
+    const FORCED_ON_DRAW_KINDS = new Set(['truth','dare','paranoia','chaos','duel','tag','truth_or_chaos','hijack','taboo','machiavelli','reverse_confession','dig_me']);
+
+    function isForcedOnDrawCard(card) {
+      return Boolean(card && FORCED_ON_DRAW_KINDS.has(card.kind));
     }
 
     function drawFromDeck(session, count = 1) {
-      const cards = [];
-      for (let i = 0; i < count; i += 1) {
-        if (!session.deck.length) recycleDiscard(session);
-        const card = session.deck.pop();
-        if (card) cards.push(card);
-      }
+      const engineState = syncEngineStateFromSession(session);
+      const cards = drawCards(engineState, count);
+      syncSessionFromEngineState(session, engineState);
       return cards;
+    }
+
+    function enqueueForcedInteractions(session, player, cards) {
+      const ordinaryCards = [];
+      const forcedCards = [];
+      for (const card of cards) {
+        if (isForcedOnDrawCard(card)) forcedCards.push(card);
+        else ordinaryCards.push(card);
+      }
+      if (ordinaryCards.length) player.hand.push(...ordinaryCards);
+      for (const card of forcedCards) {
+        session.forcedInteractionQueue.push({ playerId:player.id, card });
+        session.discard.push(card);
+        addEvent('FORCED_ON_DRAW_QUEUED', `${player.name} drew ${cardMeta(card).title}; it must resolve now and cannot be saved in hand.`, FAMILY_META[card.kind]?.accent || 'magenta', { cardId:card.id, kind:card.kind });
+      }
+      return { ordinaryCards, forcedCards };
+    }
+
+    function queueForcedInteractionResolution(session, actor, options = {}) {
+      if (!session.forcedInteractionQueue.length) return false;
+      session.pendingTurnResolution = {
+        actorId:actor.id,
+        steps:options.steps ?? 1,
+        afterSocial:Boolean(options.afterSocial)
+      };
+      return beginNextForcedInteraction(session);
+    }
+
+    function beginNextForcedInteraction(session) {
+      if (!session || state.flow || !session.forcedInteractionQueue.length) return false;
+      const next = session.forcedInteractionQueue.shift();
+      const actor = findPlayer(next.playerId);
+      if (!actor) return beginNextForcedInteraction(session);
+      session.phase = 'ANSWER_RESOLVE';
+      addEvent('FORCED_ON_DRAW_STARTED', `${actor.name} must resolve ${cardMeta(next.card).title} before play can continue.`, FAMILY_META[next.card.kind]?.accent || 'magenta', { cardId:next.card.id, kind:next.card.kind });
+      triggerSocialCard(next.card, actor, { forcedOnDraw:true });
+      return true;
+    }
+
+    function finishTurnAfterForcedQueue(defaultActor, defaultOptions = {}) {
+      const session = state.session;
+      if (!session) return;
+      const pending = session.pendingTurnResolution;
+      session.pendingTurnResolution = null;
+      const actor = pending ? findPlayer(pending.actorId) : defaultActor;
+      finishResolvedTurn(actor, {
+        steps:pending?.steps ?? defaultOptions.steps ?? 1,
+        afterSocial:pending?.afterSocial ?? defaultOptions.afterSocial ?? false
+      });
+    }
+
+    function syncEngineStateFromSession(session) {
+      const engineState = session.engineState;
+      engineState.revision = state.revision;
+      engineState.drawPile = session.deck;
+      engineState.discardPile = session.discard;
+      engineState.players = session.players.map(player => ({
+        id: player.id,
+        seat: player.seat ?? (Number(player.id.replace(/^p/, '')) || 0),
+        status: 'ACTIVE',
+        hand: player.hand
+      }));
+      engineState.currentPlayerId = currentPlayer()?.id || session.players[session.currentIndex]?.id;
+      engineState.activeColor = session.activeColor;
+      engineState.activeSymbol = session.activeSymbol;
+      engineState.direction = session.direction;
+      return engineState;
+    }
+
+    function syncSessionFromEngineState(session, engineState) {
+      session.deck = engineState.drawPile;
+      session.discard = engineState.discardPile;
+      session.adaptiveProbability = engineState.adaptiveProbability;
+      for (const enginePlayer of engineState.players) {
+        const legacyPlayer = session.players.find(player => player.id === enginePlayer.id);
+        if (legacyPlayer) legacyPlayer.hand = enginePlayer.hand;
+      }
     }
 
     function recycleDiscard(session) {
@@ -842,12 +902,6 @@ import { announce, toast } from './feedback.ts';
       </div>`;
     }
 
-    function starterCardFromDeck(session) {
-      let index = session.deck.findIndex(card => card.kind === 'number');
-      if (index < 0) index = session.deck.length - 1;
-      const [starter] = session.deck.splice(index, 1);
-      return starter;
-    }
 
     function ensureDemoPromptCoverage() {
       const coverage = [
@@ -886,18 +940,36 @@ import { announce, toast } from './feedback.ts';
       state.commandCache.clear();
       state.events = [];
       const players = makePlayers(state.setup.playerCount, state.setup.profileName, state.setup.ceiling);
+      const seed = `${state.setup.roomName}:${Date.now()}`;
+      const engineResult = createGame({
+        seed,
+        startingHandCount: state.knobs.startingHand,
+        drawPenalty: state.knobs.drawPenalty,
+        allowVoluntaryDraw: state.knobs.voluntaryDraw,
+        contentWorld: state.setup.world === 'adult' ? '18+_ADULT' : 'UNDER_18_CLEAN',
+        turnTimeoutMs: state.knobs.turnTimer * 1000,
+        socialTimeoutMs: 45000
+      }, players.map((player, index) => ({ id: player.id, seat: index })));
+      if (!engineResult.ok) throw engineResult.error;
+      const engineState = engineResult.state;
+      players.forEach(player => {
+        const enginePlayer = engineState.players.find(item => item.id === player.id);
+        player.hand = enginePlayer ? [...enginePlayer.hand] : [];
+      });
       const session = {
         id: uid('session'),
         roomName: state.setup.roomName,
         mode: state.setup.mode,
         world: state.setup.world,
         players,
-        deck: buildDeck(Date.now()),
-        discard: [],
+        deck: engineState.drawPile,
+        discard: engineState.discardPile,
+        engineState,
+        adaptiveProbability: engineState.adaptiveProbability,
         lastDiscardId: null,
-        activeColor: null,
-        activeSymbol: null,
-        direction: 1,
+        activeColor: engineState.activeColor,
+        activeSymbol: engineState.activeSymbol,
+        direction: engineState.direction,
         currentIndex: 0,
         phase: 'TURN_START',
         round: 1,
@@ -911,23 +983,14 @@ import { announce, toast } from './feedback.ts';
         usedPromptIds: [],
         resolvedPrompts: [],
         pendingEffect: null,
+        forcedInteractionQueue: [],
+        pendingTurnResolution: null,
         stats: { totalPlays:0, totalDraws:0, socialResolved:0, rouletteSpins:0, flags:0, passes:0, rewinds:0, nopes:0, duels:0, chaos:0 }
       };
       state.session = session;
       const handSize = state.knobs.startingHand;
-      if (state.setup.qaHand) {
-        const qaKinds = ['truth','dare','paranoia','chaos','duel','nope','wild'];
-        const qaCards = qaKinds.slice(0, handSize).map(kind => createCard(kind, { symbol:kind }));
-        players[0].hand.push(...qaCards);
-        while (players[0].hand.length < handSize) players[0].hand.push(...drawFromDeck(session, 1));
-      } else {
-        players[0].hand.push(...drawFromDeck(session, handSize));
-      }
-      players.slice(1).forEach(player => player.hand.push(...drawFromDeck(session, handSize)));
-      const starter = starterCardFromDeck(session);
-      session.discard.push(starter);
-      session.activeColor = starter.color;
-      session.activeSymbol = cardSymbol(starter);
+      const starter = session.discard.at(-1);
+      if (!starter) throw new Error('The shared engine did not provide a starter card.');
       addEvent('SESSION_CREATED', `${session.roomName} created in ${mode.label} mode with ${players.length} players.`, 'lime');
       addEvent('CARDS_DEALT', `${handSize} starting cards dealt. Starter card establishes ${COLOR_META[session.activeColor]?.label || session.activeColor} / ${session.activeSymbol}.`, 'cyan');
       beginTurn();
@@ -1067,11 +1130,16 @@ import { announce, toast } from './feedback.ts';
       if (legal.length && !state.knobs.voluntaryDraw) throw new Error('This demo configuration allows Draw only when no legal card is held. Voluntary draw remains an open rule detail.');
       const [card] = drawFromDeck(session, 1);
       if (!card) throw new Error('No cards are available to draw.');
-      player.hand.push(card);
+      const { ordinaryCards, forcedCards } = enqueueForcedInteractions(session, player, [card]);
       player.stats.draws += 1;
       session.stats.totalDraws += 1;
-      addEvent('CARD_DRAWN', `${player.name} drew one card.`, 'cyan');
-      finishResolvedTurn(player);
+      if (forcedCards.length) {
+        addEvent('CARD_DRAWN_FORCED', `${player.name} drew one forced interaction card. Ordinary cards stay in hand; this card resolves immediately.`, 'magenta');
+        queueForcedInteractionResolution(session, player);
+      } else {
+        addEvent('CARD_DRAWN', `${player.name} drew ${ordinaryCards.length} card.`, 'cyan');
+        finishResolvedTurn(player);
+      }
       return { ok:true, mutated:true, cardId:card.id };
     }
 
@@ -1117,13 +1185,18 @@ import { announce, toast } from './feedback.ts';
       const session = state.session;
       if (!blocked) {
         const cards = drawFromDeck(session, amount);
-        target.hand.push(...cards);
+        const { ordinaryCards, forcedCards } = enqueueForcedInteractions(session, target, cards);
         target.stats.draws += cards.length;
         session.stats.totalDraws += cards.length;
-        addEvent('DRAW_EFFECT_RESOLVED', `${target.name} drew ${cards.length} configured card${cards.length === 1 ? '' : 's'}.`, 'orange');
+        addEvent(
+          'DRAW_EFFECT_RESOLVED',
+          `${target.name} drew ${cards.length} configured card${cards.length === 1 ? '' : 's'}; ${ordinaryCards.length} stayed in hand and ${forcedCards.length} forced interaction${forcedCards.length === 1 ? '' : 's'} queued.`,
+          forcedCards.length ? 'magenta' : 'orange'
+        );
       }
       state.flow = null;
       state.reactionDeadline = null;
+      if (!blocked && queueForcedInteractionResolution(session, actor)) return;
       finishResolvedTurn(actor);
     }
 
@@ -1176,22 +1249,21 @@ import { announce, toast } from './feedback.ts';
       return `Submitted by ${prompt.author}`;
     }
 
-    function triggerSocialCard(card, actor) {
+    function triggerSocialCard(card, actor, options = {}) {
       const session = state.session;
       session.phase = 'ANSWER_RESOLVE';
       const family = card.kind;
-      const targetId = actor.id;
       if (family === 'truth' || family === 'dare') {
         state.flow = {
           type:'social',
           family,
           originFamily:family,
           actorId:actor.id,
-          targetId,
+          targetId:family === 'truth' ? actor.id : null,
           cardId:card.id,
           prompt:null,
           promptSource:null,
-          step:'prompt-source',
+          step:family === 'dare' ? 'social-target' : 'prompt-source',
           serverSelectedAt:null,
           answerState:'WAITING_FOR_PLAYER',
           deadline:Date.now() + 45000,
@@ -1200,13 +1272,15 @@ import { announce, toast } from './feedback.ts';
         };
 
 
-        addEvent(
-          'PROMPT_SOURCE_REQUIRED',
-          `${actor.name} must choose whether to write the ${
-            family === 'dare' ? 'challenge' : 'question'
-          } or use Roulette.`,
-          family === 'truth' ? 'lime' : 'orange'
-        );
+        if (family === 'dare') {
+          addEvent('DARE_TARGET_REQUIRED', `${actor.name} must choose another eligible player for this Dare.`, 'orange');
+        } else {
+          addEvent(
+            'PROMPT_SOURCE_REQUIRED',
+            `${actor.name} must choose whether to write the question or use Roulette.`,
+            'lime'
+          );
+        }
       } else if (family === 'paranoia') {
         state.flow = {
           type:'paranoia',
@@ -1237,6 +1311,18 @@ import { announce, toast } from './feedback.ts';
         addEvent('CHAOS_EFFECT_SELECTED', `Server selected deterministic effect: ${effect.title}.`, 'magenta');
       }
       if (!actor.isHuman) scheduleBotSocialResolution();
+    }
+
+    function commandSocialTarget({ targetId } = {}) {
+      const flow = state.flow;
+      if (!flow || flow.type !== 'social' || flow.family !== 'dare' || flow.step !== 'social-target') throw new Error('No Dare target is awaiting selection.');
+      const target = findPlayer(targetId);
+      if (!target || target.id === flow.actorId) throw new Error('Choose another eligible player for the Dare.');
+      flow.targetId = target.id;
+      flow.step = 'prompt-source';
+      flow.deadline = Date.now() + 45000;
+      addEvent('DARE_TARGET_SELECTED', `${findPlayer(flow.actorId).name} targeted ${target.name} for the Dare.`, 'orange');
+      return { ok:true, mutated:true };
     }
 
     function commandSelectPromptSource({ source } = {}) {
@@ -1737,7 +1823,7 @@ import { announce, toast } from './feedback.ts';
       if (!flow || flow.type !== 'duel' || flow.step !== 'duel-target') throw new Error('No Duel target is awaiting selection.');
       const opponent = findPlayer(targetId);
       if (!opponent || opponent.id === flow.actorId) throw new Error('Choose another eligible player for the Duel.');
-      flow.targetId = flow.actorId;
+      flow.targetId = opponent.id;
       flow.opponentId = opponent.id;
       flow.prompt = null;
       flow.promptSource = null;
@@ -1926,7 +2012,12 @@ import { announce, toast } from './feedback.ts';
       const actor = findPlayer(flow.actorId);
       state.flow = null;
       state.session.phase = 'WIN_CHECK';
-      finishResolvedTurn(actor, { afterSocial:true });
+      if (beginNextForcedInteraction(state.session)) return { ok:true, mutated:true };
+      if (state.session.pendingTurnResolution) {
+        finishTurnAfterForcedQueue(actor, { afterSocial:true });
+      } else {
+        finishResolvedTurn(actor, { afterSocial:true });
+      }
       return { ok:true, mutated:true };
     }
 
@@ -2008,6 +2099,11 @@ import { announce, toast } from './feedback.ts';
       if (actor?.isHuman) return;
       if (['resolved','passed'].includes(flow.step)) return serverCommand('COMPLETE_FLOW', {}, { human:false, key:`bot-generic-complete-${flow.cardId || flow.actorId}` });
       if (flow.type === 'social') {
+        if (flow.step === 'social-target') {
+          const target = state.session.players.find(player => player.id !== flow.actorId);
+          serverCommand('SOCIAL_TARGET', { targetId:target?.id }, { human:false, key:`bot-social-target-${flow.cardId}` });
+          return scheduleBotSocialResolution();
+        }
         if (flow.step === 'prompt-source') {
           serverCommand(
             'SELECT_PROMPT_SOURCE',
@@ -2840,7 +2936,9 @@ import { announce, toast } from './feedback.ts';
         const meta = FAMILY_META[flow.family];
         title = `${meta.title} resolution`;
         subtitle = flow.originFamily === 'chaos' ? 'Chaos opened this explicit prompt path.' : `${meta.role}; hidden authorship follows the selected contract.`;
-        if (flow.step === 'prompt-source') {
+        if (flow.step === 'social-target') {
+          html = `<div class="prompt-display" style="--flow-accent:${accent}"><h3>Choose a Dare target</h3><p>Dare is target-first: choose another eligible player before selecting or writing the challenge.</p>${targetGridHTML('social-target',{exclude:[flow.actorId]})}</div>`;
+        } else if (flow.step === 'prompt-source') {
           html = renderPromptSourceStep(flow, accent);
         } else if (flow.step === 'manual-prompt') {
           html = renderManualPromptStep(flow, accent);
@@ -3775,6 +3873,7 @@ import { announce, toast } from './feedback.ts';
       if (action === 'paranoia-classic-decision') return serverCommand('SUBMIT_PARANOIA_CLASSIC_DECISION', { decision:actionButton.dataset.decision });
       if (action === 'paranoia-vote') return serverCommand('SUBMIT_PARANOIA_VOTE', { vote:actionButton.dataset.vote, voterId:actionButton.dataset.voterId });
       if (action === 'duel-target') return serverCommand('DUEL_TARGET', { targetId:actionButton.dataset.targetId });
+      if (action === 'social-target') return serverCommand('SOCIAL_TARGET', { targetId:actionButton.dataset.targetId });
       if (action === 'duel-timer') return serverCommand('SELECT_DUEL_TIMER', { seconds:actionButton.dataset.seconds });
       if (action === 'duel-vote') return serverCommand('DUEL_VOTE', { winnerId:actionButton.dataset.winnerId });
       if (action === 'chaos-target') return serverCommand('CHAOS_TARGET', { targetId:actionButton.dataset.targetId });

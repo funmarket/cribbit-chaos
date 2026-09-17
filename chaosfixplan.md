@@ -1026,3 +1026,89 @@ git ls-tree -r --name-only HEAD | grep 'chaos-pulse-lab' || true
 Score: `9.0/10`.
 
 Reason for score: the plan now points at the real app path instead of a removed trial UI and explicitly blocks copying CHAOS Pulse into a second runtime. Score is not higher because the actual runtime seam migration and browser/live-Web proof remain unfinished.
+
+### Phase 9 — main Web compatibility board CHAOS Pulse seam
+
+Branch: `fix/shared-chaos-pulse-board`.
+
+Scope:
+
+- Keep the actual app surface on `apps/web/src/main.ts` / `packages/legacy-runtime/src/runtime.ts`.
+- Do not revive `apps/web/src/chaos-pulse-lab.ts` or any removed trial panel.
+- Move main-board start/deal/draw ownership onto the shared `@cribbit/game-engine` CHAOS Pulse deck path.
+
+Change:
+
+- Added `packages/legacy-runtime/test/shared-chaos-pulse-board.test.ts` as the RED/GREEN guard.
+- `packages/legacy-runtime/src/runtime.ts` now imports `createGame` and `drawCards` from `@cribbit/game-engine`.
+- Removed the local `buildDeck()` physical deck constructor from the compatibility runtime.
+- `commandStartGame()` now creates the session from shared `createGame()` state, including canonical opening hands, starter discard, draw pile, and adaptive probability state.
+- `drawFromDeck()` now delegates to shared `drawCards()` and syncs the legacy session view back from the engine state.
+
+Proof commands:
+
+```sh
+npx tsx --test packages/legacy-runtime/test/shared-chaos-pulse-board.test.ts
+npx tsx --test packages/game-engine/test/adaptive-distribution.test.ts
+npm run typecheck
+npm run build:web
+git diff --check
+```
+
+Proof:
+
+- New legacy-runtime guard: `2 pass / 0 fail`.
+- Existing adaptive-distribution suite: `12 pass / 0 fail`.
+- `npm run typecheck`: pass.
+- `npm run build:web`: pass; Vite transformed 212 modules and produced `dist/` assets.
+- `npm run build`: pass for Web, Telegram, and API.
+- Full `npm run test`: `119 pass / 1 fail`; the only failure is the known local Node Argon2id blocker in `apps/api/test/web-password.test.ts`, not this runtime seam.
+- GitHub PR source CI at head `6623c611237febc667e703227524672bf002cd6d`: `test`, `build-api`, `build-telegram`, `build-web`, and `typecheck` passed in run `35199427927`.
+- PR opened: `https://github.com/funmarket/cribbit-chaos/pull/11`.
+- `git diff --check`: pass.
+- Local visual/browser automation remains blocked by local browser harness startup failure and desktop preview non-response; no live browser click-through proof claimed yet.
+
+Score: `8.6/10`.
+
+Reason for score: the real main-board deck/deal/draw seam now points at shared CHAOS Pulse with tests, typecheck, and Web build proof. Score is not higher until a live browser click-through confirms start-game rendering and the next slice routes post-start interaction draws through FIFO forced interaction resolution.
+
+### Phase 10 — live-runtime canonical GameRules enforcement
+
+User reported the live game still was not enforcing `C:\Users\GrowB\Downloads\p0-preservation\p0-preservation\gamerules.md`.
+
+Rules enforced in this slice:
+
+- `RULE-ACQUISITION-003` / `RULE-ACQUISITION-004`: post-setup drawn immediate-interaction cards enter their card flow immediately instead of being saved in hand.
+- `RULE-ACQUISITION-010` / `RULE-ACQUISITION-011`: multiple forced-on-draw interaction cards resolve through FIFO before play continues.
+- Dare target-first behavior: Dare now opens an explicit target selection step and rejects self-targeting before prompt source/roulette selection.
+
+Change:
+
+- Added `packages/legacy-runtime/test/gamerules-live-runtime.test.ts` to bind the live Web compatibility runtime to the canonical local GameRules file.
+- Added `FORCED_ON_DRAW_KINDS`, `enqueueForcedInteractions()`, `queueForcedInteractionResolution()`, and `beginNextForcedInteraction()` to `packages/legacy-runtime/src/runtime.ts`.
+- Updated normal draw and Draw-effect penalty paths so ordinary drawn cards stay in hand, forced interaction cards are queued/discarded into active resolution, and turn advancement waits for the forced queue to empty.
+- Added `SOCIAL_TARGET` command/UI handling for Dare and bot auto-targeting for non-human Dare flows.
+- Duel target selection now stores the selected opponent instead of incorrectly self-targeting the actor.
+- Added the GameRules guard to `npm run test`.
+
+Proof commands:
+
+```sh
+npx tsx --test packages/legacy-runtime/test/gamerules-live-runtime.test.ts packages/legacy-runtime/test/shared-chaos-pulse-board.test.ts
+npm run typecheck
+npm run build
+npx tsx --test packages/cards/test/card-assets.test.ts packages/cards/test/card-registry.test.ts packages/game-engine/test/deck-composition.test.ts packages/game-engine/test/validation-matching.test.ts packages/game-engine/test/adaptive-distribution.test.ts packages/game-engine/test/core-engine.test.ts packages/game-engine/test/nope-routing.test.ts apps/api/test/auth.test.ts apps/api/test/guest-auth.test.ts apps/api/test/game-command-boundary.test.ts packages/cards/test/deck-docs-consistency.test.ts packages/legacy-runtime/test/shared-chaos-pulse-board.test.ts packages/legacy-runtime/test/gamerules-live-runtime.test.ts apps/web/test/room-creation-deeplink.test.ts apps/web/test/runtime-single-owner.test.ts
+git diff --check
+```
+
+Proof:
+
+- GameRules/live-runtime focused guard: `5 pass / 0 fail`.
+- `npm run typecheck`: pass.
+- `npm run build`: pass for Web, Telegram, and API.
+- Local source suite excluding known Node Argon2id blocker: `121 pass / 0 fail`.
+- `git diff --check`: pass.
+
+Score: `8.7/10`.
+
+Reason for score: the live Web compatibility runtime now enforces the canonical forced-on-draw FIFO path and Dare target-first guard, with source/build/test proof. Score is not higher until this PR is pushed, exact-head CI passes, and a browser/live Cloudflare readback confirms the updated runtime is deployed.
