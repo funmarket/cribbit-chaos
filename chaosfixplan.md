@@ -1384,8 +1384,11 @@ Proof:
 - Full `npm test`: `140 pass / 0 fail / 6 skipped`.
 - Full `npm run build`: Web, Telegram, and API builds pass.
 - `git diff --check`: pass.
+- Source commit pushed to `main`: `1c5b4f0f45675d531b375cb52ded0abaa83709cf`.
+- GitHub main CI run `35250710312`: passed at exact head `1c5b4f0f45675d531b375cb52ded0abaa83709cf`.
 - Build produced new local bundles: Web `dist/assets/index-LFRIS5Pn.js`; Telegram `dist/assets/index-kEj17VmA.js`.
+- Cloudflare endpoint readbacks returned `200`, but Pages still served stale bundles during readback: Web `/assets/index-Dt7LGRda.js`, Telegram `/assets/index-Bf9_jV9o.js`.
 
 Score: `9.0/10`.
 
-Reason for score: the corrected attached rules are now the repo rule authority and the most important superseded gameplay behaviors are enforced in shared engine/capability paths with regression coverage. Score is not higher until the commit is pushed, main CI passes, Cloudflare serves the new bundles, and live Web/Telegram click-through readback proves the deployed clients are no longer stale.
+Reason for score: the corrected attached rules are now the repo rule authority and the most important superseded gameplay behaviors are enforced in shared engine/capability paths with regression coverage, pushed source, and exact-head main CI proof. Score is not higher because Cloudflare still served stale Web/Telegram bundles after the push, so deployed-client click-through/readback remains blocked until Pages refreshes.
