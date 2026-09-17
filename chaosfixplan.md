@@ -1063,6 +1063,8 @@ Proof:
 - `npm run build:web`: pass; Vite transformed 212 modules and produced `dist/` assets.
 - `npm run build`: pass for Web, Telegram, and API.
 - Full `npm run test`: `119 pass / 1 fail`; the only failure is the known local Node Argon2id blocker in `apps/api/test/web-password.test.ts`, not this runtime seam.
+- GitHub PR source CI at head `6623c611237febc667e703227524672bf002cd6d`: `test`, `build-api`, `build-telegram`, `build-web`, and `typecheck` passed in run `35199427927`.
+- PR opened: `https://github.com/funmarket/cribbit-chaos/pull/11`.
 - `git diff --check`: pass.
 - Local visual/browser automation remains blocked by local browser harness startup failure and desktop preview non-response; no live browser click-through proof claimed yet.
 
