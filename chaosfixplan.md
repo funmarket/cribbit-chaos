@@ -998,3 +998,31 @@ Proof:
 Score: `8.9/10`.
 
 Reason for score: PR #8 now has a cleaner source/control-document path toward the real Cloudflare/Railway app and removes stale provider config from the branch, with docs consistency and typecheck passing locally. Score is not higher until PR #8 body is updated, exact-head CI passes, and final PR readback confirms the remaining blockers.
+
+### Post-merge drift correction — PR #8 / fix-plan realignment
+
+After PR #8 was squash-merged into `main`, the living plan still pointed at the removed **Try CHAOS Pulse** panel as the current next task. Fresh source inspection showed:
+
+- current branch/head: `main` at `4371a6a3256eb30388368297a940c97a64049b89`;
+- no open PRs in `funmarket/cribbit-chaos`;
+- `apps/web/src/chaos-pulse-lab.ts` and `apps/web/src/chaos-pulse-lab.css` are absent from the current tree;
+- `apps/web/src/main.ts` still boots `runtimeMode: 'legacy-compatibility'`;
+- `apps/web/src/canonical-game-runtime.ts` imports the shared adaptive helpers but is not imported by the Web boot path.
+
+Correction:
+
+- `PLAN.md` and `docs/LIVING_STATUS.md` now identify the removed panel as removed, not pending.
+- Current next task is restored to the real convergence fix: migrate the main compatibility board deck/deal/draw seam to the shared CHAOS Pulse engine and route post-start interaction draws through the FIFO resolver.
+- `docs/visual-integration-checkpoint.md` distinguishes HTTP/HTML Cloudflare readback from still-pending browser/runtime click-through.
+
+Proof commands:
+
+```sh
+git status --short --branch
+git rev-parse HEAD
+git ls-tree -r --name-only HEAD | grep 'chaos-pulse-lab' || true
+```
+
+Score: `9.0/10`.
+
+Reason for score: the plan now points at the real app path instead of a removed trial UI and explicitly blocks copying CHAOS Pulse into a second runtime. Score is not higher because the actual runtime seam migration and browser/live-Web proof remain unfinished.
