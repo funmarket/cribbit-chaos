@@ -1155,3 +1155,43 @@ Proof:
 Score: `9.0/10`.
 
 Reason for score: Phase 1 now has source-backed and test-backed proof that live Web and Telegram route through the same API/shared-engine authority boundary, and the next phase is constrained to one shared BotPolicy rather than frontend-specific fixes. Score is not higher because Phase 1 did not yet extract/implement the BotPolicy itself; that is Phase 2.
+
+### Local Argon2id test blocker fix
+
+Branch: `fix/shared-bot-policy-phase1`.
+
+Root cause:
+
+- Local Node is `v22.23.2`, but `apps/api/src/web-password.ts` only used Node's built-in `crypto.argon2Sync`, which exists in newer Node 24 runtimes.
+- The production password hash contract is still Argon2id; the failure was a runtime implementation availability issue, not a test-only issue.
+
+Change:
+
+- Added `@node-rs/argon2` as a pinned dependency.
+- Kept Node 24 `crypto.argon2Sync` as the first path when available.
+- Added `@node-rs/argon2` `hashRawSync()` fallback using the same Argon2id parameters, salt, memory cost, time cost, parallelism, and output length.
+- Preserved the existing stored hash format and verification behavior.
+
+Proof commands:
+
+```sh
+node -v
+npx tsx --test apps/api/test/web-password.test.ts
+npm run typecheck
+npm run build:api
+npm test
+git diff --check
+```
+
+Proof:
+
+- `node -v`: `v22.23.2`.
+- Focused Web password test: `2 pass / 0 fail`.
+- `npm run typecheck`: pass.
+- `npm run build:api`: pass.
+- Full `npm test`: `126 pass / 0 fail`.
+- `git diff --check`: pass.
+
+Score: `9.2/10`.
+
+Reason for score: the local Argon2id blocker is removed without downgrading the password hash contract or faking a non-Argon2 fallback, and the full suite now passes. Score is not higher only because this has not yet gone through remote CI/readback.
