@@ -474,13 +474,13 @@ Do not silently mark these complete while working on gameplay:
 
 ## Current Next Task
 
-**Migrate the main compatibility board's deck/deal/draw seam to the shared CHAOS Pulse engine and connect post-start interaction draws to the shared FIFO resolver.**
+**Phase 2B — deterministic shared BotPolicy is implemented; next gate is live deployment/readback.**
 
-1. Prove the current Web board still uses the legacy compatibility boot path before editing.
-2. Locate the exact legacy deck/deal/draw owners in `packages/legacy-runtime/src/runtime.ts`.
-3. Add or update the smallest regression coverage proving actual board opening hands consume the shared 133-card dealer.
-4. Add or update coverage proving post-start interaction draws route into FIFO forced resolution instead of silently entering hand.
-5. Migrate by importing/using the existing shared `packages/game-engine` helpers; do not copy CHAOS Pulse into legacy runtime.
-6. Preserve accepted Truth/Dare, Paranoia, Duel, Nope, Pass/Rewind/Flag, Ghost, TAG, Hijack, Machiavelli, and win-boundary behavior.
-7. Run focused engine/runtime tests, `npm run typecheck`, and the GitHub source CI on the exact candidate.
-8. Perform browser/live-Web verification before claiming runtime acceptance.
+1. Keep live multiplayer authority in the Cloudflare/API/shared game-engine path.
+2. Do not create separate Web and Telegram bot fixes.
+3. `packages/game-engine` now exposes `projectDecisionCapabilities()` and `chooseBotOption()`.
+4. API bot advancement now chooses from server-projected legal options instead of hardcoded card-family branches.
+5. Phase 2B covers bot settlement for Truth, Dare, Chaos, Paranoia, Duel, TAG, Truth or Chaos, Hijack, Taboo, Machiavelli, Reverse Confession, and DIG ME.
+6. Ghost remains intentionally separate because its armed/flip lifecycle is not part of the forced social/special family fix.
+7. Next gate: publish the branch through PR/CI/deployment, then run browser/live-game readback before declaring the user-facing bot simulation fixed.
+8. Score each sub-step and revise before moving on if the score is below 8.5.

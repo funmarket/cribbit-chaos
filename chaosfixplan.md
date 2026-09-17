@@ -1112,3 +1112,174 @@ Proof:
 Score: `8.7/10`.
 
 Reason for score: the live Web compatibility runtime now enforces the canonical forced-on-draw FIFO path and Dare target-first guard, with source/build/test proof. Score is not higher until this PR is pushed, exact-head CI passes, and a browser/live Cloudflare readback confirms the updated runtime is deployed.
+
+### Phase 1 — shared backend bot authority contract
+
+Branch: `fix/shared-bot-policy-phase1`.
+
+Scope:
+
+- Confirm the bot issue is a shared backend/API/game-engine authority issue, not separate Web-vs-Telegram gameplay logic.
+- Keep Web and Telegram as frontend adapters that submit commands and render returned state.
+- Establish the Phase 2 target as one deterministic shared BotPolicy / legal-action enumerator.
+
+Change:
+
+- Added `apps/api/test/bot-authority-contract.test.ts` to lock the live-room authority contract:
+  - API command processing imports shared `applyCommand()` / `createGame()` from `packages/game-engine`.
+  - API applies a human command through the shared reducer before running `advanceBots()`.
+  - API persists state through `game_sessions`.
+  - Web live rooms use `packages/api-client` `createRoom()`, `getSnapshot()`, and `sendCommand()` instead of owning bot advancement.
+  - Telegram live rooms use the same API adapter; local simulation remains fallback QA only.
+- Added the new contract test to `npm run test`.
+- Updated `PLAN.md` and `docs/LIVING_STATUS.md` so the active next task is Phase 2 shared BotPolicy, not separate Web/Telegram fixes.
+
+Proof commands:
+
+```sh
+npx tsx --test apps/api/test/bot-authority-contract.test.ts
+npx tsx --test apps/api/test/bot-authority-contract.test.ts apps/api/test/game-command-boundary.test.ts apps/web/test/room-creation-deeplink.test.ts
+npm run typecheck
+npm test
+git diff --check
+```
+
+Proof:
+
+- New bot authority contract guard: `3 pass / 0 fail`.
+- Focused API/Web adapter guard set: `9 pass / 0 fail`.
+- `npm run typecheck`: pass.
+- `git diff --check`: pass.
+- Full `npm test`: `125 pass / 1 fail`; the only failure is the known local Node Argon2id blocker in `apps/api/test/web-password.test.ts`, not introduced by Phase 1.
+
+Score: `9.0/10`.
+
+Reason for score: Phase 1 now has source-backed and test-backed proof that live Web and Telegram route through the same API/shared-engine authority boundary, and the next phase is constrained to one shared BotPolicy rather than frontend-specific fixes. Score is not higher because Phase 1 did not yet extract/implement the BotPolicy itself; that is Phase 2.
+
+### Local Argon2id test blocker fix
+
+Branch: `fix/shared-bot-policy-phase1`.
+
+Root cause:
+
+- Local Node is `v22.23.2`, but `apps/api/src/web-password.ts` only used Node's built-in `crypto.argon2Sync`, which exists in newer Node 24 runtimes.
+- The production password hash contract is still Argon2id; the failure was a runtime implementation availability issue, not a test-only issue.
+
+Change:
+
+- Added `@node-rs/argon2` as a pinned dependency.
+- Kept Node 24 `crypto.argon2Sync` as the first path when available.
+- Added `@node-rs/argon2` `hashRawSync()` fallback using the same Argon2id parameters, salt, memory cost, time cost, parallelism, and output length.
+- Preserved the existing stored hash format and verification behavior.
+
+Proof commands:
+
+```sh
+node -v
+npx tsx --test apps/api/test/web-password.test.ts
+npm run typecheck
+npm run build:api
+npm test
+git diff --check
+```
+
+Proof:
+
+- `node -v`: `v22.23.2`.
+- Focused Web password test: `2 pass / 0 fail`.
+- `npm run typecheck`: pass.
+- `npm run build:api`: pass.
+- Full `npm test`: `126 pass / 0 fail`.
+- `git diff --check`: pass.
+
+Score: `9.2/10`.
+
+Reason for score: the local Argon2id blocker is removed without downgrading the password hash contract or faking a non-Argon2 fallback, and the full suite now passes. Score is not higher only because this has not yet gone through remote CI/readback.
+
+
+### Phase 2A — server-derived legal-action enumerator
+
+Branch: `fix/shared-bot-policy-phase1`.
+
+Scope:
+
+- Return to the safe plan after reviewing the parked Python bot-driver proposal.
+- Do not start Python, LangGraph, or deployment work.
+- Add the authoritative TypeScript legal-action enumerator first, so bots can later choose only server-derived commands.
+
+Change:
+
+- Added `packages/contracts/src/capabilities.ts` with `RequiredActionKind`, `LegalCommandOption`, and `PlayerDecisionCapabilities` transport types.
+- Added `packages/game-engine/src/capabilities.ts` with `projectDecisionCapabilities(state, playerId)`.
+- Exported capability types/functions from the shared contracts and game-engine indexes.
+- Added `packages/game-engine/test/bot-capabilities.test.ts` and included it in `npm test`.
+- Updated `PLAN.md` and `docs/LIVING_STATUS.md` to keep Phase 2 split into legal-action enumeration first, then shared BotPolicy wiring.
+
+Proof commands:
+
+```sh
+npx tsx --test packages/game-engine/test/bot-capabilities.test.ts
+npm run typecheck
+npm test
+git diff --check
+```
+
+Proof:
+
+- Focused bot capability test: `5 pass / 0 fail`.
+- Full `npm test`: `131 pass / 0 fail`.
+- `npm run typecheck`: pass.
+- `git diff --check`: pass.
+- Advertised options are reducer-accepted for active play/draw, Wild color, Truth completion-only flow, and Duel target/response/vote flow.
+- Unresolved special families (`tag`, `truth_or_chaos`, `hijack`, `taboo`, `machiavelli`, `reverse_confession`, `dig_me`) are not advertised as playable bot options, so this phase fails closed rather than inventing rules.
+
+Score: `8.8/10`.
+
+Reason for score: Phase 2A establishes the key safe boundary: server-derived legal commands exist in the shared engine and are verified against `applyCommand()`. Score is not higher because API bot advancement still needs to be rewired from hardcoded `apps/api/src/game-service.ts` branches to choose from `projectDecisionCapabilities()` in the next Phase 2 sub-step.
+
+### Phase 2B — shared deterministic BotPolicy and special-family no-stall coverage
+
+Branch: `fix/shared-bot-policy-phase1`.
+
+Scope:
+
+- Move API bot advancement to a shared deterministic policy that chooses only server-projected legal commands.
+- Keep Web and Telegram as frontend adapters; no separate frontend bot brains.
+- Cover the card families that previously left bots stuck: `tag`, `truth_or_chaos`, `hijack`, `taboo`, `machiavelli`, `reverse_confession`, and `dig_me`.
+- Preserve the locked rule boundary that bots must not fabricate spoken/typed answers; bot completions use Answered Live / completion-only where rules allow premade/live questions.
+- Prefer human players as targets when target-card legal options include humans; otherwise choose deterministically among legal bot targets.
+
+Change:
+
+- Added shared `packages/game-engine/src/bot-policy.ts` with `chooseBotOption()`.
+- Rewired `apps/api/src/game-service.ts` `advanceBots()` to select from `projectDecisionCapabilities()` and run the chosen command through `applyCommand()`.
+- Extended shared social/capability contracts for Phase 2B special-family commands.
+- Added premade prompt definitions for Truth or Chaos, Taboo, DIG ME, and Reverse Confession so question-required cards do not stall.
+- Enabled reducer/capability handling for TAG, Truth or Chaos, Hijack, Taboo, Machiavelli, Reverse Confession, and DIG ME.
+- Added focused tests in `packages/game-engine/test/bot-policy.test.ts` for legal-command-only bot choices, human-target preference, and all listed special families settling without unresolved bot social state.
+- Updated capability and validation tests from fail-closed special-family behavior to Phase 2B playable/supported behavior.
+
+Proof commands:
+
+```sh
+npx tsx --test packages/game-engine/test/bot-policy.test.ts
+npx tsx --test packages/game-engine/test/bot-policy.test.ts packages/game-engine/test/bot-capabilities.test.ts packages/game-engine/test/validation-matching.test.ts
+npm run typecheck
+npm test
+npm run build:api
+git diff --check
+```
+
+Proof:
+
+- Focused BotPolicy test: `4 pass / 0 fail`.
+- Focused BotPolicy/capabilities/validation set: `12 pass / 0 fail`.
+- Full `npm test`: `135 pass / 0 fail`.
+- `npm run typecheck`: pass.
+- `npm run build:api`: pass.
+- `git diff --check`: pass.
+- The no-stall regression exercises `truth`, `dare`, `chaos`, `paranoia`, `duel`, `tag`, `truth_or_chaos`, `hijack`, `taboo`, `machiavelli`, `reverse_confession`, and `dig_me` through reducer-accepted bot commands until no unresolved bot social/pending effect remains.
+
+Score: `8.9/10`.
+
+Reason for score: Phase 2B fixes the shared backend bot policy path and verifies every requested special family in deterministic reducer tests, with full source tests green. Score is not higher until this branch is pushed, exact-head CI passes, deployed Cloudflare readback is done, and a live browser game/simulation smoke confirms the UI observes the same no-stall behavior.

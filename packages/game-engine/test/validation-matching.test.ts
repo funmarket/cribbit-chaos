@@ -58,22 +58,25 @@ test('Nope remains reaction-only and cannot become legal through activeSymbol ma
   assert.equal(validatePlay(stateFor('nope', candidate), 'p1', candidate.id).ok, false);
 });
 
-test('unresolved special families fail closed instead of inheriting the old generic same-family fallback', () => {
-  const unresolved = [
+test('phase-2B special families are playable while Ghost remains fail-closed for its separate armed lifecycle', () => {
+  const enabled = [
     'tag',
     'truth_or_chaos',
     'hijack',
     'taboo',
     'machiavelli',
-    'ghost',
     'reverse_confession',
     'dig_me'
   ] as const;
 
-  for (const kind of unresolved) {
+  for (const kind of enabled) {
     const candidate = card(kind, kind, { symbol: kind });
     const result = validatePlay(stateFor(kind, candidate), 'p1', candidate.id);
-    assert.equal(result.ok, false, `${kind} must remain blocked until its matching rule is explicitly approved`);
-    assert.equal(result.error?.code, 'ILLEGAL_PLAY');
+    assert.equal(result.ok, true, `${kind} should be accepted by the Phase 2B reducer path`);
   }
+
+  const ghost = card('ghost', 'ghost', { symbol: 'ghost' });
+  const ghostResult = validatePlay(stateFor('ghost', ghost), 'p1', ghost.id);
+  assert.equal(ghostResult.ok, false, 'ghost remains blocked until its armed/flip lifecycle is implemented');
+  assert.equal(ghostResult.error?.code, 'ILLEGAL_PLAY');
 });

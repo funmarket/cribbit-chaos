@@ -1,4 +1,5 @@
 import * as crypto from 'node:crypto';
+import { hashRawSync } from '@node-rs/argon2';
 
 const VERSION = 1;
 const MEMORY_KIB = 65_536;
@@ -18,25 +19,26 @@ type Argon2Parameters = {
 
 type Argon2Sync = (algorithm: 'argon2id', parameters: Argon2Parameters) => Buffer;
 
-function argon2id(): Argon2Sync {
-  const implementation = (crypto as unknown as { argon2Sync?: Argon2Sync }).argon2Sync;
-  if (!implementation) {
-    throw Object.assign(
-      new Error('Cribbit Web authentication requires Node.js 24.7.0 or newer for built-in Argon2id.'),
-      { code: 'ARGON2_UNAVAILABLE' },
-    );
-  }
-  return implementation;
-}
-
 function derive(password: string, salt: Buffer): Buffer {
-  return argon2id()('argon2id', {
-    message: password,
-    nonce: salt,
+  const implementation = (crypto as unknown as { argon2Sync?: Argon2Sync }).argon2Sync;
+  if (implementation) {
+    return implementation('argon2id', {
+      message: password,
+      nonce: salt,
+      parallelism: PARALLELISM,
+      tagLength: TAG_LENGTH,
+      memory: MEMORY_KIB,
+      passes: PASSES,
+    });
+  }
+
+  return hashRawSync(password, {
+    algorithm: 2,
+    salt,
+    memoryCost: MEMORY_KIB,
+    timeCost: PASSES,
     parallelism: PARALLELISM,
-    tagLength: TAG_LENGTH,
-    memory: MEMORY_KIB,
-    passes: PASSES,
+    outputLen: TAG_LENGTH,
   });
 }
 
