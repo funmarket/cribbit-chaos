@@ -245,7 +245,7 @@ Effects:
 
 Machiavelli is one-use and moves to Exhausted after resolution.
 
-## CHAOS Pulse adaptive distribution — SOURCE IMPLEMENTED / BROWSER TRIAL PENDING
+## CHAOS Pulse adaptive distribution — SOURCE IMPLEMENTED / BOARD INTEGRATION PENDING
 
 The product rule is locked in `Game_rules.md` and detailed in `docs/adaptive-card-distribution-rule.md`.
 
@@ -302,28 +302,18 @@ These constants must be tuned from browser experience and larger simulations rat
 - sequential multi-card recalculation;
 - interaction-pressure rise/reset.
 
-CI for shared-engine source commit `c18b431e24d7bac53fba1c627d404fea770b59b4` is **GREEN**: typecheck, Web build, Telegram build, API build, and tests pass.
+CI for the merged `main` integration checkpoint commit `4371a6a3256eb30388368297a940c97a64049b89` is **GREEN**: typecheck, Web build, Telegram build, API build, and tests pass.
 
-### Web trial surface
+### Web trial surface status
 
-The Web lobby now mounts a **Try CHAOS Pulse** panel using the real shared engine directly.
-
-Files:
+The earlier separate **Try CHAOS Pulse** lobby panel was removed before PR #8 merged. It is not present in the current `main` tree, and the source files below are intentionally absent:
 
 - `apps/web/src/chaos-pulse-lab.ts`
 - `apps/web/src/chaos-pulse-lab.css`
-- `apps/web/src/main.ts`
 
-The panel lets us:
+Do not resume by trying to test that removed panel. The current app-facing path is the main Web board, which still boots through `runtimeMode: 'legacy-compatibility'` in `apps/web/src/main.ts`.
 
-- choose 2–10 players;
-- create a fresh-seeded random match;
-- inspect each opening hand and its special/interaction count;
-- generate 12 sequential adaptive physical draws;
-- observe global interaction pressure before and after each draw;
-- reroll repeatedly to judge whether hands/pacing feel repetitive or appropriately chaotic.
-
-Status: **SOURCE BUILDS — manual browser trial still required.**
+Status: **SHARED ENGINE BUILDS — MAIN BOARD DECK SEAM STILL NEEDS MIGRATION.**
 
 ### Compatibility-runtime migration boundary
 
@@ -343,7 +333,7 @@ Current runtime classification after PR #9:
 
 That legacy runtime still owns an obsolete local deck/deal/draw implementation. Do **not** copy CHAOS Pulse into it as a second algorithm.
 
-The next convergence step is to bridge/remove the legacy deck/deal/draw seam so the main board consumes the shared authoritative CHAOS Pulse engine. Until that migration is browser-verified, the lobby trial panel is the correct place to evaluate the new distribution itself.
+The next convergence step is to bridge/remove the legacy deck/deal/draw seam so the main board consumes the shared authoritative CHAOS Pulse engine. Until that migration is browser-verified, the main board remains the app-facing verification target.
 
 ## Locked game-feel rule — opening hand is free, later interaction draws auto-play
 
@@ -484,12 +474,13 @@ Do not silently mark these complete while working on gameplay:
 
 ## Current Next Task
 
-**Browser-test the new `Try CHAOS Pulse` shared-engine trial surface, then migrate the legacy Web board's deck/deal/draw seam to the shared adaptive engine without duplicating CHAOS Pulse.**
+**Migrate the main compatibility board's deck/deal/draw seam to the shared CHAOS Pulse engine and connect post-start interaction draws to the shared FIFO resolver.**
 
-1. Pull the branch and run Web locally.
-2. Use `Try CHAOS Pulse` for 2, 5, and 10 players; reroll several matches and inspect opening-hand variety and adaptive draw pressure.
-3. Tune only if the observed distribution feels too calm, too repetitive, or too interaction-heavy.
-4. Audit the exact compatibility-runtime deck/deal/draw boundary.
-5. Bridge that seam to the shared canonical 133-card/dealer/draw authority.
-6. Connect post-start selected interaction cards to the existing forced family flows through one FIFO dispatcher.
-7. Browser-verify the actual game board before marking CHAOS Pulse gameplay accepted.
+1. Prove the current Web board still uses the legacy compatibility boot path before editing.
+2. Locate the exact legacy deck/deal/draw owners in `packages/legacy-runtime/src/runtime.ts`.
+3. Add or update the smallest regression coverage proving actual board opening hands consume the shared 133-card dealer.
+4. Add or update coverage proving post-start interaction draws route into FIFO forced resolution instead of silently entering hand.
+5. Migrate by importing/using the existing shared `packages/game-engine` helpers; do not copy CHAOS Pulse into legacy runtime.
+6. Preserve accepted Truth/Dare, Paranoia, Duel, Nope, Pass/Rewind/Flag, Ghost, TAG, Hijack, Machiavelli, and win-boundary behavior.
+7. Run focused engine/runtime tests, `npm run typecheck`, and the GitHub source CI on the exact candidate.
+8. Perform browser/live-Web verification before claiming runtime acceptance.

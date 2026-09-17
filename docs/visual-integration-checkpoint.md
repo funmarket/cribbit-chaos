@@ -94,7 +94,7 @@ Historical non-Cloudflare deployments are not the current Phase 3.5 staging sour
 
 ## Current live-proof status
 
-Local and prior staging visual QA has passed, but the current Cloudflare production URLs still require the explicit live smoke-test checkpoint recorded in `PLAN.md`.
+Local and prior staging visual QA has passed. After PR #8 merged to `main`, the Cloudflare production URLs returned HTTP `200` and their top-level HTML loaded without the old direct `canonical-game-runtime` bootstrap strings. Full browser visual/runtime click-through is still pending because HTTP/readback is not the same as rendered interaction proof.
 
 Current next visual task:
 

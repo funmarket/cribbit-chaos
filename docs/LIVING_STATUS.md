@@ -1,6 +1,6 @@
 # Cribbit CHAOS Living Status
 
-Last verified source branch: `feature/visual-integration-checkpoint`
+Last verified source branch: `main`
 
 This file is the concise operational status companion to `PLAN.md`. It records what is accepted, what is currently implemented, and what we do next.
 
@@ -152,27 +152,16 @@ Adaptive tests cover 2–10 players, 1–2 opening specials, 133-card conservati
 
 This is **source verification only**, not browser gameplay acceptance.
 
-## Web trial surface — ready for manual check
+## Web trial surface — removed before PR #8 merge
 
-The Web lobby now contains a **Try CHAOS Pulse** button backed by the real shared game engine.
-
-Files:
+The earlier separate **Try CHAOS Pulse** lobby panel is not present in current `main`. The removed files are:
 
 - `apps/web/src/chaos-pulse-lab.ts`
 - `apps/web/src/chaos-pulse-lab.css`
-- `apps/web/src/main.ts`
 
-The trial panel lets us:
+Do not use that removed panel as the next checkpoint. The current app-facing verification target is the main Web board.
 
-- choose 2–10 players;
-- generate a fresh-seeded match;
-- inspect all opening hands;
-- see special + interaction counts for each hand;
-- produce 12 sequential adaptive physical draws;
-- see interaction pressure before/after every draw;
-- reroll repeatedly to judge variety and pacing.
-
-Status: **BUILD VERIFIED — USER/BROWSER TRIAL PENDING**.
+Status: **REMOVED PANEL — MAIN BOARD MIGRATION PENDING**.
 
 ## Important compatibility boundary
 
@@ -188,7 +177,7 @@ Current runtime classification:
 
 That legacy runtime still contains its own old local deck/deal/draw implementation. Therefore:
 
-- the **Try CHAOS Pulse** panel is using the new shared adaptive engine now;
+- the removed **Try CHAOS Pulse** panel is no longer an app-facing checkpoint;
 - the **main playable compatibility board is not yet using CHAOS Pulse for its actual deck**;
 - do not copy the adaptive algorithm into `legacy-runtime` as another rules engine;
 - next migration must bridge/remove the compatibility deck seam and consume the shared engine instead.
@@ -230,7 +219,7 @@ Multiple physical draws are selected sequentially from the current adaptive stat
 
 ## Active integration task
 
-The shared engine now owns **which real physical card is selected**. The remaining integration task is to make the actual Web board consume that shared authority and route selected immediate-interaction cards into the one forced-interaction FIFO dispatcher.
+The shared engine now owns **which real physical card is selected**. The actual Web board still boots through the transitional compatibility runtime, so the remaining integration task is to make that board consume the shared authority and route selected immediate-interaction cards into the one forced-interaction FIFO dispatcher.
 
 Required convergence:
 
@@ -256,17 +245,12 @@ Runtime-affecting work is not accepted until browser/live-Web verification confi
 
 ## Current next task
 
-**Run the Web app and manually evaluate `Try CHAOS Pulse`; after the distribution feels directionally correct, migrate the main compatibility board's deck/deal/draw seam to the shared engine and connect post-start interaction draws to the shared FIFO resolver.**
+**Migrate the main compatibility board's deck/deal/draw seam to the shared CHAOS Pulse engine and connect post-start interaction draws to the shared FIFO resolver.**
 
-Trial checklist:
+Verification checklist:
 
-- [ ] 2-player repeated rerolls show varied hands and every hand has 1–2 specials
-- [ ] 5-player repeated rerolls show varied hands and every hand has 1–2 specials
-- [ ] 10-player repeated rerolls show varied hands and every hand has 1–2 specials
-- [ ] no obvious repeated fixed hand recipe
-- [ ] common 6-copy actions feel more frequent than 3-copy families
-- [ ] 1-copy cards remain visibly scarce across rerolls
-- [ ] adaptive 12-draw sequences do not show an obvious fixed window pattern
-- [ ] interaction pressure visibly falls after an interaction and rebuilds through quieter draws
-- [ ] unusual/repeated outcomes remain possible enough to feel chaotic
-- [ ] trial UI is usable on desktop/mobile
+- [ ] actual board opening hands consume the shared 133-card adaptive dealer
+- [ ] post-start interaction draws route into FIFO forced resolution instead of silently entering hand
+- [ ] no second CHAOS Pulse algorithm is copied into the compatibility runtime
+- [ ] accepted social/safety/card flows remain covered and passing
+- [ ] browser/live-Web verification confirms runtime behavior before acceptance
