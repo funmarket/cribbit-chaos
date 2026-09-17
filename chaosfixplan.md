@@ -786,6 +786,51 @@ Phase 6 score: `8.8/10`.
 
 Reason for score: live project-control docs now match the verified runtime ownership and Cloudflare-only direction for this repair path. Score is not higher because full exact-head CI and PR readback must be refreshed after this doc commit.
 
+### Slice 7 — Phase 7 API command-boundary fail-closed proof
+
+- Status: implemented as focused API boundary coverage; no production gameplay command behavior changed in this slice.
+- Files updated:
+  - `apps/api/test/game-command-boundary.test.ts`
+  - `package.json`
+  - `chaosfixplan.md`
+
+Source inspection:
+
+- `apps/api/src/app.ts:398-408` owns `POST /v1/games/:sessionId/commands` and authenticates before calling the game service.
+- `apps/api/src/game-service.ts:413-427` rejects route/session mismatch and authenticated-player mismatch before applying `applyCommand` or loading mutable game state.
+- `apps/api/src/game-service.ts:427-456` applies shared engine commands, persists resulting state/events, and records command results inside the service transaction when the command boundary is valid.
+
+Regression coverage added:
+
+- unauthenticated game commands fail closed with `AUTH_REQUIRED`;
+- commands whose body `sessionId` does not match the route fail closed with `SESSION_MISMATCH` before DB mutation;
+- commands whose `playerId` does not match the authenticated user fail closed with `PLAYER_MISMATCH` before DB mutation.
+
+Verification executed immediately after this edit:
+
+```sh
+npx tsx --test apps/api/test/game-command-boundary.test.ts
+```
+
+Result: `3 pass / 0 fail`.
+
+```sh
+npx tsx --test apps/web/test/runtime-single-owner.test.ts
+```
+
+Result: `2 pass / 0 fail`.
+
+```sh
+npm run typecheck
+git diff --check
+```
+
+Result: exit `0`.
+
+Phase 7 score: `8.7/10`.
+
+Reason for score: this slice proves the route/auth/session/player boundary fails closed before command mutation and registers the coverage in the repo test script. Score is not higher because it intentionally does not claim the full gameplay API is production-authoritative end-to-end; DB-backed valid-command runtime smoke remains a separate later slice.
+
 ### Independent review — Phase 3/4
 
 - Status: passed.
