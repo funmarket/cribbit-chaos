@@ -902,10 +902,10 @@ Stop and report if any of these happen:
 - URL: `https://github.com/funmarket/cribbit-chaos/pull/9`
 - Branch: `fix/web-runtime-single-owner`
 - Base: `feature/visual-integration-checkpoint`
-- Phase 7 code/test commit: `dc6a4495f92e8fe0b4f90d5be20dae384429575b`.
+- Phase 8 deck-authority commit: `eaf21b0be0aa9deb1e1cc960f03aa2c6b7bea72f`.
 - Draft: yes.
 
-GitHub checks at exact-head readback for Phase 7 code/test commit `dc6a4495f92e8fe0b4f90d5be20dae384429575b`:
+GitHub source checks at exact-head readback for Phase 8 deck-authority commit `eaf21b0be0aa9deb1e1cc960f03aa2c6b7bea72f`:
 
 - `build-api`: pass.
 - `build-web`: pass.
