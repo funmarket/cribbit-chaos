@@ -1,5 +1,5 @@
 import type { Card, CardColor, CardKind, GameCommand, GameState, GameTransition } from '../../../packages/contracts/src/index.ts';
-import { applyCommand, createGame, isLegalPlay } from '../../../packages/game-engine/src/index.ts';
+import { applyCommand, chooseBotOption, createGame } from '../../../packages/game-engine/src/index.ts';
 import { promptPoolForSources } from '../../../packages/prompts/src/index.ts';
 import type { TelegramBackendGame, TelegramGameCommand } from './backendGame.ts';
 import type { TelegramRoomDraft } from './roomSetup.ts';
@@ -123,136 +123,41 @@ export function createTelegramSimulation(draft: TelegramRoomDraft): TelegramSimu
     return transition;
   }
 
-  function firstOtherPlayer(playerId: string): string | null {
-    return state.players.find(player => player.id !== playerId)?.id ?? null;
+  function isBotPlayerId(playerId: string): boolean {
+    return playerId !== HUMAN_PLAYER_ID;
+  }
+
+  function candidateBotIds(): string[] {
+    if (state.pendingEffect?.type === 'WILD_COLOR') {
+      return isBotPlayerId(state.pendingEffect.playerId) ? [state.pendingEffect.playerId] : [];
+    }
+    if (state.social) return state.players.map(player => player.id).filter(isBotPlayerId);
+    return state.currentPlayerId && isBotPlayerId(state.currentPlayerId) ? [state.currentPlayerId] : [];
   }
 
   function runAutomatedTurns(): void {
     let steps = 0;
     while (state.status === 'ACTIVE' && steps < 100) {
       steps += 1;
+      const beforeRevision = state.revision;
+      let advanced = false;
 
-      if (state.pendingEffect?.type === 'WILD_COLOR') {
-        const ownerId = state.pendingEffect.playerId;
-        if (ownerId === HUMAN_PLAYER_ID) return;
-        const owner = state.players.find(player => player.id === ownerId);
-        const color = owner?.hand.find(card => card.color)?.color ?? 'lime';
-        if (!applyEngine(commandFor(ownerId, { type:'SELECT_WILD_COLOR', color })).ok) return;
-        continue;
+      for (const playerId of candidateBotIds()) {
+        const decision = chooseBotOption(state, playerId, undefined, { isBotPlayerId });
+        if (decision.kind !== 'command') continue;
+        const transition = applyEngine({
+          ...decision.option.command,
+          commandId:commandId(decision.option.command.type, playerId),
+          playerId,
+          expectedRevision:state.revision,
+          sessionId:state.id,
+        } as GameCommand);
+        if (!transition.ok) return;
+        advanced = true;
+        break;
       }
 
-      const social = state.social;
-      if (social && !social.resolutionComplete) {
-        if (social.cardKind === 'truth' || social.cardKind === 'dare') {
-          if (social.actorId === HUMAN_PLAYER_ID) return;
-          if (social.answerState.status === 'WAITING') {
-            if (!applyEngine(commandFor(social.actorId, { type:'SELECT_ANSWER_MODE', mode:'ANSWERED_LIVE' })).ok) return;
-            continue;
-          }
-          if (social.answerState.mode === 'ANSWERED_LIVE' && social.answerState.status !== 'SUBMITTED') {
-            if (!applyEngine(commandFor(social.actorId, { type:'MARK_ANSWERED_LIVE' })).ok) return;
-            continue;
-          }
-          return;
-        }
-
-        if (social.cardKind === 'chaos') {
-          const pendingBotId = social.pendingCompletionPlayerIds.find(
-            playerId => playerId !== HUMAN_PLAYER_ID && !social.completedCompletionPlayerIds.includes(playerId),
-          );
-          if (pendingBotId) {
-            const record = social.completionRecords[pendingBotId];
-            if (!record?.mode) {
-              if (!applyEngine(commandFor(pendingBotId, { type:'SELECT_ANSWER_MODE', mode:'ANSWERED_LIVE' })).ok) return;
-              continue;
-            }
-            if (!applyEngine(commandFor(pendingBotId, { type:'MARK_ANSWERED_LIVE' })).ok) return;
-            continue;
-          }
-          return;
-        }
-
-        if (social.cardKind === 'paranoia') {
-          if (!social.pendingTargetId) {
-            if (social.actorId === HUMAN_PLAYER_ID) return;
-            const targetId = firstOtherPlayer(social.actorId);
-            if (!targetId || !applyEngine(commandFor(social.actorId, { type:'SELECT_PARANOIA_TARGET', targetId })).ok) return;
-            continue;
-          }
-          if (!social.paranoiaPhase) {
-            if (social.actorId === HUMAN_PLAYER_ID) return;
-            if (!applyEngine(commandFor(social.actorId, { type:'SELECT_PARANOIA_PHASE', phase:'CLASSIC' })).ok) return;
-            continue;
-          }
-          if (social.paranoiaPhase === 'CLASSIC') {
-            if (!social.classicAnswerPlayerId) {
-              if (social.pendingTargetId === HUMAN_PLAYER_ID) return;
-              const answerId = state.players.find(player => player.id !== social.pendingTargetId)?.id;
-              if (!answerId || !applyEngine(commandFor(social.pendingTargetId, { type:'SELECT_PARANOIA_CLASSIC_ANSWER', targetId:answerId })).ok) return;
-              continue;
-            }
-            if (!social.classicRevealDecision) {
-              if (social.classicAnswerPlayerId === HUMAN_PLAYER_ID) return;
-              if (!applyEngine(commandFor(social.classicAnswerPlayerId, { type:'SUBMIT_PARANOIA_CLASSIC_DECISION', decision:'REVEAL' })).ok) return;
-              continue;
-            }
-          } else if (social.paranoiaVote) {
-            const voterId = social.paranoiaVote.eligibleVoterIds.find(
-              playerId => playerId !== HUMAN_PLAYER_ID && !social.paranoiaVote?.votes[playerId],
-            );
-            if (voterId) {
-              if (!applyEngine(commandFor(voterId, { type:'SUBMIT_PARANOIA_VOTE', vote:'BELIEVE' })).ok) return;
-              continue;
-            }
-          }
-          return;
-        }
-
-        if (social.cardKind === 'duel') {
-          const duel = social.pendingDuel;
-          if (!duel?.opponentId) {
-            if (social.actorId === HUMAN_PLAYER_ID) return;
-            const targetId = firstOtherPlayer(social.actorId);
-            if (!targetId || !applyEngine(commandFor(social.actorId, { type:'SELECT_DUEL_TARGET', targetId })).ok) return;
-            continue;
-          }
-          if (!duel.initiatorResponse?.submitted) {
-            if (duel.initiatorId === HUMAN_PLAYER_ID) return;
-            if (!applyEngine(commandFor(duel.initiatorId, { type:'SUBMIT_DUEL_RESPONSE', side:'initiator', completionOnly:true })).ok) return;
-            continue;
-          }
-          if (!duel.opponentResponse?.submitted) {
-            if (duel.opponentId === HUMAN_PLAYER_ID) return;
-            if (!applyEngine(commandFor(duel.opponentId, { type:'SUBMIT_DUEL_RESPONSE', side:'opponent', completionOnly:true })).ok) return;
-            continue;
-          }
-          const voterId = duel.vote?.eligibleVoterIds.find(
-            playerId => playerId !== HUMAN_PLAYER_ID && !duel.vote?.votes[playerId],
-          );
-          if (voterId) {
-            if (!applyEngine(commandFor(voterId, { type:'DUEL_VOTE', winnerId:duel.initiatorId })).ok) return;
-            continue;
-          }
-          return;
-        }
-
-        return;
-      }
-
-      if (state.social?.resolutionComplete) {
-        if (state.social.actorId === HUMAN_PLAYER_ID) return;
-        if (!applyEngine(commandFor(state.social.actorId, { type:'COMPLETE_FLOW' })).ok) return;
-        continue;
-      }
-
-      if (state.currentPlayerId === HUMAN_PLAYER_ID) return;
-      const bot = state.players.find(player => player.id === state.currentPlayerId);
-      if (!bot) return;
-      const playable = bot.hand.find(card => card.kind !== 'nope' && isLegalPlay(state, bot.id, card.id));
-      const command: TelegramGameCommand = playable
-        ? { type:'PLAY_CARD', cardId:playable.id }
-        : { type:'DRAW_CARD' };
-      if (!applyEngine(commandFor(bot.id, command)).ok) return;
+      if (!advanced || state.revision === beforeRevision) return;
     }
   }
 

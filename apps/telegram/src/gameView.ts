@@ -1,5 +1,5 @@
-import type { CardColor, GameState } from '../../../packages/contracts/src/index.ts';
-import { isLegalPlay } from '../../../packages/game-engine/src/index.ts';
+import type { CardColor, GameCommand, GameState } from '../../../packages/contracts/src/index.ts';
+import { isLegalPlay, projectDecisionCapabilities } from '../../../packages/game-engine/src/index.ts';
 import type { PlatformAdapter } from '../../../packages/platform/src/types.ts';
 import { renderCribbitCard, renderCribbitCardBack } from './cardRenderer.ts';
 import { hasContextualAction, openContextualRuleUI } from './contextualRuleUI.ts';
@@ -199,6 +199,7 @@ function gameTemplate(
       ` : ''}
 
       ${state.pendingEffect?.type === 'WILD_COLOR' && state.pendingEffect.playerId === game.humanPlayerId ? wildColorPicker() : ''}
+      ${decisionControls(state, game)}
 
       <section class="tg-hand" aria-label="Your hand">
         <div class="tg-section-label"><span>Your Hand</span><strong>${human?.hand.length ?? 0}</strong></div>
@@ -292,7 +293,21 @@ function bindGame(
     setStatus(transitionMessage(result.ok, result.error?.message, result.ok ? 'Prompt flagged.' : undefined));
     render();
   });
+
+  host.querySelectorAll<HTMLButtonElement>('[data-decision-option-id]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const optionId = button.dataset.decisionOptionId;
+      if (!optionId) return;
+      const selected = projectDecisionCapabilities(game.getState(), game.humanPlayerId).options.find(option => option.optionId === optionId);
+      if (!selected) return;
+      const result = await game.send(selected.command as GameCommand);
+      platform.haptic(result.ok ? 'medium' : 'light');
+      setStatus(transitionMessage(result.ok, result.error?.message, result.ok ? 'Game decision submitted.' : undefined));
+      render();
+    });
+  });
 }
+
 
 function bindDrawActions(
   host: HTMLElement,
@@ -330,6 +345,33 @@ function bindPlayActions(
       render();
     });
   });
+}
+
+
+function decisionLabel(game: TelegramBackendGame, option: ReturnType<typeof projectDecisionCapabilities>['options'][number]): string {
+  const presentation = option.presentation;
+  const command = option.command;
+  if (presentation.category === 'TARGET' && presentation.targetPlayerId) return `Target ${playerName(game, presentation.targetPlayerId)}`;
+  if (presentation.category === 'COLOR' && presentation.color) return presentation.color.toUpperCase();
+  if (presentation.category === 'PLAY_CARD' && presentation.cardKind) return `Play ${presentation.cardKind.replaceAll('_',' ')}`;
+  if (presentation.category === 'DRAW_CARD') return 'Draw';
+  if (presentation.category === 'ANSWER_MODE') return 'Answered Live';
+  if (presentation.category === 'COMPLETION') return command.type === 'SUBMIT_DUEL_RESPONSE' ? 'Submit Response' : 'Mark Complete';
+  if (presentation.category === 'VOTE' && presentation.voteForPlayerId) return `Vote ${playerName(game, presentation.voteForPlayerId)}`;
+  if (presentation.category === 'CHOICE' && presentation.choiceKey) return presentation.choiceKey.replaceAll('_',' ');
+  if (presentation.category === 'CONTINUE') return 'Continue';
+  return command.type.replaceAll('_',' ');
+}
+
+function decisionControls(state: GameState, game: TelegramBackendGame): string {
+  const capabilities = projectDecisionCapabilities(state, game.humanPlayerId);
+  if (!capabilities.options.length) return '';
+  return `
+    <section class="tg-wild-picker" aria-label="Required game decision">
+      <span>${escapeHTML(capabilities.requiredAction ?? 'Choose action')}</span>
+      <div>${capabilities.options.map(option => `<button type="button" data-decision-option-id="${escapeHTML(option.optionId)}">${escapeHTML(decisionLabel(game, option))}</button>`).join('')}</div>
+    </section>
+  `;
 }
 
 function transitionMessage(ok: boolean, error?: string, success?: string): StatusMessage {

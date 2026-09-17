@@ -30,6 +30,8 @@ test('Web live rooms are API command adapters, not a second bot/game authority',
 test('Telegram live rooms use the same API session adapter; local simulation remains fallback QA only', () => {
   const backendGame = source('apps/telegram/src/backendGame.ts');
   const bootstrapTelegram = source('apps/telegram/src/bootstrapTelegram.ts');
+  const simulation = source('apps/telegram/src/simulation.ts');
+  const gameView = source('apps/telegram/src/gameView.ts');
 
   assert.match(backendGame, /api\.getSnapshot<GameState>\(room\.sessionId\)/);
   assert.match(backendGame, /api\.sendCommand<GameState>\(command\)/);
@@ -38,4 +40,16 @@ test('Telegram live rooms use the same API session adapter; local simulation rem
   assert.match(bootstrapTelegram, /createTelegramBackendGame\(api,\s*room,\s*auth\.user\.id\)/);
   assert.match(bootstrapTelegram, /Railway API is not configured in this build\. Simulation remains available\./);
   assert.match(bootstrapTelegram, /live rooms require a valid Telegram launch/);
+  assert.match(simulation, /chooseBotOption\(state,\s*playerId/);
+  assert.doesNotMatch(simulation, /if\s*\(social\.cardKind\s*===\s*['"]truth['"]\s*\|\|\s*social\.cardKind\s*===\s*['"]dare['"]\)/);
+  assert.match(gameView, /projectDecisionCapabilities\(state,\s*game\.humanPlayerId\)/);
+});
+
+
+test('Web live rooms render shared engine capabilities for human special-card decisions', () => {
+  const liveSession = source('apps/web/src/live-session.ts');
+
+  assert.match(liveSession, /projectDecisionCapabilities\(session\.state,\s*userId\)/);
+  assert.match(liveSession, /data-live-option-id/);
+  assert.match(liveSession, /projectDecisionCapabilities\(live\.state,\s*userId\)\.options\.find/);
 });

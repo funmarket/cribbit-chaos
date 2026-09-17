@@ -1,6 +1,6 @@
 import type { Card, CardColor, GameCommand, GameState } from '../../../packages/contracts/src/index.ts';
 import { ApiError, CribbitApiClient, CribbitRealtimeClient, type RoomSessionResult } from '../../../packages/api-client/src/index.ts';
-import { isLegalPlay } from '../../../packages/game-engine/src/index.ts';
+import { isLegalPlay, projectDecisionCapabilities } from '../../../packages/game-engine/src/index.ts';
 import { cribbitAuth } from '../../../packages/ui/src/auth-controller.ts';
 import { openWebAuthDialog } from './web-auth.ts';
 import { renderDiscardedPile } from './pile-presentation.ts';
@@ -82,7 +82,30 @@ function button(label:string, action:string, extra=''): string {
   return `<button class="button button--sm" type="button" data-live-action="${action}" ${extra}>${escapeHTML(label)}</button>`;
 }
 
+function decisionLabel(session:LiveSession, option: ReturnType<typeof projectDecisionCapabilities>['options'][number]): string {
+  const presentation = option.presentation;
+  const command = option.command;
+  if (presentation.category === 'TARGET' && presentation.targetPlayerId) return `Target ${playerName(session,presentation.targetPlayerId)}`;
+  if (presentation.category === 'COLOR' && presentation.color) return presentation.color.toUpperCase();
+  if (presentation.category === 'PLAY_CARD' && presentation.cardKind) return `Play ${presentation.cardKind.replaceAll('_',' ')}`;
+  if (presentation.category === 'DRAW_CARD') return 'Draw';
+  if (presentation.category === 'ANSWER_MODE') return 'Answered Live';
+  if (presentation.category === 'COMPLETION') return command.type === 'SUBMIT_DUEL_RESPONSE' ? 'Submit Response' : 'Mark Complete';
+  if (presentation.category === 'VOTE' && presentation.voteForPlayerId) return `Vote ${playerName(session,presentation.voteForPlayerId)}`;
+  if (presentation.category === 'CHOICE' && presentation.choiceKey) return presentation.choiceKey.replaceAll('_',' ');
+  if (presentation.category === 'CONTINUE') return 'Continue';
+  return command.type.replaceAll('_',' ');
+}
+
+function decisionControls(session:LiveSession, userId:string): string {
+  const capabilities = projectDecisionCapabilities(session.state,userId);
+  if (!capabilities.options.length) return '';
+  return `<div class="filter-row">${capabilities.options.map(option => `<button class="button button--sm" type="button" data-live-option-id="${escapeHTML(option.optionId)}">${escapeHTML(decisionLabel(session,option))}</button>`).join('')}</div>`;
+}
+
 function socialControls(session:LiveSession, userId:string): string {
+  const projected = decisionControls(session,userId);
+  if (projected) return projected;
   const state = session.state;
   if (state.pendingEffect?.type === 'WILD_COLOR' && state.pendingEffect.playerId === userId) {
     return `<div class="filter-row">${(['lime','orange','cyan','purple'] as CardColor[]).map(color => button(color.toUpperCase(),'wild-color',`data-color="${color}"`)).join('')}</div>`;
@@ -348,7 +371,8 @@ export function startWebLiveRooms(api:CribbitApiClient): () => void {
     const nope = target.closest('[data-action="use-nope"]');
     const flag = target.closest('[data-action="safety-flag"]');
     const liveAction = target.closest<HTMLElement>('[data-live-action]');
-    if (!(play || draw || pass || rewind || nope || flag || liveAction)) return;
+    const liveOption = target.closest<HTMLElement>('[data-live-option-id]');
+    if (!(play || draw || pass || rewind || nope || flag || liveAction || liveOption)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
 
@@ -362,6 +386,13 @@ export function startWebLiveRooms(api:CribbitApiClient): () => void {
       const userId = auth.status === 'AUTHENTICATED' ? auth.user.id : '';
       const cardId = live.state.players.find(player => player.id === userId)?.hand.find(card => card.kind === 'nope')?.id;
       if (cardId) return void send({type:'PLAY_NOPE',cardId});
+      return;
+    }
+    if (liveOption?.dataset.liveOptionId) {
+      const auth = cribbitAuth.current;
+      const userId = auth.status === 'AUTHENTICATED' ? auth.user.id : '';
+      const selected = projectDecisionCapabilities(live.state,userId).options.find(option => option.optionId === liveOption.dataset.liveOptionId);
+      if (selected) return void send(selected.command as CommandBody);
       return;
     }
     if (!liveAction) return;

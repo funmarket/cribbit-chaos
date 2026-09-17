@@ -1293,3 +1293,61 @@ Proof:
 Score: `9.2/10`.
 
 Reason for score: Phase 2B now has shared backend BotPolicy implementation proof, full local verification, exact-head PR/main CI, merge readback, and Cloudflare endpoint readback. Score is not higher because browser automation and desktop preview could not complete a live click-through game/simulation smoke, so deployed UI behavior is endpoint-proven but not visually/click-through proven in this session.
+
+### Phase 2C — canonical rules source and frontend rule-adapter alignment
+
+User reported that local `http://127.0.0.1:37134/` showed the correct rules but deployed Telegram/Web did not.
+
+Diagnosis:
+
+- `Game_rules.md` in the repo was not the full attached owner-approved annotated snapshot from `C:\Users\GrowB\Downloads\cibchaosrules\gamerules.md`; it stopped before the later locked/unresolved rules.
+- Telegram's fallback simulation still had hardcoded local bot/social branches instead of choosing from shared engine `BotPolicy`/capabilities.
+- Web and Telegram human decision controls did not render all shared engine projected legal options, so the backend could be correct while frontend surfaces looked like different rules.
+
+Change:
+
+- Replaced repo `Game_rules.md` with the attached canonical annotated owner-approved rules snapshot.
+- Added `packages/cards/test/game-rules-authority.test.ts` to pin the normalized canonical rules hash and required provenance/rule IDs.
+- Rewired Telegram fallback simulation bot advancement to use shared `chooseBotOption()` instead of hardcoded per-card-family logic.
+- Added shared `projectDecisionCapabilities()` action controls to Web live rooms and Telegram live view so frontend decisions come from the same reducer/legal-command projection.
+- Expanded the existing bot authority contract test to guard these adapter paths.
+
+Proof commands:
+
+```sh
+npx tsx --test packages/cards/test/game-rules-authority.test.ts apps/api/test/bot-authority-contract.test.ts packages/game-engine/test/bot-policy.test.ts
+npm run typecheck
+npm test
+npm run build
+python - <<'PY'
+from pathlib import Path
+root=Path('.')
+for term in ['Source: `021a30d8-bad8-40d0-9289-26e765ba2e85.md`','RULE-PROVENANCE-006','Canonical local rule snapshot']:
+    hits=[]
+    for p in root.rglob('*'):
+        if '.git' in p.parts or 'node_modules' in p.parts or 'dist' in p.parts or not p.is_file():
+            continue
+        try:
+            text=p.read_text(encoding='utf-8')
+        except Exception:
+            continue
+        if term in text:
+            hits.append(p.as_posix())
+    print(term, hits)
+PY
+git diff --check
+```
+
+Proof:
+
+- Canonical rules authority focused test: `5 pass / 0 fail`.
+- BotPolicy focused inclusion: `8 pass / 0 fail` when run with rules/API contract tests.
+- `npm run typecheck`: pass.
+- Full `npm test`: `137 pass / 0 fail`.
+- `npm run build`: Web, Telegram, and API builds pass.
+- Canonical rule-source scan found owner-approved provenance markers only in `Game_rules.md`.
+- `git diff --check`: pass.
+
+Score: `9.0/10`.
+
+Reason for score: the attached rule file is now the repo's single canonical rules document, and Web/Telegram adapters now ask the same shared engine capability projection for legal human/bot decisions instead of maintaining separate frontend rule controls. Score is not higher until the change is pushed, CI/deploy readback passes, and live deployed click-through confirms both clients show the same special-card decisions.
