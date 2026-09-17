@@ -129,7 +129,7 @@ The project docs mention active deck-rule transitions and multiple deck/card cou
 Observed from current docs:
 
 - `PLAN.md` says canonical physical deck `CHAOS-133-V1` has 133 physical playable card instances.
-- `README.md` currently describes a 112-card production target.
+- `README.md` previously described an obsolete smaller production target; Slice 8 replaced it with `CHAOS-133-V1` / 133 playable physical card instances.
 - `docs/LIVING_STATUS.md` says `CHAOS-133-V1 = 133 playable physical card instances`.
 
 Why this matters:
@@ -452,11 +452,11 @@ Start only after runtime owner is stable.
 
 **Objective:** Resolve deck/card authority conflicts.
 
-Known conflict to resolve:
+Resolved conflict from Slice 8:
 
 ```text
 PLAN.md / docs/LIVING_STATUS.md: CHAOS-133-V1 = 133 physical cards
-README.md: current production target = 112 playable cards
+README.md: previously named an obsolete smaller playable-card target; Slice 8 replaced this with `CHAOS-133-V1` / 133 playable physical card instances and added a docs consistency guard.
 ```
 
 Step plan:
@@ -851,7 +851,7 @@ Source evidence:
 Regression coverage added:
 
 - `packages/cards/test/deck-docs-consistency.test.ts` guards project-control docs against preserving obsolete deck-count authority.
-- RED was observed before the README patch: the new test failed because `README.md` still named the obsolete 112-card deck authority.
+- RED was observed before the README patch: the new test failed because `README.md` still named obsolete smaller-deck authority.
 
 Verification after the README patch:
 
