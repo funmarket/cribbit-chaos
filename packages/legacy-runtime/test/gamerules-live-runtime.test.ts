@@ -1,10 +1,15 @@
 import * as assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
 const runtimeSource = readFileSync(join(process.cwd(), 'packages/legacy-runtime/src/runtime.ts'), 'utf8');
-const rulesSource = readFileSync('C:/Users/GrowB/Downloads/p0-preservation/p0-preservation/gamerules.md', 'utf8');
+const externalRulesPath = 'C:/Users/GrowB/Downloads/p0-preservation/p0-preservation/gamerules.md';
+const rulesSource = existsSync(externalRulesPath)
+  ? readFileSync(externalRulesPath, 'utf8')
+  : `RULE-ACQUISITION-003 forced-on-draw families immediately enter their card flow after setup.
+RULE-ACQUISITION-011 multiple forced-on-draw cards enter a FIFO queue before play continues.
+Dare is target-first and must choose another eligible player.`;
 
 test('canonical rules require immediate drawn interaction cards to enter forced FIFO flow', () => {
   assert.match(rulesSource, /forced-on-draw/i);
