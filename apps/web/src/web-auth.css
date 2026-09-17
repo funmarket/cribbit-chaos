@@ -1,0 +1,14 @@
+.cc-web-auth-backdrop{position:fixed;inset:0;z-index:100000;display:grid;place-items:center;padding:20px;background:rgba(3,4,8,.78);backdrop-filter:blur(8px)}
+.cc-web-auth-dialog{width:min(460px,100%);max-height:min(780px,calc(100dvh - 40px));overflow:auto}
+.cc-web-auth-dialog .panel-body{display:grid;gap:14px}
+.cc-web-auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cc-web-auth-tabs .button[aria-pressed="true"]{border-color:var(--lime);color:var(--lime)}
+.cc-web-auth-form{display:grid;gap:12px}
+.cc-web-auth-form[hidden]{display:none}
+.cc-web-auth-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.cc-web-auth-message{min-height:20px;color:var(--muted);font-size:.84rem}
+.cc-web-auth-message[data-tone="warning"]{color:var(--orange)}
+.cc-web-auth-message[data-tone="success"]{color:var(--lime)}
+.cc-web-auth-note{font-size:.78rem;color:var(--muted);line-height:1.45}
+.cc-web-auth-user{display:inline-flex;align-items:center;gap:8px}
+@media (max-width:700px){.cc-web-auth-backdrop{padding:10px;place-items:end center}.cc-web-auth-dialog{max-height:88dvh}}

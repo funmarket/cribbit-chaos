@@ -9,7 +9,6 @@
       "reference/legacy-migration/"
     ],
     "duplicateDocsScheduledForDeletion": [
-      "docs/VERCEL_SETUP.md",
       "docs/RAILWAY_SETUP.md",
       "docs/TELEGRAM_SETUP.md",
       "docs/GITHUB_SETUP.md",
@@ -78,20 +77,7 @@
       "deletionDecision": "delete",
       "reason": "Empty placeholder folder after the useful reference asset was canonicalized elsewhere."
     },
-    {
-      "path": "docs/VERCEL_SETUP.md",
-      "classification": "DUPLICATE_REFERENCE",
-      "equivalentProductionPath": "docs/DEPLOYMENT.md, README.md",
-      "importedByProductionCode": false,
-      "referencedByPackageJson": false,
-      "referencedByTsconfig": false,
-      "referencedByVite": false,
-      "referencedByCI": false,
-      "referencedByDocumentation": true,
-      "containsUniqueCodeNotElsewhere": false,
-      "deletionDecision": "delete",
-      "reason": "Useful deployment notes were folded into the canonical deployment documentation."
-    },
+
     {
       "path": "docs/RAILWAY_SETUP.md",
       "classification": "DUPLICATE_REFERENCE",

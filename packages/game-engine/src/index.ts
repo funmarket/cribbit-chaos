@@ -1,6 +1,9 @@
 export type {
+  AdaptiveProbabilityState,
   Card,
   CardColor,
+  DuelJudgingMode,
+  DuelObjectiveEvaluation,
   GameCommand,
   GameCommandType,
   GameConfig,
@@ -36,8 +39,20 @@ export type {
 } from '@cribbit/contracts';
 
 export { createEngineError } from './errors.ts';
-export { buildCoreDeck, drawCards, recycleDiscardPile } from './deck.ts';
-export { applyCommand } from './reducer.ts';
+export { CANONICAL_DECK_COUNTS, CANONICAL_DECK_SIZE, CANONICAL_DECK_SPEC_ID, buildCoreDeck, drawCards, recycleDiscardPile } from './deck.ts';
+export {
+  HIGH_IMPACT_SPECIAL_KINDS,
+  IMMEDIATE_INTERACTION_KINDS,
+  calculateAdaptiveWeightSnapshot,
+  createAdaptiveProbabilityState,
+  dealAdaptiveOpeningHands,
+  isHighImpactSpecialKind,
+  isImmediateInteractionKind,
+  selectAdaptiveDrawCard,
+  type AdaptiveOpeningDeal,
+  type AdaptiveWeightSnapshot
+} from './adaptive-distribution.ts';
+export { applyCommand } from './command-router.ts';
 export { createGame } from './setup.ts';
 export { advanceTurn, getCurrentPlayer, getNextPlayerIndex, getPlayerIndex } from './turn.ts';
 export { isLegalPlay, validateDraw, validatePlay, validateWildColor } from './validation.ts';
@@ -50,4 +65,3 @@ export {
   type GameCommandContext,
   type SocialPromptSelection
 } from './social.ts';
-

@@ -1,4 +1,4 @@
-import type { AnswerMode, AuthorshipMode, PromptDestination } from './index.ts';
+import type { AnswerMode, AuthorshipMode, ParanoiaClassicRevealDecision, ParanoiaPhase, ParanoiaVoteChoice, PromptDestination } from './index.ts';
 
 export type PromptWorld = 'UNDER_18_CLEAN' | '18+_ADULT';
 export type SocialCardKind = 'truth' | 'dare' | 'paranoia' | 'chaos' | 'duel' | 'nope';
@@ -6,6 +6,12 @@ export type SocialTargeting = 'current' | 'specific' | 'all';
 export type SocialAnswerStatus = 'WAITING' | 'MODE_SELECTED' | 'CAPTURING' | 'REVIEW' | 'SUBMITTED';
 export type RevealState = 'SEALED' | 'REVEALED';
 export type RoulettePresentationType = 'PLAYER' | 'PROMPT' | 'CHOICE' | 'CHAOS';
+export type DuelJudgingMode = 'GROUP_VOTE' | 'OBJECTIVE';
+
+export type DuelObjectiveEvaluation =
+  | { kind: 'EXACT_TEXT'; answer: string; caseSensitive?: boolean }
+  | { kind: 'CHOICE'; correctChoice: string }
+  | { kind: 'NUMERIC_CLOSEST'; answer: number };
 
 export interface SocialPrompt {
   id: string;
@@ -24,6 +30,8 @@ export interface SocialPrompt {
   options?: readonly string[];
   authorshipMode: AuthorshipMode;
   destination: PromptDestination;
+  duelJudgingMode?: DuelJudgingMode;
+  duelObjectiveEvaluation?: DuelObjectiveEvaluation;
 }
 
 export interface PromptEligibilityRequest {
@@ -110,6 +118,12 @@ export interface SocialDuelResponseRecord {
   submittedAtRevision: number | null;
 }
 
+export interface SocialDuelVoteState {
+  eligibleVoterIds: readonly string[];
+  votes: Record<string, string>;
+  resolutionApplied: boolean;
+}
+
 export interface SocialDuelRecord {
   initiatorId: string;
   opponentId: string | null;
@@ -118,6 +132,14 @@ export interface SocialDuelRecord {
   opponentResponse: SocialDuelResponseRecord | null;
   resolutionReady: boolean;
   winnerId: string | null;
+  vote: SocialDuelVoteState | null;
+}
+
+export interface SocialParanoiaVoteState {
+  phase: ParanoiaPhase;
+  eligibleVoterIds: readonly string[];
+  votes: Record<string, ParanoiaVoteChoice>;
+  resolutionApplied: boolean;
 }
 
 export interface SocialState {
@@ -135,6 +157,10 @@ export interface SocialState {
   completionRecords: Record<string, SocialAnswerRecord>;
   pendingReaction: SocialReactionRecord | null;
   pendingDuel: SocialDuelRecord | null;
+  paranoiaPhase: ParanoiaPhase | null;
+  paranoiaVote: SocialParanoiaVoteState | null;
+  classicAnswerPlayerId: string | null;
+  classicRevealDecision: ParanoiaClassicRevealDecision | null;
   answerState: SocialAnswerRecord;
   resolutionComplete: boolean;
   mayAdvanceTurn: boolean;

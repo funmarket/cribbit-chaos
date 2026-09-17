@@ -4,6 +4,8 @@ import type {
   GameState,
   Player,
   PromptEligibilityRequest,
+  ParanoiaPhase,
+  ParanoiaVoteChoice,
   RevealState,
   RoulettePresentation,
   RoulettePresentationType,
@@ -33,10 +35,25 @@ export interface GameCommandContext {
   promptProfile?: Partial<Pick<PromptEligibilityRequest, 'stage' | 'intensity' | 'language' | 'callSuitability' | 'excludePromptIds' | 'excludeRepeatGroups' | 'excludeAntiRepeatKeys'>>;
 }
 
+export interface SocialParanoiaVoteState {
+  phase: ParanoiaPhase;
+  eligibleVoterIds: readonly string[];
+  votes: Record<string, ParanoiaVoteChoice>;
+  resolutionApplied: boolean;
+}
+
 export interface SocialPromptSelection {
   prompt: SocialPrompt;
   selection: PromptEligibilityRequest;
   candidateResultIds: readonly string[];
+}
+
+function normalizeSelectedPrompt(prompt: SocialPrompt): SocialPrompt {
+  if (prompt.kind !== 'duel' || prompt.duelJudgingMode) return prompt;
+  return {
+    ...prompt,
+    duelJudgingMode: 'GROUP_VOTE'
+  };
 }
 
 function wildcardString(value?: string): string {
@@ -84,7 +101,7 @@ export function selectPromptForSocialEffect(
       });
     }
     if (!context.promptPool?.length) {
-      return { prompt, selection, candidateResultIds: [prompt.id] };
+      return { prompt: normalizeSelectedPrompt(prompt), selection, candidateResultIds: [prompt.id] };
     }
     const eligiblePrompts = getEligiblePrompts(context.promptPool, selection);
     if (!eligiblePrompts.some(candidate => candidate.id === prompt.id)) {
@@ -95,7 +112,7 @@ export function selectPromptForSocialEffect(
         contentWorld: state.config.contentWorld
       });
     }
-    return { prompt, selection, candidateResultIds: eligiblePrompts.map(item => item.id) };
+    return { prompt: normalizeSelectedPrompt(prompt), selection, candidateResultIds: eligiblePrompts.map(item => item.id) };
   }
 
   if (!context.promptPool?.length) {
@@ -116,7 +133,7 @@ export function selectPromptForSocialEffect(
       poolSize: context.promptPool.length
     });
   }
-  return { prompt, selection, candidateResultIds: eligiblePrompts.map(item => item.id) };
+  return { prompt: normalizeSelectedPrompt(prompt), selection, candidateResultIds: eligiblePrompts.map(item => item.id) };
 }
 
 export function createRoulettePresentation(
@@ -176,6 +193,15 @@ export function createAnswerRecord(): SocialAnswerRecord {
   };
 }
 
+export function createParanoiaVoteState(phase: ParanoiaPhase, eligibleVoterIds: readonly string[]): SocialParanoiaVoteState {
+  return {
+    phase,
+    eligibleVoterIds: [...eligibleVoterIds],
+    votes: {},
+    resolutionApplied: false
+  };
+}
+
 export function createDuelRecord(initiatorId: string): SocialDuelRecord {
   return {
     initiatorId,
@@ -184,7 +210,8 @@ export function createDuelRecord(initiatorId: string): SocialDuelRecord {
     initiatorResponse: null,
     opponentResponse: null,
     resolutionReady: false,
-    winnerId: null
+    winnerId: null,
+    vote: null
   };
 }
 
@@ -239,8 +266,12 @@ export function createSocialState(
     completedCompletionPlayerIds: [],
     completionRecords: {},
     pendingReaction: null,
-    pendingDuel: null,
-    answerState: createAnswerRecord(),
+  pendingDuel: null,
+  paranoiaPhase: null,
+  paranoiaVote: null,
+  classicAnswerPlayerId: null,
+  classicRevealDecision: null,
+  answerState: createAnswerRecord(),
     resolutionComplete: false,
     mayAdvanceTurn: false,
     blockedByNope: false

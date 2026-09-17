@@ -1,4 +1,6 @@
 export type {
+  DuelJudgingMode,
+  DuelObjectiveEvaluation,
   PromptEligibilityRequest,
   PromptWorld,
   RevealState,
@@ -13,6 +15,7 @@ export type {
   SocialCardKind,
   SocialDuelRecord,
   SocialDuelResponseRecord,
+  SocialDuelVoteState,
   SocialPrompt,
   SocialReactionRecord,
   SocialState,
@@ -20,10 +23,32 @@ export type {
 } from './social.ts';
 
 export type ClientPlatform = 'web' | 'telegram';
-export type CardKind = 'number' | 'skip' | 'reverse' | 'draw' | 'wild' | 'truth' | 'dare' | 'paranoia' | 'chaos' | 'duel' | 'nope';
+export type CardKind =
+  | 'number'
+  | 'skip'
+  | 'reverse'
+  | 'draw'
+  | 'wild'
+  | 'truth'
+  | 'dare'
+  | 'paranoia'
+  | 'chaos'
+  | 'duel'
+  | 'nope'
+  | 'tag'
+  | 'truth_or_chaos'
+  | 'hijack'
+  | 'taboo'
+  | 'machiavelli'
+  | 'ghost'
+  | 'reverse_confession'
+  | 'dig_me';
 export type CardColor = 'lime' | 'orange' | 'cyan' | 'purple';
 export type AuthorshipMode = 'SIGNED' | 'REVEAL_AFTER' | 'TABOO';
 export type AnswerMode = 'SPEAK' | 'TYPE' | 'CHOOSE' | 'ANSWERED_LIVE';
+export type ParanoiaPhase = 'CLASSIC' | 'STRANGER';
+export type ParanoiaVoteChoice = 'BELIEVE' | 'LYING' | 'HOLDING_BACK';
+export type ParanoiaClassicRevealDecision = 'REVEAL' | 'KEEP_SECRET';
 export type GamePhase = 'TURN_START' | 'PLAY_DRAW' | 'TRIGGER' | 'ANSWER_RESOLVE' | 'WIN_CHECK' | 'NEXT_TURN' | 'PENDING_WILD_COLOR' | 'FINISHED';
 export type GameStatus = 'ACTIVE' | 'FINISHED';
 export type PlayerStatus = 'ACTIVE' | 'ELIMINATED';
@@ -36,6 +61,17 @@ export interface Card {
   color?: CardColor;
   value?: number;
   symbol?: string;
+}
+
+export interface AdaptiveProbabilityState {
+  /** Advances whenever an authoritative card draw or card play changes match memory. */
+  sequence: number;
+  /** Counts post-start physical draw selections only. */
+  drawCount: number;
+  /** Global multiplier applied only to immediate-interaction families. */
+  interactionPressure: number;
+  /** Last shared-match sequence at which each family appeared. */
+  familyLastSeenStep: Partial<Record<CardKind, number>>;
 }
 
 export interface Player {
@@ -102,6 +138,10 @@ export type GameCommand =
   | (CommandMeta & { type: 'SUBMIT_CHOICE'; choice: string })
   | (CommandMeta & { type: 'MARK_ANSWERED_LIVE' })
   | (CommandMeta & { type: 'SELECT_PARANOIA_TARGET'; targetId: string })
+  | (CommandMeta & { type: 'SELECT_PARANOIA_PHASE'; phase: ParanoiaPhase })
+  | (CommandMeta & { type: 'SELECT_PARANOIA_CLASSIC_ANSWER'; targetId: string })
+  | (CommandMeta & { type: 'SUBMIT_PARANOIA_CLASSIC_DECISION'; decision: ParanoiaClassicRevealDecision })
+  | (CommandMeta & { type: 'SUBMIT_PARANOIA_VOTE'; vote: ParanoiaVoteChoice })
   | (CommandMeta & { type: 'SELECT_DUEL_TARGET'; targetId: string })
   | (CommandMeta & { type: 'SUBMIT_DUEL_RESPONSE'; side: 'initiator' | 'opponent'; value?: string; choice?: string; completionOnly?: boolean })
   | (CommandMeta & { type: 'PLAY_NOPE'; cardId: string })
@@ -136,6 +176,9 @@ export type CoreGameEventType =
   | 'PARANOIA_TARGET_SELECTED'
   | 'DUEL_TARGET_SELECTED'
   | 'DUEL_RESPONSE_SUBMITTED'
+  | 'DUEL_GROUP_VOTE_REQUIRED'
+  | 'DUEL_VOTE_SUBMITTED'
+  | 'DUEL_VOTE_RESOLVED'
   | 'NOPE_WINDOW_OPENED'
   | 'NOPE_PLAYED'
   | 'SOCIAL_PASSED'
@@ -145,6 +188,13 @@ export type CoreGameEventType =
   | 'ANSWER_SUBMITTED'
   | 'ANSWER_CHOICE_SUBMITTED'
   | 'ANSWERED_LIVE_MARKED'
+  | 'PARANOIA_PHASE_SELECTED'
+  | 'PARANOIA_CLASSIC_ANSWER_REQUIRED'
+  | 'PARANOIA_CLASSIC_ANSWER_SELECTED'
+  | 'PARANOIA_CLASSIC_REVEAL_DECIDED'
+  | 'PARANOIA_VOTE_SUBMITTED'
+  | 'PARANOIA_VOTE_REQUIRED'
+  | 'PARANOIA_VOTE_RESOLVED'
   | 'SOCIAL_EFFECT_RESOLVED'
   | 'TURN_TIMED_OUT'
   | 'SOCIAL_TIMED_OUT'
@@ -237,6 +287,7 @@ export interface GameState {
   winnerId: string | null;
   rewindUsedByPlayerIds: string[];
   processedCommands: Record<string, ProcessedCommandRecord>;
+  adaptiveProbability?: AdaptiveProbabilityState;
 }
 
 export interface GameTransition<TState = GameState> {
@@ -264,18 +315,53 @@ export interface SessionSnapshot<TState = unknown> {
   serverTime: string;
 }
 
-export interface TelegramAuthRequest {
+export interface AuthIdentitySummary {
+  provider: 'telegram' | 'web';
+  username?: string;
+}
+
+export interface AuthUser {
+  id: string;
+  displayName: string;
+  displayUsername?: string;
+  identities: AuthIdentitySummary[];
+}
+
+export interface TelegramMiniAppAuthRequest {
   initData: string;
+}
+
+export type TelegramAuthRequest = TelegramMiniAppAuthRequest;
+
+export interface WebRegisterRequest {
+  loginUsername: string;
+  password: string;
+  displayUsername: string;
+  displayName?: string;
+  email?: string;
+}
+
+export interface WebLoginRequest {
+  loginUsername: string;
+  password: string;
+}
+
+export interface WebAuthResponse {
+  user: AuthUser;
+}
+
+export interface ProfileUpdateRequest {
+  displayName?: string;
 }
 
 export interface AuthSession {
   accessToken: string;
-  user: {
-    id: string;
-    displayName: string;
-    provider: 'telegram' | 'web';
-    telegramUserId?: string;
-  };
+  user: AuthUser;
+}
+
+export interface WebTelegramLoginConfiguration {
+  configured: boolean;
+  error?: 'TELEGRAM_WEB_LOGIN_NOT_CONFIGURED';
 }
 
 export interface ClientConfig {

@@ -2,7 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_URL?: string;
-  readonly VITE_REALTIME_URL?: string;
+  readonly VITE_WS_URL?: string;
   readonly VITE_APP_ENV?: 'development' | 'preview' | 'production';
 }
 

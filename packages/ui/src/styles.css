@@ -192,6 +192,7 @@
     .nav-button[aria-current="page"] { border-color: rgba(var(--magenta-rgb), .28); }
 
     .header-tools { display: flex; align-items: center; gap: 7px; }
+    .auth-status { max-width:145px;color:var(--muted);font-size:9px;line-height:1.2; }
 
     .tool-button {
       display: inline-flex;
@@ -214,6 +215,7 @@
 
     .status-cluster { display: flex; align-items: center; gap: 7px; }
     .status-pill {
+      appearance: none;
       display: inline-flex;
       align-items: center;
       gap: 7px;
@@ -228,6 +230,12 @@
       letter-spacing: .06em;
       text-transform: uppercase;
       white-space: nowrap;
+    }
+    .fixture-pill { cursor: pointer; }
+    .fixture-pill:focus-visible {
+      border-color: rgba(var(--cyan-rgb), .35);
+      box-shadow: 0 0 0 2px rgba(var(--cyan-rgb), .1);
+      outline: none;
     }
     .status-pill i { width: 7px; aspect-ratio:1; border-radius:50%; background: var(--lime); box-shadow:0 0 10px rgba(var(--lime-rgb),.6); }
     .status-pill[data-state="lost"] i { background:var(--red);box-shadow:0 0 10px rgba(var(--red-rgb),.6); }
@@ -688,11 +696,16 @@
     .private-banner svg { width:20px;height:20px; }
     .wheel-wrap { display:grid;place-items:center;padding:12px; }
     .wheel-pointer { width:0;height:0;border-left:13px solid transparent;border-right:13px solid transparent;border-top:24px solid var(--gold);filter:drop-shadow(0 0 10px rgba(var(--gold-rgb),.4));z-index:2;margin-bottom:-9px; }
-    .roulette-wheel { --wheel-accent:var(--lime);position:relative;width:min(310px,72vw);aspect-ratio:1;border-radius:50%;border:8px solid #111827;background:repeating-conic-gradient(from -22.5deg,var(--wheel-accent) 0 22deg,color-mix(in srgb,var(--wheel-accent) 56%,#130d20) 22deg 44deg);box-shadow:0 0 0 2px color-mix(in srgb,var(--wheel-accent) 52%,transparent),0 0 42px color-mix(in srgb,var(--wheel-accent) 18%,transparent),inset 0 0 40px rgba(0,0,0,.42);transition:transform 1.65s cubic-bezier(.12,.72,.18,1); }
-    .roulette-wheel.is-spinning { transform:rotate(var(--wheel-turn,1440deg)); }
-    .wheel-label { position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(var(--a)) translateY(-112px) rotate(calc(var(--a) * -1));font:900 14px/1 var(--font-display);color:#fff;text-shadow:0 1px 5px #000; }
-    .wheel-hub { position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:70px;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:#070911;border:3px solid var(--wheel-accent);box-shadow:0 0 25px color-mix(in srgb,var(--wheel-accent) 25%,transparent); }
-    .wheel-hub svg { width:38px;height:38px;color:var(--lime); }
+    .roulette-wheel { --wheel-accent:var(--lime);display:block;width:min(310px,72vw);aspect-ratio:1;overflow:visible;transform-box:fill-box;transform-origin:50% 50%;border-radius:50%;box-shadow:0 0 0 2px color-mix(in srgb,var(--wheel-accent) 52%,transparent),0 0 42px color-mix(in srgb,var(--wheel-accent) 18%,transparent),inset 0 0 40px rgba(0,0,0,.42); }
+    @keyframes rouletteSpin { from { transform:rotate(0deg); } to { transform:rotate(var(--wheel-turn,1440deg)); } }
+    .roulette-wheel__rotor { transform-box:fill-box;transform-origin:50% 50%; }
+    .roulette-wheel__rotor.is-spinning { animation:rouletteSpin 1.65s cubic-bezier(.12,.72,.18,1) forwards; }
+    .roulette-wheel__base { fill:#070911; }
+    .roulette-wheel__segment { stroke:rgba(7,9,15,.7);stroke-width:2;stroke-linejoin:round; }
+    .roulette-wheel__label { fill:#fff;font:900 14px/1 var(--font-display);text-anchor:middle;dominant-baseline:middle;paint-order:stroke fill;stroke:#000;stroke-width:3px;stroke-linejoin:round; }
+    .roulette-wheel__border { stroke:#111827;stroke-width:8; }
+    .roulette-wheel__hub { fill:#070911;stroke:var(--wheel-accent);stroke-width:3; }
+    .roulette-wheel__hub-mark { color:var(--lime);overflow:visible; }
     .answer-methods { display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px; }
     .answer-methods .answer-tile { min-height:105px; }
     .review-box { margin-top:14px;padding:14px;border:1px solid rgba(var(--cyan-rgb),.28);border-radius:11px;background:rgba(var(--cyan-rgb),.045); }

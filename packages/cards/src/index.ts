@@ -1,6 +1,29 @@
-import type { CardColor, CardKind } from '@cribbit/contracts';
+export type {
+  CardColor,
+  CardFamily,
+  CardLifecycle,
+  CardDefinition,
+  PhysicalCardInstance,
+  DeckDefinition
+} from './types.ts';
 
-export interface CardDefinition { id: string; kind: CardKind; color?: CardColor; title: string; }
+export type { CanonicalCardIdentity } from './presentation.ts';
 
-/** Card metadata only; authoritative dealing and transitions remain in game-engine. */
-export const cardDefinitions: readonly CardDefinition[] = [];
+export {
+  DECK_SPEC_ID,
+  CANONICAL_DECK_SIZE,
+  CARD_BACK,
+  CARD_COPY_COUNTS,
+  CARD_MASTERS,
+  CARD_INSTANCES,
+  DECK,
+  getCardMaster,
+  getCardsByFamily,
+  buildDeck
+} from './cards.ts';
+
+export {
+  isCanonicalCardFamily,
+  resolveCanonicalCardFacePath,
+  resolveCanonicalCardBackPath
+} from './presentation.ts';

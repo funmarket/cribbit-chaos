@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cribbit Chaos — Card Renderer</title>
+<style>
+:root {
+  --surface-bg-0: #0A0A0F;
+  --surface-bg-1: #12121A;
+  --surface-border: rgba(255,255,255,0.10);
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(255,255,255,0.68);
+  --text-tertiary: rgba(255,255,255,0.42);
+  --font-display: "Arial Black", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Courier New", monospace;
+}
+[data-family="truth"]      { --fc: #7CFF3D; --fc-soft: rgba(124,255,61,0.35); }
+[data-family="dare"]       { --fc: #FF8A1E; --fc-soft: rgba(255,138,30,0.35); }
+[data-family="paranoia"]   { --fc: #A855F7; --fc-soft: rgba(168,85,247,0.35); }
+[data-family="chaos"]      { --fc: #FF2E9A; --fc-soft: rgba(255,46,154,0.35); }
+[data-family="duel"]       { --fc: #3DD6FF; --fc-soft: rgba(61,214,255,0.35); }
+[data-family="nope"]       { --fc: #FFD23D; --fc-soft: rgba(255,210,61,0.35); }
+[data-family="pass"]       { --fc: #33E0C7; --fc-soft: rgba(51,224,199,0.35); }
+[data-family="rewind"]     { --fc: #7CFF3D; --fc-soft: rgba(124,255,61,0.35); }
+[data-family="roulette"]   { --fc: #FF8A1E; --fc-soft: rgba(255,138,30,0.35); }
+[data-family="spice"]      { --fc: #FF4136; --fc-soft: rgba(255,65,54,0.35); }
+[data-family="flag"]       { --fc: #FF6A1E; --fc-soft: rgba(255,106,30,0.35); }
+[data-family="keyrule"]    { --fc: #4A90D9; --fc-soft: rgba(74,144,217,0.35); }
+[data-family="answer"]     { --fc: #A855F7; --fc-soft: rgba(168,85,247,0.35); }
+[data-family="voice"]      { --fc: #33E0C7; --fc-soft: rgba(51,224,199,0.35); }
+[data-family="authorship"] { --fc: #7C6BFF; --fc-soft: rgba(124,107,255,0.35); }
+[data-family="stage"]      { --fc: #FFB347; --fc-soft: rgba(255,179,71,0.35); }
+[data-family="intensity"]  { --fc: #E8E8E8; --fc-soft: rgba(232,232,232,0.28); }
+[data-family="wild"]       { --fc: #FFFFFF; --fc-soft: rgba(255,255,255,0.3); }
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1512px; background: #000; overflow: hidden; }
+
+.card {
+  position: relative;
+  width: 1080px; height: 1512px;
+  background:
+    radial-gradient(circle at 50% 8%, var(--fc-soft) 0%, transparent 45%),
+    linear-gradient(165deg, var(--surface-bg-1) 0%, #060608 75%);
+  border-radius: 56px;
+  overflow: hidden;
+  font-family: var(--font-body);
+  color: var(--text-primary);
+}
+/* grain */
+.card::before {
+  content: "";
+  position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+/* outer glow frame */
+.card__frame {
+  position: absolute; inset: 20px;
+  border-radius: 44px;
+  border: 3px solid var(--fc);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.06) inset,
+    0 0 28px 2px var(--fc-soft),
+    0 0 70px 10px var(--fc-soft);
+}
+[data-family="wild"] .card__frame {
+  border-image: linear-gradient(135deg, #7CFF3D, #3DD6FF, #A855F7, #FF2E9A, #FFD23D) 1;
+  box-shadow: 0 0 60px 12px rgba(255,255,255,0.25);
+}
+/* corner brackets */
+.corner { position: absolute; width: 46px; height: 46px; border: 3px solid var(--fc); opacity: 0.85; }
+.corner.tl { top: 44px; left: 44px; border-right: none; border-bottom: none; border-radius: 10px 0 0 0; }
+.corner.tr { top: 44px; right: 44px; border-left: none; border-bottom: none; border-radius: 0 10px 0 0; }
+.corner.bl { bottom: 44px; left: 44px; border-right: none; border-top: none; border-radius: 0 0 0 10px; }
+.corner.br { bottom: 44px; right: 44px; border-left: none; border-top: none; border-radius: 0 0 10px 0; }
+
+.card__content {
+  position: relative; z-index: 2;
+  height: 100%;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 96px 90px 76px;
+}
+
+.brandbar { display: flex; align-items: center; gap: 14px; margin-bottom: 46px; }
+.frog { width: 40px; height: 40px; filter: drop-shadow(0 0 6px var(--fc)); }
+.brandbar__word { font-family: var(--font-mono); font-size: 15px; letter-spacing: 0.32em; color: var(--text-tertiary); text-transform: uppercase; }
+
+.icon-wrap { width: 220px; height: 220px; display: flex; align-items: center; justify-content: center; margin-bottom: 40px; filter: drop-shadow(0 0 22px var(--fc-soft)); }
+.icon-wrap svg { width: 100%; height: 100%; }
+
+.title { font-family: var(--font-display); font-weight: 900; font-size: 92px; letter-spacing: -0.01em; text-align: center; color: var(--fc); text-shadow: 0 0 22px var(--fc-soft), 0 0 60px var(--fc-soft); line-height: 1; margin-bottom: 34px; text-transform: uppercase; }
+[data-family="wild"] .title { color: #fff; text-shadow: 0 0 40px rgba(255,255,255,0.6); }
+
+.instruction { font-size: 40px; text-align: center; line-height: 1.32; color: var(--text-primary); max-width: 800px; margin-bottom: 48px; font-weight: 500; }
+
+.divider { width: 260px; height: 1px; background: linear-gradient(90deg, transparent, var(--fc), transparent); margin-bottom: 30px; opacity: 0.7; }
+
+.example-label { font-family: var(--font-mono); font-size: 20px; letter-spacing: 0.35em; color: var(--text-tertiary); margin-bottom: 22px; }
+.example { font-size: 30px; text-align: center; line-height: 1.5; color: var(--text-secondary); font-style: italic; max-width: 760px; }
+
+.spacer { flex: 1; }
+
+.footer { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.footer .frog { width: 46px; height: 46px; opacity: 0.9; }
+.footer__id { font-family: var(--font-mono); font-size: 16px; letter-spacing: 0.2em; color: var(--text-tertiary); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const FROG_SVG = `
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="50" cy="62" rx="34" ry="26" fill="none" stroke="var(--fc)" stroke-width="4"/>
+  <circle cx="30" cy="38" r="12" fill="none" stroke="var(--fc)" stroke-width="4"/>
+  <circle cx="70" cy="38" r="12" fill="none" stroke="var(--fc)" stroke-width="4"/>
+  <circle cx="30" cy="38" r="4" fill="var(--fc)"/>
+  <circle cx="70" cy="38" r="4" fill="var(--fc)"/>
+  <path d="M32 66 Q50 78 68 66" fill="none" stroke="var(--fc)" stroke-width="4" stroke-linecap="round"/>
+</svg>`;
+
+const ICON = {
+  truth: `<polygon points="100,10 180,55 180,145 100,190 20,145 20,55" fill="none" stroke="var(--fc)" stroke-width="6"/><text x="100" y="122" font-size="90" text-anchor="middle" fill="var(--fc)" font-family="Arial Black">?</text>`,
+  dare: `<circle cx="100" cy="100" r="88" fill="none" stroke="var(--fc)" stroke-width="6"/><polygon points="112,25 68,112 95,112 84,175 145,80 112,80" fill="var(--fc)"/>`,
+  paranoia: `<polygon points="100,15 185,175 15,175" fill="none" stroke="var(--fc)" stroke-width="6"/><circle cx="100" cy="132" r="28" fill="none" stroke="var(--fc)" stroke-width="6"/><circle cx="100" cy="132" r="8" fill="var(--fc)"/>`,
+  chaos: `<circle cx="100" cy="100" r="88" fill="none" stroke="var(--fc)" stroke-width="6"/><path d="M100 35 A65 65 0 1 1 35 100" fill="none" stroke="var(--fc)" stroke-width="8"/>`,
+  duel: `<polygon points="100,10 170,45 170,155 100,190 30,155 30,45" fill="none" stroke="var(--fc)" stroke-width="6"/><line x1="55" y1="55" x2="145" y2="145" stroke="var(--fc)" stroke-width="10"/><line x1="145" y1="55" x2="55" y2="145" stroke="var(--fc)" stroke-width="10"/>`,
+  nope: `<circle cx="100" cy="100" r="88" fill="none" stroke="var(--fc)" stroke-width="6"/><path d="M75 60 v45 a12 12 0 0 0 24 0 v-15 a10 10 0 0 1 20 0 v15 a10 10 0 0 1 20 0 v-10 a10 10 0 0 1 20 0 v20 c0 30 -20 45 -42 45 c-20 0 -35 -10 -42 -25 l-15 -30 a10 10 0 0 1 15 -10 z" fill="var(--fc)"/>`,
+  pass: `<circle cx="100" cy="100" r="88" fill="none" stroke="var(--fc)" stroke-width="6"/><polygon points="65,60 145,100 65,140" fill="var(--fc)"/>`,
+  rewind: `<circle cx="100" cy="100" r="88" fill="none" stroke="var(--fc)" stroke-width="6"/><polygon points="130,60 75,100 130,140" fill="var(--fc)"/><polygon points="85,60 30,100 85,140" fill="var(--fc)"/>`,
+  roulette: `<circle cx="100" cy="100" r="88" fill="none" stroke="var(--fc)" stroke-width="6"/><circle cx="100" cy="100" r="14" fill="var(--fc)"/><line x1="100" y1="24" x2="100" y2="75" stroke="var(--fc)" stroke-width="6"/><line x1="100" y1="176" x2="100" y2="125" stroke="var(--fc)" stroke-width="6"/><line x1="24" y1="100" x2="75" y2="100" stroke="var(--fc)" stroke-width="6"/><line x1="176" y1="100" x2="125" y2="100" stroke="var(--fc)" stroke-width="6"/>`,
+  spice: `<path d="M75 35 Q150 35 135 110 Q125 172 75 160 Q48 148 65 110 Q45 95 75 35 Z" fill="var(--fc)"/>`,
+  flag: `<line x1="50" y1="20" x2="50" y2="180" stroke="var(--fc)" stroke-width="8"/><polygon points="50,28 150,55 50,82" fill="var(--fc)"/>`,
+  keyrule: `<circle cx="100" cy="100" r="88" fill="none" stroke="var(--fc)" stroke-width="6"/><polygon points="100,35 160,140 40,140" fill="none" stroke="var(--fc)" stroke-width="6"/>`,
+  answer: `<circle cx="100" cy="100" r="88" fill="none" stroke="var(--fc)" stroke-width="6"/><circle cx="68" cy="100" r="32" fill="none" stroke="var(--fc)" stroke-width="6"/><circle cx="132" cy="100" r="32" fill="none" stroke="var(--fc)" stroke-width="6"/>`,
+  voice: `<circle cx="100" cy="100" r="88" fill="none" stroke="var(--fc)" stroke-width="6"/><rect x="80" y="55" width="40" height="70" rx="20" fill="var(--fc)"/><path d="M60 110 A40 40 0 0 0 140 110" fill="none" stroke="var(--fc)" stroke-width="7"/><line x1="100" y1="150" x2="100" y2="170" stroke="var(--fc)" stroke-width="7"/>`,
+  authorship: `<circle cx="100" cy="100" r="88" fill="none" stroke="var(--fc)" stroke-width="6"/><path d="M55 140 L68 100 L135 33 L155 53 L88 120 Z" fill="var(--fc)"/>`,
+  stage: `<circle cx="100" cy="100" r="88" fill="none" stroke="var(--fc)" stroke-width="6"/><path d="M100 35 C130 75 130 115 100 165 C70 115 70 75 100 35 Z" fill="var(--fc)"/>`,
+  intensity: `<circle cx="100" cy="100" r="88" fill="none" stroke="var(--fc)" stroke-width="6"/>`,
+  wild: `<polygon points="30,70 100,20 170,70 150,150 50,150" fill="var(--fc)" opacity="0.85"/>`,
+};
+
+async function main() {
+  const res = await fetch("card_manifest.json");
+  const cards = await res.json();
+  const params = new URLSearchParams(location.search);
+  const i = parseInt(params.get("i") || "0", 10);
+  const c = cards[i];
+  const icon = ICON[c.family] || ICON.intensity;
+  const numeral = ["0","1","2","3"].includes(c.type) ? `<text x="100" y="140" font-size="150" text-anchor="middle" fill="var(--fc)" font-family="Arial Black">${c.type}</text>` : "";
+
+  document.getElementById("root").innerHTML = `
+    <div class="card" data-family="${c.family}">
+      <div class="card__frame"></div>
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
+      <div class="card__content">
+        <div class="brandbar">
+          <svg class="frog" viewBox="0 0 100 100">${FROG_SVG.match(/<ellipse[\s\S]*?\/>/g) ? FROG_SVG.replace('<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">','').replace('</svg>','') : ''}</svg>
+          <span class="brandbar__word">Cribbit Chaos</span>
+        </div>
+        <div class="icon-wrap"><svg viewBox="0 0 200 200">${c.type.match(/^[0-3]$/) ? `<circle cx="100" cy="100" r="88" fill="none" stroke="var(--fc)" stroke-width="6"/>${numeral}` : icon}</svg></div>
+        <div class="title">${c.title}</div>
+        <div class="instruction">${c.instruction}</div>
+        <div class="divider"></div>
+        <div class="example-label">EXAMPLE</div>
+        <div class="example">${c.example}</div>
+        <div class="spacer"></div>
+        <div class="footer">
+          <svg class="frog" viewBox="0 0 100 100">${FROG_SVG.replace('<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">','').replace('</svg>','')}</svg>
+          <div class="footer__id">${c.id} / 112</div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.setAttribute("data-ready", "true");
+}
+main();
+</script>
+</body>
+</html>

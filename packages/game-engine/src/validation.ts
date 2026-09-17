@@ -10,10 +10,35 @@ export interface ValidationResult {
 }
 
 function activeCardMatches(state: GameState, card: Card): boolean {
-  if (card.kind === 'wild') return true;
-  if (card.color && card.color === state.activeColor) return true;
-  if (card.kind === 'number') return String(card.value) === state.activeSymbol;
-  return card.kind === state.activeSymbol;
+  // Cribbit rule: normal turn-playable specials may be played on your own turn
+  // without matching the current color or symbol. Nope remains reaction-only.
+  switch (card.kind) {
+    case 'skip':
+    case 'reverse':
+    case 'draw':
+    case 'wild':
+    case 'truth':
+    case 'dare':
+    case 'paranoia':
+    case 'chaos':
+    case 'duel':
+      return true;
+    case 'number':
+      return Boolean(card.color && card.color === state.activeColor) || String(card.value) === state.activeSymbol;
+    case 'nope':
+      return false;
+    case 'tag':
+    case 'truth_or_chaos':
+    case 'hijack':
+    case 'taboo':
+    case 'machiavelli':
+    case 'ghost':
+    case 'reverse_confession':
+    case 'dig_me':
+      // These families are present in the physical deck but their reducer handlers
+      // are not migrated yet. Do not remove a card from hand only to fail later.
+      return false;
+  }
 }
 
 export function isLegalPlay(state: GameState, playerId: string, cardId: string): boolean {
@@ -43,7 +68,7 @@ export function validatePlay(state: GameState, playerId: string, cardId: string)
     return { ok: false, error: createEngineError('CARD_NOT_IN_HAND', 'That card is not in the current player hand.') };
   }
   if (!activeCardMatches(state, card)) {
-    return { ok: false, error: createEngineError('ILLEGAL_PLAY', 'That card does not match the current color, symbol, or wild rule.', { activeColor: state.activeColor, activeSymbol: state.activeSymbol, cardKind: card.kind }) };
+    return { ok: false, error: createEngineError('ILLEGAL_PLAY', 'That card is not currently playable.', { activeColor: state.activeColor, activeSymbol: state.activeSymbol, cardKind: card.kind }) };
   }
   return { ok: true, player, card };
 }

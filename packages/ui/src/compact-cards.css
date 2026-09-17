@@ -1,0 +1,24 @@
+/* Compact cards prioritize readable title/rule content over decorative detail. */
+.game-card--mini .game-card__tab,
+.game-card--tiny .game-card__tab {
+  display: none;
+}
+
+/* Keep compact Web hand typography proportional to the shrunken card.
+   These context-specific selectors intentionally override the larger shared-card defaults. */
+.hand-zone .game-card--mini .game-card__title,
+.board-canvas.is-mobile .game-card--mini .game-card__title {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.hand-zone .game-card--mini .game-card__rule,
+.board-canvas.is-mobile .game-card--mini .game-card__rule {
+  font-size: 6px;
+  line-height: 1.2;
+}
+
+.game-card--tiny .game-card__title {
+  font-size: 9px;
+  white-space: nowrap;
+}
