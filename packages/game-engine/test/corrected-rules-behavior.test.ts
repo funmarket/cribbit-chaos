@@ -75,6 +75,22 @@ function playOnlyCard(kind: Card['kind']): GameState {
   return unwrap(applyCommand(state, command(state, 'player-1', 'PLAY_CARD', { cardId: `${kind}-card` }), { now: 1100, promptPool }));
 }
 
+test('All target-first special cards require the actor to choose one other eligible player', () => {
+  const targetFirstKinds: Card['kind'][] = ['truth', 'dare', 'tag', 'hijack', 'taboo', 'reverse_confession', 'dig_me'];
+
+  for (const kind of targetFirstKinds) {
+    const state = playOnlyCard(kind);
+    const actorCapabilities = projectDecisionCapabilities(state, 'player-1');
+
+    assert.equal(state.social?.cardKind, kind, `${kind} should enter a social flow`);
+    assert.equal(state.social?.pendingTargetId, null, `${kind} must not silently self-target or preselect a target`);
+    assert.deepEqual(state.social?.pendingTargetIds.sort(), ['player-2', 'player-3'], `${kind} must offer only other eligible players`);
+    assert.equal(actorCapabilities.requiredAction, 'SELECT_TARGET', `${kind} actor must choose one other eligible player`);
+    assert.deepEqual(actorCapabilities.options.map(option => option.optionId).sort(), ['target:player-2', 'target:player-3'], `${kind} must expose target buttons for other players`);
+    assert.equal(projectDecisionCapabilities(state, 'player-2').requiredAction, null, `${kind} target must not act before being chosen`);
+  }
+});
+
 test('Truth is target-first: actor chooses another player before selected target answers', () => {
   let state = playOnlyCard('truth');
 

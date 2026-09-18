@@ -114,50 +114,10 @@ function socialControls(session:LiveSession, userId:string): string {
   }
   const social = state.social;
   if (!social) return '';
-  if (social.resolutionComplete && social.actorId === userId) return button('Continue','complete-flow');
-
-  const otherPlayers = state.players.filter(player => player.id !== userId);
-  if (social.cardKind === 'truth' || social.cardKind === 'dare') {
-    if (social.actorId !== userId) return `<span class="tag" data-tone="cyan">Waiting for ${escapeHTML(playerName(session,social.actorId))}</span>`;
-    if (social.answerState.status === 'WAITING') {
-      return `${button('Answered Live','answer-live')} ${button('Type Answer','answer-type-open')}`;
-    }
-    if (social.answerState.mode === 'TYPE' && social.answerState.status !== 'SUBMITTED') {
-      return `<div class="field"><label for="ccLiveAnswer">Answer</label><input class="input" id="ccLiveAnswer" maxlength="280" /></div>${button('Submit Answer','answer-type-submit')}`;
-    }
-    return '';
-  }
-
-  if (social.cardKind === 'paranoia') {
-    if (!social.pendingTargetId && social.actorId === userId) {
-      return `<div class="filter-row">${otherPlayers.map(player => button(`Target ${playerName(session,player.id)}`,'paranoia-target',`data-player-id="${escapeHTML(player.id)}"`)).join('')}</div>`;
-    }
-    if (!social.paranoiaPhase && social.actorId === userId) return `${button('Classic','paranoia-classic')} ${button('Stranger','paranoia-stranger')}`;
-    if (social.paranoiaPhase === 'CLASSIC' && !social.classicAnswerPlayerId && social.pendingTargetId === userId) {
-      return `<div class="filter-row">${state.players.filter(player => player.id !== userId).map(player => button(playerName(session,player.id),'paranoia-answer',`data-player-id="${escapeHTML(player.id)}"`)).join('')}</div>`;
-    }
-    if (social.paranoiaPhase === 'CLASSIC' && social.classicAnswerPlayerId === userId && !social.classicRevealDecision) return `${button('Reveal','paranoia-reveal')} ${button('Keep Secret','paranoia-secret')}`;
-    if (social.paranoiaVote?.eligibleVoterIds.includes(userId) && !social.paranoiaVote.votes[userId]) return `${button('Believe','paranoia-vote',`data-vote="BELIEVE"`)} ${button('Lying','paranoia-vote',`data-vote="LYING"`)} ${button('Holding Back','paranoia-vote',`data-vote="HOLDING_BACK"`)}`;
-    return '<span class="tag" data-tone="cyan">Waiting for the Paranoia decision</span>';
-  }
-
-  if (social.cardKind === 'duel') {
-    const duel = social.pendingDuel;
-    if (!duel?.opponentId && social.actorId === userId) {
-      return `<div class="filter-row">${otherPlayers.map(player => button(`Challenge ${playerName(session,player.id)}`,'duel-target',`data-player-id="${escapeHTML(player.id)}"`)).join('')}</div>`;
-    }
-    if (duel?.initiatorId === userId && !duel.initiatorResponse?.submitted) return button('Submit My Response','duel-response-initiator');
-    if (duel?.opponentId === userId && !duel.opponentResponse?.submitted) return button('Submit My Response','duel-response-opponent');
-    if (duel?.vote?.eligibleVoterIds.includes(userId) && !duel.vote.votes[userId]) {
-      return `${button(playerName(session,duel.initiatorId),'duel-vote',`data-player-id="${escapeHTML(duel.initiatorId)}"`)} ${duel.opponentId ? button(playerName(session,duel.opponentId),'duel-vote',`data-player-id="${escapeHTML(duel.opponentId)}"`) : ''}`;
-    }
-    return '<span class="tag" data-tone="cyan">Waiting for Duel resolution</span>';
-  }
-
-  if (social.cardKind === 'chaos' && social.pendingCompletionPlayerIds.includes(userId) && !social.completedCompletionPlayerIds.includes(userId)) {
-    return button('Mark Complete','answer-live');
-  }
-  return '<span class="tag" data-tone="cyan">Shared special-card flow in progress</span>';
+  const actor = playerName(session,social.actorId);
+  const target = playerName(session,social.pendingTargetId);
+  const waitingFor = social.pendingTargetId ? target : actor;
+  return `<span class="tag" data-tone="cyan">Waiting for shared rule action from ${escapeHTML(waitingFor)}</span>`;
 }
 
 function renderLiveSession(session:LiveSession, userId:string): void {
@@ -415,7 +375,7 @@ export function startWebLiveRooms(api:CribbitApiClient): () => void {
     if (action === 'duel-response-opponent') return void send({type:'SUBMIT_DUEL_RESPONSE',side:'opponent',completionOnly:true});
     if (action === 'duel-vote' && liveAction.dataset.playerId) return void send({type:'DUEL_VOTE',winnerId:liveAction.dataset.playerId});
   };
-  document.addEventListener('click',capture,true);
+  document.addEventListener('click',capture);
 
   const enterCapture = (event:KeyboardEvent): void => {
     if (event.key !== 'Enter' || !(event.target instanceof HTMLInputElement) || event.target.id !== 'joinCode') return;
@@ -429,7 +389,7 @@ export function startWebLiveRooms(api:CribbitApiClient): () => void {
     authUnsubscribe();
     live?.unsubscribe?.();
     live?.realtime.disconnect();
-    document.removeEventListener('click',capture,true);
+    document.removeEventListener('click',capture);
     document.removeEventListener('keydown',enterCapture,true);
   };
 }
