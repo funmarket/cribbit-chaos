@@ -1462,3 +1462,80 @@ Live task log:
 - Phase 5 status: completed. Re-check showed Web and Telegram already called `projectDecisionCapabilities`, but still had stale local paths for Nope reaction eligibility and lacked shared projection for Ghost activation. Added failing capability/client contract tests first, then exposed `ACTIVATE_GHOST` and selected-target `PLAY_NOPE` through shared `projectDecisionCapabilities`; Web and Telegram now label/submit those actions through shared capability option IDs instead of local Nope buttons/lookups. Proof: focused Phase 5 suites exited 0 with 13/13 passing; `npm run typecheck` exited 0; full `npm test` exited 0 with 155 tests, 149 passed, 6 skipped, 0 failed; `npm run build` exited 0 for Web, Telegram, and API.
 - Phase 6 status: completed. Updated docs/rule traceability proof in `docs/social-engine-rule-decisions.md`, `docs/LIVING_STATUS.md`, and `PLAN.md`, mapping `Game_rules.md` authority to runtime files, test proof, client projection proof, unresolved rule gaps, and the Phase 8 live-deployment boundary. Proof: focused docs/rule suites exited 0 with 28/28 passing; `npm run typecheck` exited 0; `git diff --check -- docs/social-engine-rule-decisions.md docs/LIVING_STATUS.md PLAN.md` exited 0. Note: `git diff --check` against `chaosfixplan.md` still reports pre-existing CRLF/trailing-whitespace noise across the historical plan file, so it was not used as the docs-cleanliness proof.
 - Phase 7 status: completed. Ran the full local source gate fresh after Phase 6 docs and Phase 5 client capability work. Proof: `npm run typecheck` exited 0; full `npm test` exited 0 with 155 tests, 149 passed, 6 skipped, 0 failed; `npm run build` exited 0 for Web, Telegram, and API; `npm run audit:ui` exited 0 with 64 actions discovered, 66 assigned, no missing assignments, no unclassified buttons, no duplicate IDs, and no inline handlers. After normalizing CRLF endings in Phase 5 touched files, `git diff --check -- docs/social-engine-rule-decisions.md docs/LIVING_STATUS.md PLAN.md apps/api/test/bot-authority-contract.test.ts apps/telegram/src/gameView.ts apps/web/src/live-session.ts packages/game-engine/src/capabilities.ts packages/game-engine/test/bot-capabilities.test.ts` exited 0. Focused Phase 5 capability/client suites re-ran 13/13 passing. Next: Phase 8 — live Railway/client verification after explicit approval.
+
+### Phase B — Cloudflare production branch reconciliation into main
+
+Execution boundary:
+
+- Source repo: `funmarket/cribbit-chaos`.
+- Working branch: `reconcile/cloudflare-production-to-main`.
+- Base branch: `origin/main` at `2e7e940e6cc9ebf3621ab7760397a55023d6fc94`.
+- Current Cloudflare Pages production branch preserved: `feature/visual-integration-checkpoint` at `9b8192c52bea832106af8ac37dc016d07e1868fa`.
+- Cloudflare production branch setting is not changed in this phase.
+- `feature/visual-integration-checkpoint` is not deleted or force-pushed.
+
+Objective:
+
+- Reconcile Git history so `main` can become the eventual safe Cloudflare production branch after proof, while preserving the current production branch as rollback.
+
+Conflict policy:
+
+- Merge `origin/feature/visual-integration-checkpoint` into a separate branch from `origin/main`.
+- Preserve corrected canonical rules/shared runtime from `main` for conflicted rule/runtime files.
+- Keep non-conflicting production-branch content through the merge.
+- Do not auto-switch Cloudflare production to `main`; that remains a later explicit Phase E decision.
+
+Initial proof:
+
+```sh
+git fetch origin --prune
+git rev-parse origin/main
+git rev-parse origin/feature/visual-integration-checkpoint
+git merge-base origin/main origin/feature/visual-integration-checkpoint
+git rev-list --left-right --count origin/feature/visual-integration-checkpoint...origin/main
+git merge --no-commit --no-ff origin/feature/visual-integration-checkpoint
+git diff --name-only --diff-filter=U
+git checkout --ours -- $(git diff --name-only --diff-filter=U)
+git add $(git diff --name-only --diff-filter=U)
+```
+
+Observed proof:
+
+- Production branch before reconciliation: `feature/visual-integration-checkpoint` / `9b8192c52bea832106af8ac37dc016d07e1868fa`.
+- Main before reconciliation: `2e7e940e6cc9ebf3621ab7760397a55023d6fc94`.
+- Merge-base: `962d268852b1e8f12535c8a51f0b29b37771383c`.
+- Divergence: production branch has `306` commits not on main; main has `17` commits not on production branch.
+- Dry-run/actual merge produced conflicts in rule/runtime/client/docs files; conflicts were resolved toward `main` for canonical corrected rule/runtime authority while preserving the production branch as merge ancestry and rollback source.
+- Live Cloudflare production readback before cutover still served stale bundle `assets/index-Dt7LGRda.js` with `bonus Play-or-Draw` present and corrected markers absent.
+
+Score: `8.7/10` after conflict preflight.
+
+Reason for score: the reconciliation branch preserves rollback, does not mutate Cloudflare settings, and prevents a blind production-branch switch. Score remains below final confidence until `npm install`, typecheck, tests, build, bundle marker readback, PR CI, and Cloudflare preview smoke checks pass.
+
+Phase B verification update:
+
+```sh
+npm install
+npm run typecheck
+npm test
+npm run build
+git diff --check
+curl -fsS https://api-production-2556.up.railway.app/health
+```
+
+Verification result:
+
+- `npm install` completed with the known Node engine warning (`current v22.23.2`, repo asks `>=24.7.0`); no source/lockfile change was introduced.
+- First full `npm test` exposed CRLF checkout drift in `apps/web/src/live-session.ts`; normalized that file back to LF without content change and reran the focused Web runtime-owner test successfully (`5/5` passing).
+- `npm run typecheck` exited `0`.
+- Full `npm test` exited `0`: `159` tests, `153` pass, `0` fail, `6` skipped.
+- `npm run build` exited `0` for Web, Telegram, and API.
+- `git diff --check` exited `0`.
+- Railway API health returned `{"ok":true,"service":"cribbit-chaos-api","database":true,...}`.
+- Built Web bundle `apps/web/dist/assets/index-C_TGlvL1.js` had stale markers absent: `bonus Play-or-Draw`, `legacy-compatibility`.
+- Built Web bundle had corrected markers present: `draws exactly 1 real card`, `Choose another player for the Truth`, `gives one confession about themselves`.
+
+Phase B score after verification: `9.0/10`.
+
+Reason for updated score: local source/test/build and backend health gates pass while the Cloudflare production branch and rollback branch remain untouched. Score is not higher until PR exact-head CI and Cloudflare main preview readback pass.
+
