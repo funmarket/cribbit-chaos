@@ -29,15 +29,11 @@ function activeCardMatches(state: GameState, card: Card): boolean {
     case 'machiavelli':
     case 'reverse_confession':
     case 'dig_me':
+    case 'ghost':
       return true;
     case 'number':
       return Boolean(card.color && card.color === state.activeColor) || String(card.value) === state.activeSymbol;
     case 'nope':
-      return false;
-    case 'ghost':
-      // Ghost is intentionally excluded from the Phase 2B bot-special fix: it is
-      // not forced-on-draw and its armed/flip lifecycle is separate from the
-      // social/special card families being resolved here.
       return false;
   }
 }

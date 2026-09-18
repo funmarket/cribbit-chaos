@@ -27,6 +27,14 @@ test('Web live rooms are API command adapters, not a second bot/game authority',
   assert.doesNotMatch(liveSession, /function\s+botTakeTurn\s*\(/);
 });
 
+
+test('Web local simulation control is visibly marked as non-live QA', () => {
+  const liveSession = source('apps/web/src/live-session.ts');
+
+  assert.match(liveSession, /Local QA Simulation/);
+  assert.match(liveSession, /not live Railway gameplay/i);
+});
+
 test('Telegram live rooms use the same API session adapter; local simulation remains fallback QA only', () => {
   const backendGame = source('apps/telegram/src/backendGame.ts');
   const bootstrapTelegram = source('apps/telegram/src/bootstrapTelegram.ts');
@@ -52,4 +60,19 @@ test('Web live rooms render shared engine capabilities for human special-card de
   assert.match(liveSession, /projectDecisionCapabilities\(session\.state,\s*userId\)/);
   assert.match(liveSession, /data-live-option-id/);
   assert.match(liveSession, /projectDecisionCapabilities\(live\.state,\s*userId\)\.options\.find/);
+  assert.match(liveSession, /ACTIVATE_GHOST/);
+  assert.match(liveSession, /PLAY_NOPE/);
+  assert.doesNotMatch(liveSession, /target\.closest\('\[data-action="use-nope"\]'\)/);
+  assert.doesNotMatch(liveSession, /hand\.find\(card => card\.kind === 'nope'\)/);
+});
+
+test('Telegram live rooms render Ghost and Nope only through shared decision capabilities', () => {
+  const gameView = source('apps/telegram/src/gameView.ts');
+
+  assert.match(gameView, /projectDecisionCapabilities\(state,\s*game\.humanPlayerId\)/);
+  assert.match(gameView, /data-decision-option-id/);
+  assert.match(gameView, /ACTIVATE_GHOST/);
+  assert.match(gameView, /PLAY_NOPE/);
+  assert.doesNotMatch(gameView, /data-action="safety-nope"/);
+  assert.doesNotMatch(gameView, /data-nope-card-id/);
 });

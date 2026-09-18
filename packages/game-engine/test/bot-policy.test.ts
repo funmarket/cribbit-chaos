@@ -130,7 +130,12 @@ test('bots settle every forced social/special family without inventing illegal c
     state = playOnlyCard(state, 'bot:test:1');
     state = advanceBotActions(state);
 
-    assert.equal(state.social, null, `${kind} should not leave bots stuck in an unresolved social flow`);
+    if (kind === 'truth_or_chaos') {
+      assert.equal(state.social?.cardKind, 'truth_or_chaos');
+      assert.equal(state.social?.groupPunishmentPending, true);
+    } else {
+      assert.equal(state.social, null, `${kind} should not leave bots stuck in an unresolved social flow`);
+    }
     assert.equal(state.pendingEffect, null, `${kind} should not leave bots stuck in a pending effect`);
     assert.ok(['ACTIVE', 'FINISHED'].includes(state.status), `${kind} should keep a valid game status after bot settlement`);
   }

@@ -174,6 +174,8 @@ export interface SocialState {
   paranoiaVote: SocialParanoiaVoteState | null;
   classicAnswerPlayerId: string | null;
   classicRevealDecision: ParanoiaClassicRevealDecision | null;
+  truthOrChaosOutcome: 'TRUTH' | 'CHAOS' | null;
+  groupPunishmentPending: boolean;
   answerState: SocialAnswerRecord;
   resolutionComplete: boolean;
   mayAdvanceTurn: boolean;

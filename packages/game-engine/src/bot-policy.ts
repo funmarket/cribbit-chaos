@@ -42,6 +42,7 @@ function optionScore(state: GameState, playerId: string, option: LegalCommandOpt
   if (option.presentation.category === 'CONTINUE') score += 1000;
   if (option.presentation.category === 'VOTE') score += option.presentation.voteForPlayerId && !isBotPlayerId(option.presentation.voteForPlayerId) ? 20 : 5;
   if (option.presentation.category === 'CHOICE') {
+    if (state.social?.cardKind === 'truth_or_chaos' && option.presentation.choiceKey === 'YES') score += 100;
     if (option.presentation.choiceKey === 'CLASSIC') score += 20;
     if (option.presentation.choiceKey === 'KEEP_SECRET') score += 20;
     if (option.presentation.choiceKey === 'REVEAL') score += 5;

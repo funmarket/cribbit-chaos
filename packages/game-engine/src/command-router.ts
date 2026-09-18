@@ -95,7 +95,8 @@ function applyPlayNope<TState extends GameState>(
   if (social.resolutionComplete) {
     return failCommand(state, command, createEngineError('INVALID_NOPE_REACTION', 'The current Truth or Dare is already resolved.'));
   }
-  if (social.actorId !== command.playerId) {
+  const affectedPlayerId = social.pendingTargetId ?? social.actorId;
+  if (affectedPlayerId !== command.playerId) {
     return failCommand(state, command, createEngineError('INVALID_NOPE_REACTION', 'Only the affected Truth or Dare player may use Nope.'));
   }
 
@@ -107,6 +108,7 @@ function applyPlayNope<TState extends GameState>(
 
   let nextState = clone(state);
   const player = nextState.players.find(item => item.id === command.playerId)!;
+  const socialActor = nextState.players.find(item => item.id === social.actorId)!;
   const [nopeCard] = player.hand.splice(player.hand.findIndex(card => card.id === command.cardId), 1);
   nextState.discardPile.push(nopeCard);
   const events: GameEvent[] = [
@@ -118,7 +120,7 @@ function applyPlayNope<TState extends GameState>(
     }, 0, 'PUBLIC'),
   ];
 
-  createTurnResolution(nextState, player, events, social.cardKind, 1, 'blocked', context.now);
+  createTurnResolution(nextState, socialActor, events, social.cardKind, 1, 'blocked', context.now);
   nextState.revision = state.revision + 1;
   events.forEach(event => { event.revision = nextState.revision; });
   nextState = recordOutcome(nextState, command, true, events);

@@ -142,6 +142,38 @@ test('duel flow advertises target, participant completion, and eligible voter co
   assertAdvertisedOptionsAreAccepted(state, 'p3');
 });
 
+test('armed Ghost is advertised as a shared activation capability', () => {
+  let state = baseState('bot-capabilities-ghost-activation');
+  setTopDiscard(state, makeCard('discard-lime-7', 'number', { color: 'lime', value: 7, symbol: '7' }));
+  state.players[0].hand = [
+    makeCard('ghost-1', 'ghost', { symbol: 'ghost' }),
+    makeCard('safe-keep', 'number', { color: 'orange', value: 8, symbol: '8' })
+  ];
+
+  state = play(state, 'ghost-1');
+
+  const capabilities = projectDecisionCapabilities(state, 'p1');
+  assert.equal(capabilities.requiredAction, 'SELECT_OPTION');
+  assert.deepEqual(capabilities.options.map(option => option.optionId), ['ghost:ghost-1:activate']);
+  assert.deepEqual(capabilities.options.map(option => option.command.type), ['ACTIVATE_GHOST']);
+  assertAdvertisedOptionsAreAccepted(state, 'p1');
+});
+
+test('selected Truth target receives shared Nope reaction capability', () => {
+  let state = baseState('bot-capabilities-target-nope');
+  state.players[0].hand = [makeCard('truth-1', 'truth', { symbol: 'truth' })];
+  state.players[1].hand = [makeCard('nope-p2', 'nope', { symbol: 'nope' })];
+  state = play(state, 'truth-1');
+
+  const actorCapabilities = projectDecisionCapabilities(state, 'p1');
+  state = unwrap(applyCommand(state, actorCapabilities.options.find(option => option.optionId === 'target:p2')!.command, { now: 1250, promptPool: promptDefinitions }));
+
+  const targetCapabilities = projectDecisionCapabilities(state, 'p2');
+  assert.equal(targetCapabilities.options.some(option => option.command.type === 'PLAY_NOPE'), true);
+  assert.equal(targetCapabilities.options.find(option => option.command.type === 'PLAY_NOPE')?.optionId, 'nope:nope-p2');
+  assertAdvertisedOptionsAreAccepted(state, 'p2');
+});
+
 test('phase-2B special families are advertised as playable bot options', () => {
   const state = baseState('bot-capabilities-unresolved');
   setTopDiscard(state, makeCard('discard-lime-7', 'number', { color: 'lime', value: 7, symbol: '7' }));

@@ -35,9 +35,12 @@ function stateFor(topSymbol: string | null, handCard: Card): GameState {
     discardPile: [],
     currentPlayerId: 'p1',
     direction: 1,
+    chaosReverseActive: false,
     activeColor: null,
     activeSymbol: topSymbol,
     pendingEffect: null,
+    pendingForcedInteractions: [],
+    ghostEffects: [],
     timer: null,
     social: null,
     winnerId: null,
@@ -58,7 +61,7 @@ test('Nope remains reaction-only and cannot become legal through activeSymbol ma
   assert.equal(validatePlay(stateFor('nope', candidate), 'p1', candidate.id).ok, false);
 });
 
-test('phase-2B special families are playable while Ghost remains fail-closed for its separate armed lifecycle', () => {
+test('phase-2B special families and armed-lifecycle Ghost are playable', () => {
   const enabled = [
     'tag',
     'truth_or_chaos',
@@ -76,7 +79,5 @@ test('phase-2B special families are playable while Ghost remains fail-closed for
   }
 
   const ghost = card('ghost', 'ghost', { symbol: 'ghost' });
-  const ghostResult = validatePlay(stateFor('ghost', ghost), 'p1', ghost.id);
-  assert.equal(ghostResult.ok, false, 'ghost remains blocked until its armed/flip lifecycle is implemented');
-  assert.equal(ghostResult.error?.code, 'ILLEGAL_PLAY');
+  assert.equal(validatePlay(stateFor('ghost', ghost), 'p1', ghost.id).ok, true, 'ghost arms through its own lifecycle');
 });

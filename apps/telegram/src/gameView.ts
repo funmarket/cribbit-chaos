@@ -107,7 +107,6 @@ function gameTemplate(
   const discard = state.discardPile[state.discardPile.length - 1];
   const humanTurn = state.currentPlayerId === game.humanPlayerId;
   const activeState = describeActiveState(state, game);
-  const humanNope = human?.hand.find(card => card.kind === 'nope');
   const truthDareForHuman = Boolean(
     state.social &&
     !state.social.resolutionComplete &&
@@ -121,7 +120,6 @@ function gameTemplate(
     state.social.answerState.status === 'WAITING' &&
     !state.rewindUsedByPlayerIds.includes(game.humanPlayerId),
   );
-  const nopeEligible = Boolean(humanNope && truthDareForHuman);
 
   return `
     <main class="tg-app tg-game-page" data-telegram-app data-game-simulation>
@@ -214,7 +212,6 @@ function gameTemplate(
       <nav class="tg-safety-bar" aria-label="Game actions">
         <button type="button" data-action="safety-pass" aria-disabled="${String(!passEligible)}"><span>↪</span><b>Pass</b></button>
         <button type="button" data-action="safety-rewind" aria-disabled="${String(!rewindEligible)}"><span>↶</span><b>Rewind</b></button>
-        <button type="button" data-action="safety-nope" data-nope-card-id="${escapeHTML(humanNope?.id ?? '')}" aria-disabled="${String(!nopeEligible)}" title="Nope is reaction-only"><span>✋</span><b>Nope</b></button>
         <button type="button" data-action="draw-card" aria-disabled="${String(!humanTurn || Boolean(state.social) || Boolean(state.pendingEffect))}"><span>▱</span><b>Draw</b></button>
       </nav>
 
@@ -273,17 +270,6 @@ function bindGame(
     const result = await game.rewindPrompt();
     platform.haptic(result.ok ? 'medium' : 'light');
     setStatus(transitionMessage(result.ok, result.error?.message, result.ok ? 'Prompt rewound.' : undefined));
-    render();
-  });
-
-  host.querySelector<HTMLButtonElement>('[data-action="safety-nope"]')?.addEventListener('click', async event => {
-    const button = event.currentTarget as HTMLButtonElement;
-    if (button.getAttribute('aria-disabled') === 'true') return;
-    const cardId = button.dataset.nopeCardId;
-    if (!cardId) return;
-    const result = await game.send({ type:'PLAY_NOPE', cardId });
-    platform.haptic(result.ok ? 'medium' : 'light');
-    setStatus(transitionMessage(result.ok, result.error?.message, result.ok ? 'Nope played.' : undefined));
     render();
   });
 
@@ -358,6 +344,8 @@ function decisionLabel(game: TelegramBackendGame, option: ReturnType<typeof proj
   if (presentation.category === 'ANSWER_MODE') return 'Answered Live';
   if (presentation.category === 'COMPLETION') return command.type === 'SUBMIT_DUEL_RESPONSE' ? 'Submit Response' : 'Mark Complete';
   if (presentation.category === 'VOTE' && presentation.voteForPlayerId) return `Vote ${playerName(game, presentation.voteForPlayerId)}`;
+  if (command.type === 'ACTIVATE_GHOST') return 'ACTIVATE_GHOST';
+  if (command.type === 'PLAY_NOPE') return 'PLAY_NOPE';
   if (presentation.category === 'CHOICE' && presentation.choiceKey) return presentation.choiceKey.replaceAll('_',' ');
   if (presentation.category === 'CONTINUE') return 'Continue';
   return command.type.replaceAll('_',' ');

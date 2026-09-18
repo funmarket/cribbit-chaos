@@ -97,6 +97,18 @@ export interface PendingEffect {
   cardId: string;
 }
 
+export interface PendingForcedInteraction {
+  playerId: string;
+  card: Card;
+}
+
+export interface GhostEffect {
+  playerId: string;
+  cardId: string;
+  status: 'ARMED' | 'ACTIVE';
+  turnsRemaining: number;
+}
+
 export interface TimerState {
   purpose: TimerPurpose;
   ownerPlayerId: string;
@@ -134,6 +146,7 @@ export type GameCommand =
   | (CommandMeta & { type: 'START_GAME' })
   | (CommandMeta & { type: 'PLAY_CARD'; cardId: string })
   | (CommandMeta & { type: 'DRAW_CARD' })
+  | (CommandMeta & { type: 'ACTIVATE_GHOST'; cardId: string })
   | (CommandMeta & { type: 'SELECT_WILD_COLOR'; color: CardColor })
   | (CommandMeta & { type: 'REVEAL_PROMPT' })
   | (CommandMeta & { type: 'PUBLISH_PROMPT' })
@@ -289,9 +302,12 @@ export interface GameState {
   discardPile: Card[];
   currentPlayerId: string;
   direction: 1 | -1;
+  chaosReverseActive: boolean;
   activeColor: CardColor | null;
   activeSymbol: string | null;
   pendingEffect: PendingEffect | null;
+  pendingForcedInteractions: PendingForcedInteraction[];
+  ghostEffects: GhostEffect[];
   timer: TimerState | null;
   social: import('./social.ts').SocialState | null;
   winnerId: string | null;

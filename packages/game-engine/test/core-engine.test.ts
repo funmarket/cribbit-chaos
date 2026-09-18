@@ -1889,42 +1889,7 @@ test('Truth and Dare normal completion does not apply the refusal penalty', () =
   completeSocial('dare');
 });
 
-test('PASS_PROMPT lets Chaos participants complete independently and supports Duel Pass before and after target selection', () => {
-  const chaosPrompt = socialPrompt('chaos-pass', 'chaos', 'all', { text: 'chaos pass prompt', groupSizeMin: 3, groupSizeMax: 3 });
-
-  const chaosState = baseState(3);
-  chaosState.currentPlayerId = 'player-1';
-  setTopDiscard(chaosState, makeCard('starter-chaos', 'number', { color: 'purple', value: 6, symbol: '6' }));
-  setHands(chaosState, {
-    'player-1': [makeCard('chaos-card', 'chaos', { symbol: 'chaos', color: 'purple' })],
-    'player-2': [makeCard('chaos-p2', 'number', { color: 'lime', value: 4, symbol: '4' })],
-    'player-3': [makeCard('chaos-p3', 'number', { color: 'orange', value: 8, symbol: '8' })]
-  });
-
-  const chaosPlay = applyCommand(chaosState, playCommand(chaosState, 'chaos-pass-play', 'chaos-card'), socialContext([chaosPrompt]));
-  assert.equal(chaosPlay.ok, true);
-  assert.deepEqual(chaosPlay.state.social?.pendingCompletionPlayerIds, ['player-1', 'player-2', 'player-3']);
-
-  const chaosPass1 = applyCommand(chaosPlay.state, passCommand(chaosPlay.state, 'chaos-pass-1'));
-  assert.equal(chaosPass1.ok, true);
-  assert.ok(chaosPass1.state.social);
-  assert.deepEqual(chaosPass1.state.social?.completedCompletionPlayerIds, ['player-1']);
-  assert.equal(chaosPass1.state.currentPlayerId, 'player-1');
-
-  const chaosPass2 = applyCommand(chaosPass1.state, passCommand(chaosPass1.state, 'chaos-pass-2', 'player-2'));
-  assert.equal(chaosPass2.ok, true);
-  assert.ok(chaosPass2.state.social);
-  assert.deepEqual(chaosPass2.state.social?.completedCompletionPlayerIds, ['player-1', 'player-2']);
-  assert.equal(chaosPass2.state.status, 'ACTIVE');
-
-  const chaosPass3 = applyCommand(chaosPass2.state, passCommand(chaosPass2.state, 'chaos-pass-3', 'player-3'));
-  assert.equal(chaosPass3.ok, true);
-  assert.equal(chaosPass3.state.social, null);
-  assert.equal(chaosPass3.state.status, 'FINISHED');
-  assert.equal(chaosPass3.state.winnerId, 'player-1');
-  assert.equal(chaosPass3.events[0].visibility, 'PLAYER_PRIVATE');
-  assert.equal(chaosPass3.events.at(-1)?.type, 'GAME_WON');
-
+test('PASS_PROMPT supports Duel Pass before and after target selection', () => {
   const duelPrompt = socialPrompt('duel-pass', 'duel', 'specific', { text: 'duel pass prompt' });
   const duelState = baseState(3);
   duelState.currentPlayerId = 'player-1';
@@ -2055,20 +2020,6 @@ test('REWIND_PROMPT replaces eligible Truth and Dare prompts deterministically a
   const wrongPlayer = applyCommand(playResult.state, rewindCommand(playResult.state, 'rewind-wrong-player', 'player-2'), socialContext(promptPool));
   assert.equal(wrongPlayer.ok, false);
   assert.equal(wrongPlayer.error?.code, 'NOT_YOUR_TURN');
-
-  const chaosPrompt = socialPrompt('rewind-chaos', 'chaos', 'all', { text: 'rewind chaos prompt', groupSizeMin: 3, groupSizeMax: 3 });
-  const chaosState = baseState(3);
-  chaosState.currentPlayerId = 'player-1';
-  setTopDiscard(chaosState, makeCard('starter-chaos', 'number', { color: 'purple', value: 6, symbol: '6' }));
-  setHands(chaosState, {
-    'player-1': [makeCard('chaos-card', 'chaos', { symbol: 'chaos', color: 'purple' })],
-    'player-2': [makeCard('chaos-p2', 'number', { color: 'lime', value: 4, symbol: '4' })],
-    'player-3': [makeCard('chaos-p3', 'number', { color: 'orange', value: 8, symbol: '8' })]
-  });
-  const chaosPlay = applyCommand(chaosState, playCommand(chaosState, 'rewind-chaos-play', 'chaos-card'), socialContext([chaosPrompt]));
-  const chaosRewind = applyCommand(chaosPlay.state, rewindCommand(chaosPlay.state, 'rewind-chaos-command'), socialContext([chaosPrompt]));
-  assert.equal(chaosRewind.ok, false);
-  assert.equal(chaosRewind.error?.code, 'REWIND_NOT_ALLOWED');
 
   const duelPrompt = socialPrompt('rewind-duel', 'duel', 'specific', { text: 'rewind duel prompt' });
   const duelState = baseState(3);
@@ -2340,52 +2291,21 @@ test('Answered Live marks completion privately, rejects wrong modes, and stays r
   assert.equal(liveReplay.idempotentReplay, true);
 });
 
-test('Chaos targeting all supports mixed answer modes and resolves only after every required player completes', () => {
+test('Chaos resolves through the approved catalogue instead of generic all-player prompts', () => {
   const state = baseState(3);
   state.currentPlayerId = 'player-1';
   setTopDiscard(state, makeCard('starter', 'number', { color: 'purple', value: 5, symbol: '5' }));
   setHands(state, {
-    'player-1': [makeCard('chaos-card', 'chaos', { symbol: 'chaos', color: 'purple' })],
+    'player-1': [makeCard('chaos-card', 'chaos', { symbol: 'chaos', color: 'purple' }), makeCard('chaos-filler', 'number', { color: 'cyan', value: 5, symbol: '5' })],
     'player-2': [makeCard('other-2', 'number', { color: 'cyan', value: 5, symbol: '5' })],
     'player-3': [makeCard('other-3', 'number', { color: 'lime', value: 9, symbol: '9' })]
   });
 
-  const prompt = socialPrompt('chaos-live', 'chaos', 'all', { text: 'chaos live prompt', groupSizeMin: 3, groupSizeMax: 5, options: ['alpha', 'beta'] });
+  const prompt = socialPrompt('chaos-live', 'chaos', 'all', { text: 'obsolete chaos prompt', groupSizeMin: 3, groupSizeMax: 5, options: ['alpha', 'beta'] });
   const playResult = applyCommand(state, playCommand(state, 'chaos-play', 'chaos-card'), socialContext([prompt]));
   assert.equal(playResult.ok, true);
-  assert.deepEqual(playResult.state.social?.pendingCompletionPlayerIds, ['player-1', 'player-2', 'player-3']);
-  assert.equal(playResult.state.winnerId, null);
-
-  const p1Mode = applyCommand(playResult.state, answerModeCommand(playResult.state, 'chaos-mode-1', 'TYPE', 'player-1'));
-  assert.equal(p1Mode.ok, true);
-  const p1Review = applyCommand(p1Mode.state, reviewAnswerCommand(p1Mode.state, 'chaos-review-1', { value: 'typed chaos answer' }, 'player-1'));
-  assert.equal(p1Review.ok, true);
-  const p1Submit = applyCommand(p1Review.state, submitAnswerCommand(p1Review.state, 'chaos-submit-1', 'player-1'));
-  assert.equal(p1Submit.ok, true);
-  assert.ok(p1Submit.state.social);
-  assert.deepEqual(p1Submit.state.social?.completedCompletionPlayerIds, ['player-1']);
-  assert.equal(p1Submit.state.winnerId, null);
-
-  const p2Mode = applyCommand(p1Submit.state, answerModeCommand(p1Submit.state, 'chaos-mode-2', 'ANSWERED_LIVE', 'player-2'));
-  assert.equal(p2Mode.ok, true);
-  const p2Review = applyCommand(p2Mode.state, reviewAnswerCommand(p2Mode.state, 'chaos-review-2', { completionOnly: true }, 'player-2'));
-  assert.equal(p2Review.ok, true);
-  const p2Mark = applyCommand(p2Review.state, markAnsweredLiveCommand(p2Review.state, 'chaos-mark-2', 'player-2'));
-  assert.equal(p2Mark.ok, true);
-  assert.ok(p2Mark.state.social);
-  assert.deepEqual(p2Mark.state.social?.completedCompletionPlayerIds, ['player-1', 'player-2']);
-  assert.equal(p2Mark.state.winnerId, null);
-
-  const p3Mode = applyCommand(p2Mark.state, answerModeCommand(p2Mark.state, 'chaos-mode-3', 'CHOOSE', 'player-3'));
-  assert.equal(p3Mode.ok, true);
-  const p3Review = applyCommand(p3Mode.state, reviewAnswerCommand(p3Mode.state, 'chaos-review-3', { choice: 'alpha' }, 'player-3'));
-  assert.equal(p3Review.ok, true);
-  const p3Submit = applyCommand(p3Review.state, submitChoiceCommand(p3Review.state, 'chaos-submit-3', 'alpha', 'player-3'));
-  assert.equal(p3Submit.ok, true);
-  assert.equal(p3Submit.state.social, null);
-  assert.equal(p3Submit.state.status, 'FINISHED');
-  assert.equal(p3Submit.state.winnerId, 'player-1');
-  assert.deepEqual(p3Submit.events.map(event => event.type), ['ANSWER_CHOICE_SUBMITTED', 'SOCIAL_EFFECT_RESOLVED', 'GAME_WON']);
+  assert.equal(playResult.state.social, null);
+  assert.equal(playResult.events.some(event => event.type === 'CHAOS_EFFECT_RESOLVED'), true);
 });
 
 test.skip('Social command idempotency and commandId collision protection still hold for new commands', () => {
@@ -2784,36 +2704,20 @@ test('duel timeout resolves both pre-target and post-target reaction states with
   assert.equal(postTimeout.events.some(event => event.type === 'SOCIAL_TIMED_OUT'), true);
 });
 
-test('chaos timeout preserves completed records and resolves the remaining players once', () => {
+test('Chaos catalogue resolution does not leave a pending social timeout', () => {
   const state = baseState(3, 1000);
   state.currentPlayerId = 'player-1';
   setTopDiscard(state, makeCard('starter-chaos-timeout', 'number', { color: 'orange', value: 2, symbol: '2' }));
   setHands(state, {
-    'player-1': [makeCard('chaos-card', 'chaos', { symbol: 'chaos', color: 'orange' })],
+    'player-1': [makeCard('chaos-card', 'chaos', { symbol: 'chaos', color: 'orange' }), makeCard('chaos-filler', 'number', { color: 'cyan', value: 6, symbol: '6' })],
     'player-2': [makeCard('spare-two', 'number', { color: 'cyan', value: 6, symbol: '6' })],
     'player-3': [makeCard('spare-three', 'number', { color: 'lime', value: 9, symbol: '9' })]
   });
 
-  const prompt = socialPrompt('chaos-timeout', 'chaos', 'all', { text: 'chaos timeout prompt', options: ['alpha', 'beta'] });
+  const prompt = socialPrompt('chaos-timeout', 'chaos', 'all', { text: 'obsolete chaos timeout prompt', options: ['alpha', 'beta'] });
   const playResult = applyCommand(state, playCommand(state, 'chaos-timeout-play', 'chaos-card'), socialContext([prompt], {}, undefined, 1000));
   assert.equal(playResult.ok, true);
-
-  const modeResult = applyCommand(playResult.state, answerModeCommand(playResult.state, 'chaos-timeout-mode', 'CHOOSE'));
-  assert.equal(modeResult.ok, true);
-  const choiceResult = applyCommand(modeResult.state, submitChoiceCommand(modeResult.state, 'chaos-timeout-submit', 'alpha'));
-  assert.equal(choiceResult.ok, true);
-  assert.equal(choiceResult.state.social?.completionRecords['player-1']?.status, 'SUBMITTED');
-
-  const timeoutCommand = timeoutSocialCommand(choiceResult.state, 'chaos-timeout-final');
-  const timeoutResult = applyCommand(choiceResult.state, timeoutCommand, { now: choiceResult.state.timer!.deadlineAt });
-  assert.equal(timeoutResult.ok, true);
-  assert.equal(timeoutResult.state.status, 'FINISHED');
-  assert.equal(timeoutResult.state.winnerId, 'player-1');
-  assert.equal(timeoutResult.state.social, null);
-  assert.equal(timeoutResult.events.some(event => event.type === 'SOCIAL_TIMED_OUT'), true);
-  assert.equal(timeoutResult.events.some(event => event.type === 'GAME_WON'), true);
-
-  const replay = applyCommand(timeoutResult.state, timeoutCommand, { now: choiceResult.state.timer!.deadlineAt });
-  assert.equal(replay.ok, true);
-  assert.equal(replay.idempotentReplay, true);
+  assert.equal(playResult.state.social, null);
+  assert.notEqual(playResult.state.timer?.purpose, 'SOCIAL');
+  assert.equal(playResult.events.some(event => event.type === 'CHAOS_EFFECT_RESOLVED'), true);
 });

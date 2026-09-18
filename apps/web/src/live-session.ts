@@ -92,6 +92,8 @@ function decisionLabel(session:LiveSession, option: ReturnType<typeof projectDec
   if (presentation.category === 'ANSWER_MODE') return 'Answered Live';
   if (presentation.category === 'COMPLETION') return command.type === 'SUBMIT_DUEL_RESPONSE' ? 'Submit Response' : 'Mark Complete';
   if (presentation.category === 'VOTE' && presentation.voteForPlayerId) return `Vote ${playerName(session,presentation.voteForPlayerId)}`;
+  if (command.type === 'ACTIVATE_GHOST') return 'ACTIVATE_GHOST';
+  if (command.type === 'PLAY_NOPE') return 'PLAY_NOPE';
   if (presentation.category === 'CHOICE' && presentation.choiceKey) return presentation.choiceKey.replaceAll('_',' ');
   if (presentation.category === 'CONTINUE') return 'Continue';
   return command.type.replaceAll('_',' ');
@@ -209,9 +211,6 @@ function renderLiveSession(session:LiveSession, userId:string): void {
   if (pass) pass.setAttribute('aria-disabled',String(!(state.social && state.social.actorId === userId && ['truth','dare'].includes(state.social.cardKind))));
   const rewind = document.querySelector<HTMLButtonElement>('[data-action="safety-rewind"]');
   if (rewind) rewind.setAttribute('aria-disabled',String(!(state.social?.prompt && state.social.actorId === userId && !state.rewindUsedByPlayerIds.includes(userId))));
-  const nope = document.querySelector<HTMLButtonElement>('[data-action="use-nope"]');
-  const nopeCard = human?.hand.find(card => card.kind === 'nope');
-  if (nope) nope.setAttribute('aria-disabled',String(!(nopeCard && state.social && ['truth','dare'].includes(state.social.cardKind))));
   const flag = document.querySelector<HTMLButtonElement>('[data-action="safety-flag"]');
   if (flag) flag.setAttribute('aria-disabled',String(!state.social?.prompt));
 
@@ -254,7 +253,9 @@ function readRoomCreatePayload() {
 function installLiveControls(): void {
   const simulation = document.querySelector<HTMLButtonElement>('#startGameButton');
   if (!simulation || document.querySelector('[data-action="create-live-game"]')) return;
-  simulation.innerHTML = '<svg class="icon"><use href="#i-play" /></svg>Start Simulation';
+  simulation.innerHTML = '<svg class="icon"><use href="#i-play" /></svg>Local QA Simulation';
+  simulation.setAttribute('aria-label','Local QA Simulation — not live Railway gameplay');
+  simulation.title = 'Local QA Simulation — not live Railway gameplay';
   simulation.classList.remove('button--primary');
   const live = document.createElement('button');
   live.className = 'button button--primary';
@@ -368,11 +369,10 @@ export function startWebLiveRooms(api:CribbitApiClient): () => void {
     const draw = target.closest('[data-action="draw-card"]');
     const pass = target.closest('[data-action="safety-pass"]');
     const rewind = target.closest('[data-action="safety-rewind"]');
-    const nope = target.closest('[data-action="use-nope"]');
     const flag = target.closest('[data-action="safety-flag"]');
     const liveAction = target.closest<HTMLElement>('[data-live-action]');
     const liveOption = target.closest<HTMLElement>('[data-live-option-id]');
-    if (!(play || draw || pass || rewind || nope || flag || liveAction || liveOption)) return;
+    if (!(play || draw || pass || rewind || flag || liveAction || liveOption)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
 
@@ -381,13 +381,6 @@ export function startWebLiveRooms(api:CribbitApiClient): () => void {
     if (pass) return void send({type:'PASS_PROMPT'});
     if (rewind) return void send({type:'REWIND_PROMPT'});
     if (flag) return void send({type:'FLAG_PROMPT',promptId:live.state.social?.prompt?.id || '',reasonCode:'USER_FLAG'});
-    if (nope) {
-      const auth = cribbitAuth.current;
-      const userId = auth.status === 'AUTHENTICATED' ? auth.user.id : '';
-      const cardId = live.state.players.find(player => player.id === userId)?.hand.find(card => card.kind === 'nope')?.id;
-      if (cardId) return void send({type:'PLAY_NOPE',cardId});
-      return;
-    }
     if (liveOption?.dataset.liveOptionId) {
       const auth = cribbitAuth.current;
       const userId = auth.status === 'AUTHENTICATED' ? auth.user.id : '';

@@ -1,19 +1,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { Card, GameCommand, GameState } from '@cribbit/contracts';
+import type { Card, GameCommand, GameCommandType, GameState } from '@cribbit/contracts';
 import { promptDefinitions } from '@cribbit/prompts';
 import { applyCommand, createGame } from '../src/index.ts';
 
 function command(
   state: GameState,
-  type: GameCommand['type'],
+  type: GameCommandType,
   fields: Record<string, unknown> = {},
+  playerId = 'p1',
 ): GameCommand {
   return {
     type,
-    commandId:`test-${type}-${state.revision}`,
-    playerId:'p1',
+    commandId:`test-${type}-${state.revision}-${playerId}`,
+    playerId,
     expectedRevision:state.revision,
     sessionId:state.id,
     ...fields,
@@ -55,5 +56,45 @@ test('Truth can be cancelled by an owned Nope through the public shared command 
   assert.equal(blocked.state.players[0].hand.some(card => card.id === filler.id), true);
   assert.equal(blocked.events.some(event => event.type === 'NOPE_PLAYED'), true);
   assert.equal(blocked.events.some(event => event.type === 'SOCIAL_EFFECT_RESOLVED'), true);
+  assert.equal(blocked.events.some(event => event.type === 'DRAW_EFFECT_APPLIED'), false);
+});
+
+test('selected Truth target can cancel with their owned Nope', () => {
+  const created = createGame(
+    { seed:'target-nope-routing', startingHandCount:0, startingPlayerIndex:0, allowVoluntaryDraw:true, contentWorld:'UNDER_18_CLEAN' },
+    [{ id:'p1', seat:0 }, { id:'p2', seat:1 }, { id:'p3', seat:2 }],
+    undefined,
+    { now:1000 },
+  );
+  assert.equal(created.ok, true);
+  let state = created.state;
+
+  const truth: Card = { id:'truth-test', kind:'truth', symbol:'truth' };
+  const nope: Card = { id:'target-nope-test', kind:'nope', symbol:'nope' };
+  state.players[0].hand = [truth];
+  state.players[1].hand = [nope];
+
+  state = applyCommand(
+    state,
+    command(state, 'PLAY_CARD', { cardId:truth.id }),
+    { now:1100, promptPool:promptDefinitions, promptProfile:{ stage:Number.MAX_SAFE_INTEGER, intensity:Number.MAX_SAFE_INTEGER, language:'*', callSuitability:'*' } },
+  ).state;
+  state = applyCommand(
+    state,
+    command(state, 'SELECT_SOCIAL_TARGET', { targetId:'p2' }),
+    { now:1200, promptPool:promptDefinitions, promptProfile:{ stage:Number.MAX_SAFE_INTEGER, intensity:Number.MAX_SAFE_INTEGER, language:'*', callSuitability:'*' } },
+  ).state;
+  assert.equal(state.social?.pendingTargetId, 'p2');
+
+  const blocked = applyCommand(
+    state,
+    command(state, 'PLAY_NOPE', { cardId:nope.id }, 'p2'),
+    { now:1300, promptPool:promptDefinitions },
+  );
+
+  assert.equal(blocked.ok, true);
+  assert.equal(blocked.state.social, null);
+  assert.equal(blocked.state.players[1].hand.some(card => card.id === nope.id), false);
+  assert.equal(blocked.events.some(event => event.type === 'NOPE_PLAYED'), true);
   assert.equal(blocked.events.some(event => event.type === 'DRAW_EFFECT_APPLIED'), false);
 });

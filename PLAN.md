@@ -421,20 +421,24 @@ Begin with already-accepted family flows:
 
 Then connect remaining families as their shared authoritative flows are completed/verified.
 
-## Remaining special-card mechanics after interaction-on-draw foundation
+## Corrected special-card mechanics source status
 
-Complete and verify the still-incomplete families using one authoritative implementation per mechanic:
+The shared engine now has source-verified coverage for the previously incomplete corrected-rules slices:
 
-- Chaos deterministic effect catalogue
-- TAG
-- Truth or Chaos
-- Hijack
-- Taboo
-- Machiavelli six-option implementation
-- Reverse Confession
-- DIG ME
-- Ghost lifecycle / delayed-resolution behavior
-- final Nope eligibility matrix for any non-Duel effects
+- Chaos approved catalogue slices: Blind Swap and Reverse Order;
+- Truth or Chaos consensus-match success and mismatch group-punishment state;
+- Hijack authoritative player-order swap;
+- Machiavelli six-option path, including Paranoia Spreads generated-card restriction;
+- Paranoia Classic Keep Secret Draw 1;
+- Ghost arm/activate/two-own-turn normal-draw suppression lifecycle;
+- narrow Truth/Dare Nope, including selected-target Nope;
+- Web/Telegram live clients submit Ghost/Nope through shared `projectDecisionCapabilities()` option IDs.
+
+Still unresolved by `Game_rules.md` and therefore not invented:
+
+- additional Chaos effects beyond Blind Swap and Reverse Order;
+- whether Truth or Chaos or any non-Truth/Dare family can be Noped;
+- whether Ghost suppresses mandatory penalty draws.
 
 ## Cleanup / convergence after mechanics are stable
 
@@ -474,13 +478,11 @@ Do not silently mark these complete while working on gameplay:
 
 ## Current Next Task
 
-**Phase 2B — deterministic shared BotPolicy is implemented; next gate is live deployment/readback.**
+**Phase 7 — full local verification is active.**
 
-1. Keep live multiplayer authority in the Cloudflare/API/shared game-engine path.
-2. Do not create separate Web and Telegram bot fixes.
-3. `packages/game-engine` now exposes `projectDecisionCapabilities()` and `chooseBotOption()`.
-4. API bot advancement now chooses from server-projected legal options instead of hardcoded card-family branches.
-5. Phase 2B covers bot settlement for Truth, Dare, Chaos, Paranoia, Duel, TAG, Truth or Chaos, Hijack, Taboo, Machiavelli, Reverse Confession, and DIG ME.
-6. Ghost remains intentionally separate because its armed/flip lifecycle is not part of the forced social/special family fix.
-7. Next gate: publish the branch through PR/CI/deployment, then run browser/live-game readback before declaring the user-facing bot simulation fixed.
-8. Score each sub-step and revise before moving on if the score is below 8.5.
+1. Keep `Game_rules.md` as the gameplay authority.
+2. Keep runtime fixes in the shared engine/capability projection, not duplicate Web/Telegram rule branches.
+3. Docs/rule traceability proof is source-updated in `docs/social-engine-rule-decisions.md`, `docs/LIVING_STATUS.md`, and `PLAN.md`.
+4. Run the full local verification gate before any live deployment.
+5. Phase 8 remains live Railway/client deployment and readback, only after explicit approval.
+6. Score each sub-step and revise before moving on if the score is below 8.5.

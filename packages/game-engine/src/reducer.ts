@@ -18,6 +18,9 @@ import {
   type GameCommandContext
 } from './social.ts';
 import { clearTimer, isTimerDue, startTimer } from './timer.ts';
+import { createSeededRandom, shuffle, toSeedString } from './rng.ts';
+
+type ChaosEffect = 'BLIND_SWAP' | 'REVERSE_ORDER';
 
 function cloneState<TState extends GameState>(state: TState): TState {
   return structuredClone(state);
@@ -131,7 +134,26 @@ function failCommand<TState extends GameState>(
   return finalise(nextState, false, events, error);
 }
 
+function activeGhostIndex(state: GameState, playerId: string): number {
+  return state.ghostEffects.findIndex(effect => effect.playerId === playerId && effect.status === 'ACTIVE' && effect.turnsRemaining > 0);
+}
+
+function consumeGhostTurn(state: GameState, playerId: string, events: GameEvent[]): void {
+  const index = activeGhostIndex(state, playerId);
+  if (index < 0) return;
+  const effect = state.ghostEffects[index];
+  const remaining = effect.turnsRemaining - 1;
+  events.push(makeEvent(state, 'GHOST_TURN_CONSUMED', { playerId, cardId: effect.cardId, turnsRemaining: Math.max(remaining, 0) }, events.length, 'PUBLIC'));
+  if (remaining <= 0) {
+    state.ghostEffects.splice(index, 1);
+    events.push(makeEvent(state, 'GHOST_ENDED', { playerId, cardId: effect.cardId }, events.length, 'PUBLIC'));
+  } else {
+    state.ghostEffects[index] = { ...effect, turnsRemaining: remaining };
+  }
+}
+
 function resolveNormalTurn<TState extends GameState>(state: TState, player: Player, events: GameEvent[], steps = 1, now?: number): GameTransition<TState> {
+  consumeGhostTurn(state, player.id, events);
   if (player.hand.length === 0) {
     state.status = 'FINISHED';
     state.phase = 'FINISHED';
@@ -156,6 +178,73 @@ function socialTargetingForKind(kind: SocialCardKind): 'current' | 'specific' | 
   if (kind === 'truth' || kind === 'dare' || kind === 'paranoia' || kind === 'duel' || kind === 'tag' || kind === 'hijack' || kind === 'taboo' || kind === 'reverse_confession' || kind === 'dig_me') return 'specific';
   if (kind === 'chaos' || kind === 'truth_or_chaos') return 'all';
   return 'current';
+}
+
+function selectChaosEffect(state: GameState, card: Card): ChaosEffect {
+  const random = createSeededRandom(`${toSeedString(state.config.seed)}:chaos:${state.revision}:${card.id}`);
+  return random.next() < 0.5 ? 'BLIND_SWAP' : 'REVERSE_ORDER';
+}
+
+function applyChaosBlindSwap(state: GameState): void {
+  const selections = state.players.map((player, index) => {
+    const random = createSeededRandom(`${toSeedString(state.config.seed)}:chaos-blind-swap:${state.revision}:${player.id}:${index}`);
+    return shuffle(player.hand, random).slice(0, Math.min(3, player.hand.length));
+  });
+  state.players.forEach((player, index) => {
+    const selectedIds = new Set(selections[index].map(card => card.id));
+    player.hand = player.hand.filter(card => !selectedIds.has(card.id));
+  });
+  state.players.forEach((_, index) => {
+    const leftIndex = (index + 1) % state.players.length;
+    state.players[leftIndex].hand.push(...selections[index]);
+  });
+}
+
+function applyChaosEffect(state: GameState, card: Card, events: GameEvent[]): ChaosEffect {
+  state.chaosReverseActive = false;
+  const effect = selectChaosEffect(state, card);
+  if (effect === 'BLIND_SWAP') {
+    applyChaosBlindSwap(state);
+  } else {
+    state.direction = state.direction === 1 ? -1 : 1;
+    state.chaosReverseActive = true;
+  }
+  events.push(makeEvent(state, 'CHAOS_EFFECT_RESOLVED', { cardId: card.id, effect }, events.length, 'PUBLIC'));
+  return effect;
+}
+
+function beginForcedInteraction<TState extends GameState>(
+  state: TState,
+  player: Player,
+  card: Card,
+  context: GameCommandContext,
+  events: GameEvent[]
+): ReturnType<typeof createEngineError> | null {
+  state.discardPile.push(card);
+  state.activeSymbol = card.symbol ?? card.kind;
+  return startSocialCardPlay(state, player, card, context, events);
+}
+
+function routeDrawnCards<TState extends GameState>(
+  state: TState,
+  player: Player,
+  cards: Card[],
+  context: GameCommandContext,
+  events: GameEvent[]
+): ReturnType<typeof createEngineError> | null {
+  for (const card of cards) {
+    if (!isSocialCardKind(card.kind)) {
+      player.hand.push(card);
+      continue;
+    }
+    if (state.social) {
+      state.pendingForcedInteractions.push({ playerId: player.id, card });
+      continue;
+    }
+    const error = beginForcedInteraction(state, player, card, context, events);
+    if (error) return error;
+  }
+  return null;
 }
 
 function startSocialCardPlay<TState extends GameState>(
@@ -285,7 +374,6 @@ function resolvePlayedCard<TState extends GameState>(state: TState, player: Play
     const targetIndex = (state.players.findIndex(item => item.id === state.currentPlayerId) + state.direction + state.players.length) % state.players.length;
     const target = state.players[targetIndex];
     const drawn = drawCards(state, state.config.drawPenalty, events);
-    target.hand.push(...drawn);
     state.activeColor = card.color ?? state.activeColor;
     state.activeSymbol = card.symbol ?? card.kind;
     events.push(makeEvent(state, 'DRAW_EFFECT_APPLIED', {
@@ -295,6 +383,9 @@ function resolvePlayedCard<TState extends GameState>(state: TState, player: Play
       cardId: card.id,
       drawnCardIds: drawn.map(item => item.id)
     }, 0, 'PLAYER_PRIVATE', [target.id]));
+    const forcedError = routeDrawnCards(state, target, drawn, context, events);
+    if (forcedError) return finalise(state, false, events, forcedError);
+    if (state.social) return finalise(state, true, events);
     state.phase = 'WIN_CHECK';
     const steps = state.config.drawPenaltySkipsTurn ? 2 : 1;
     const result = resolveNormalTurn(state, player, events, steps, context.now);
@@ -311,6 +402,18 @@ function resolvePlayedCard<TState extends GameState>(state: TState, player: Play
 
   if (card.kind === 'nope') {
     return finalise(state, false, events, createEngineError('COMMAND_NOT_IMPLEMENTED', 'Nope must be played through the dedicated reaction command.'));
+  }
+
+  if (card.kind === 'ghost') {
+    state.ghostEffects = state.ghostEffects.filter(effect => !(effect.playerId === player.id && effect.cardId === card.id));
+    state.ghostEffects.push({ playerId: player.id, cardId: card.id, status: 'ARMED', turnsRemaining: 0 });
+    events.push(makeEvent(state, 'GHOST_ARMED', { playerId: player.id, cardId: card.id }, events.length, 'PLAYER_PRIVATE', [player.id]));
+    return resolveNormalTurn(state, player, events, 1, context.now);
+  }
+
+  if (card.kind === 'chaos') {
+    applyChaosEffect(state, card, events);
+    return resolveNormalTurn(state, player, events, 1, context.now);
   }
 
   if (isSocialCardKind(card.kind)) {
@@ -333,7 +436,7 @@ function handlePlayCard<TState extends GameState>(
     return finalise(nextState, false, [], validation.error);
   }
 
-  if (validation.card.kind === 'paranoia' || validation.card.kind === 'chaos' || validation.card.kind === 'truth_or_chaos' || validation.card.kind === 'taboo' || validation.card.kind === 'dig_me') {
+  if (validation.card.kind === 'paranoia' || validation.card.kind === 'truth_or_chaos' || validation.card.kind === 'taboo' || validation.card.kind === 'dig_me') {
     const preview = selectPromptForSocialEffect(state, validation.card.kind, socialTargetingForKind(validation.card.kind), context);
     if ('code' in preview) {
       const nextState = cacheOutcome(state, command, { ok: false, error: preview, events: [] }, state.revision);
@@ -384,10 +487,43 @@ function handleDrawCard<TState extends GameState>(state: TState, command: GameCo
   const nextState = cloneState(state);
   const player = nextState.players.find(item => item.id === command.playerId)!;
   const events: GameEvent[] = [];
+  const ghostIndex = activeGhostIndex(nextState, player.id);
+  if (ghostIndex >= 0) {
+    const legalCards = player.hand.filter(card => isLegalPlay(nextState, player.id, card.id));
+    if (legalCards.length > 0) {
+      const error = createEngineError('ILLEGAL_PLAY', 'A Ghost player with a legal card must play instead of drawing.');
+      const failedState = cacheOutcome(nextState, command, { ok: false, error, events }, state.revision);
+      return finalise(failedState, false, events, error);
+    }
+    events.push(makeEvent(nextState, 'GHOST_DRAW_SUPPRESSED', { playerId: player.id, cardId: nextState.ghostEffects[ghostIndex].cardId }, 0, 'PUBLIC'));
+    consumeGhostTurn(nextState, player.id, events);
+    const previousPlayerId = player.id;
+    clearTimer(nextState);
+    const { nextPlayerId } = advanceTurn(nextState, 1);
+    startTimer(nextState, 'TURN', nextPlayerId, context.now);
+    events.push(makeEvent(nextState, 'TURN_ADVANCED', { previousPlayerId, nextPlayerId, steps: 1, direction: nextState.direction }, events.length, 'PUBLIC'));
+    const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+    committedState.revision = state.revision + 1;
+    events.forEach(event => { event.revision = committedState.revision; });
+    return finalise(committedState, true, events);
+  }
   const [card] = drawCards(nextState, 1, events);
-  player.hand.push(card);
-  nextState.phase = 'WIN_CHECK';
   events.push(makeEvent(nextState, 'CARD_DRAWN', { playerId: player.id, card }, 0, 'PLAYER_PRIVATE', [player.id]));
+  const forcedError = routeDrawnCards(nextState, player, [card], context, events);
+  if (forcedError) {
+    const failedState = cacheOutcome(nextState, command, { ok: false, error: forcedError, events }, state.revision);
+    return finalise(failedState, false, events, forcedError);
+  }
+  if (nextState.social) {
+    nextState.revision = state.revision + 1;
+    events.forEach(event => {
+      event.revision = nextState.revision;
+    });
+    const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+    committedState.revision = state.revision + 1;
+    return finalise(committedState, true, events);
+  }
+  nextState.phase = 'WIN_CHECK';
   const previousPlayerId = player.id;
   clearTimer(nextState);
   const { nextPlayerId } = advanceTurn(nextState, 1);
@@ -443,6 +579,28 @@ function handleSelectWildColor<TState extends GameState>(
   events.forEach(event => {
     event.revision = nextState.revision;
   });
+  const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
+  committedState.revision = state.revision + 1;
+  return finalise(committedState, true, events);
+}
+
+function handleActivateGhost<TState extends GameState>(state: TState, command: GameCommand & { type: 'ACTIVATE_GHOST' }): GameTransition<TState> {
+  if (state.status === 'FINISHED') {
+    return failCommand(state, command, createEngineError('GAME_ALREADY_FINISHED', 'The game has already finished.'));
+  }
+  const ghostIndex = state.ghostEffects.findIndex(effect => effect.playerId === command.playerId && effect.cardId === command.cardId && effect.status === 'ARMED');
+  if (ghostIndex < 0) {
+    return failCommand(state, command, createEngineError('INVALID_COMMAND', 'No armed Ghost is available for this player and card.'));
+  }
+  const nextState = cloneState(state);
+  nextState.ghostEffects[ghostIndex] = {
+    ...nextState.ghostEffects[ghostIndex],
+    status: 'ACTIVE',
+    turnsRemaining: 2
+  };
+  const events: GameEvent[] = [makeEvent(nextState, 'GHOST_ACTIVATED', { playerId: command.playerId, cardId: command.cardId, turnsRemaining: 2 }, 0, 'PLAYER_PRIVATE', [command.playerId])];
+  nextState.revision = state.revision + 1;
+  events.forEach(event => { event.revision = nextState.revision; });
   const committedState = cacheOutcome(nextState, command, { ok: true, events }, state.revision + 1);
   committedState.revision = state.revision + 1;
   return finalise(committedState, true, events);
@@ -538,6 +696,12 @@ function markCompletionResolvedIfAll(social: NonNullable<GameState['social']>): 
   return social.completedCompletionPlayerIds.length >= social.pendingCompletionPlayerIds.length;
 }
 
+function truthOrChaosConsensusOutcome(social: NonNullable<GameState['social']>): 'TRUTH' | 'CHAOS' {
+  const choices = social.pendingCompletionPlayerIds.map(playerId => social.completionRecords[playerId]?.choice ?? null);
+  const first = choices[0];
+  return first !== null && choices.every(choice => choice === first) ? 'TRUTH' : 'CHAOS';
+}
+
 function resolveAllPlayerCompletion<TState extends GameState>(
   state: TState,
   command: GameCommand,
@@ -572,8 +736,27 @@ function resolveAllPlayerCompletion<TState extends GameState>(
   ];
 
   if (markCompletionResolvedIfAll(nextSocial)) {
-    const actor = nextState.players.find(item => item.id === nextSocial.actorId)!;
-    completeSocialResolution(nextState, actor, nextSocial.cardKind, events, 1, 'resolved', context.now);
+    if (nextSocial.cardKind === 'truth_or_chaos') {
+      const outcome = truthOrChaosConsensusOutcome(nextSocial);
+      nextSocial.truthOrChaosOutcome = outcome;
+      events.push(makeEvent(nextState, 'TRUTH_OR_CHAOS_CONSENSUS_RESOLVED', {
+        actorId: nextSocial.actorId,
+        cardId: nextSocial.cardId,
+        outcome
+      }, events.length, 'PUBLIC'));
+      if (outcome === 'CHAOS') {
+        nextSocial.groupPunishmentPending = true;
+        nextSocial.resolutionComplete = false;
+        nextSocial.mayAdvanceTurn = false;
+        nextState.phase = 'ANSWER_RESOLVE';
+      } else {
+        const actor = nextState.players.find(item => item.id === nextSocial.actorId)!;
+        completeSocialResolution(nextState, actor, nextSocial.cardKind, events, 1, 'resolved', context.now);
+      }
+    } else {
+      const actor = nextState.players.find(item => item.id === nextSocial.actorId)!;
+      completeSocialResolution(nextState, actor, nextSocial.cardKind, events, 1, 'resolved', context.now);
+    }
   }
 
   nextState.revision = state.revision + 1;
@@ -1155,11 +1338,13 @@ function handleSelectSocialTarget<TState extends GameState>(
     const actorIndex = nextState.players.findIndex(item => item.id === command.playerId);
     const targetIndex = nextState.players.findIndex(item => item.id === command.targetId);
     if (actorIndex >= 0 && targetIndex >= 0) {
-      const actorSeat = nextState.players[actorIndex].seat;
-      nextState.players[actorIndex].seat = nextState.players[targetIndex].seat;
-      nextState.players[targetIndex].seat = actorSeat;
+      const actorPlayer = nextState.players[actorIndex];
+      nextState.players[actorIndex] = nextState.players[targetIndex];
+      nextState.players[targetIndex] = actorPlayer;
+      nextState.players.forEach((item, index) => { item.seat = index; });
+      const resolvedTarget = nextState.players.find(item => item.id === command.targetId)!;
       const drawn = drawCards(nextState, 1, events);
-      target.hand.push(...drawn);
+      resolvedTarget.hand.push(...drawn);
       events.push(makeEvent(nextState, 'DRAW_EFFECT_APPLIED', {
         sourcePlayerId: command.playerId,
         targetPlayerId: command.targetId,
@@ -1206,7 +1391,7 @@ function applyMachiavelliEffect(state: GameState, effect: MachiavelliEffect): vo
     return;
   }
   if (effect === 'PARANOIA_SPREADS') {
-    state.players.forEach((player, index) => grantCard(state, player, index % 2 === 0 ? 'truth' : 'paranoia', `paranoia-spreads:${index}`));
+    state.players.forEach((player, index) => grantCard(state, player, index % 2 === 0 ? 'dig_me' : 'paranoia', `paranoia-spreads:${index}`));
     return;
   }
   if (effect === 'DOUBLE_THE_PRESSURE') {
@@ -1493,6 +1678,19 @@ function handleSubmitParanoiaClassicDecision<TState extends GameState>(
       command.decision === 'REVEAL' ? [] : [command.playerId]
     )
   ];
+  if (command.decision === 'KEEP_SECRET') {
+    const answerPlayer = nextState.players.find(player => player.id === command.playerId)!;
+    const drawn = drawCards(nextState, 1, events);
+    events.push(makeEvent(nextState, 'DRAW_EFFECT_APPLIED', {
+      sourcePlayerId: nextSocial.actorId,
+      targetPlayerId: command.playerId,
+      amount: drawn.length,
+      cardId: nextSocial.cardId,
+      drawnCardIds: drawn.map(item => item.id)
+    }, events.length, 'PLAYER_PRIVATE', [command.playerId]));
+    const forcedError = routeDrawnCards(nextState, answerPlayer, drawn, context, events);
+    if (forcedError) return failCommand(state, command, forcedError, events);
+  }
   nextState.revision = state.revision + 1;
   events.forEach(event => {
     event.revision = nextState.revision;
@@ -2473,6 +2671,7 @@ export function applyCommand<TState extends GameState>(state: TState, command: G
 
   if (command.type === 'PLAY_CARD') return handlePlayCard(state, command, context);
   if (command.type === 'DRAW_CARD') return handleDrawCard(state, command, context);
+  if (command.type === 'ACTIVATE_GHOST') return handleActivateGhost(state, command as GameCommand & { type: 'ACTIVATE_GHOST' });
   if (command.type === 'SELECT_WILD_COLOR') return handleSelectWildColor(state, command, context);
   if (command.type === 'SELECT_ANSWER_MODE') return handleSelectAnswerMode(state, command);
   if (command.type === 'REVIEW_ANSWER') return handleReviewAnswer(state, command);

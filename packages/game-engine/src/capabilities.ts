@@ -62,6 +62,44 @@ function markAnsweredLiveOption(state: GameState, playerId: string): LegalComman
   });
 }
 
+function nopeReactionOption(state: GameState, playerId: string): LegalCommandOption | null {
+  const social = state.social;
+  if (!social || social.resolutionComplete || (social.cardKind !== 'truth' && social.cardKind !== 'dare')) return null;
+  const affectedPlayerId = social.pendingTargetId ?? social.actorId;
+  if (affectedPlayerId !== playerId) return null;
+  const nope = state.players.find(player => player.id === playerId)?.hand.find(card => card.kind === 'nope');
+  if (!nope) return null;
+  return option({
+    optionId: `nope:${nope.id}`,
+    command: {
+      ...commandBase(state, playerId, `PLAY_NOPE:${nope.id}`),
+      type: 'PLAY_NOPE',
+      cardId: nope.id
+    },
+    presentation: {
+      category: 'CHOICE',
+      choiceKey: 'PLAY_NOPE'
+    }
+  });
+}
+
+function ghostActivationOption(state: GameState, playerId: string): LegalCommandOption | null {
+  const ghost = state.ghostEffects.find(effect => effect.playerId === playerId && effect.status === 'ARMED');
+  if (!ghost) return null;
+  return option({
+    optionId: `ghost:${ghost.cardId}:activate`,
+    command: {
+      ...commandBase(state, playerId, `ACTIVATE_GHOST:${ghost.cardId}`),
+      type: 'ACTIVATE_GHOST',
+      cardId: ghost.cardId
+    },
+    presentation: {
+      category: 'CHOICE',
+      choiceKey: 'ACTIVATE_GHOST'
+    }
+  });
+}
+
 function duelCompletionOption(state: GameState, playerId: string, side: 'initiator' | 'opponent'): LegalCommandOption {
   return option({
     optionId: `duel-response:${side}`,
@@ -236,6 +274,8 @@ function socialCapabilities(state: GameState, playerId: string): PlayerDecisionC
 export function projectDecisionCapabilities(state: GameState, playerId: string): PlayerDecisionCapabilities {
   if (state.status === 'FINISHED') return { requiredAction: null, options: [] };
 
+  const ghostActivation = ghostActivationOption(state, playerId);
+
   if (state.social?.resolutionComplete) {
     if (state.social.actorId !== playerId || state.currentPlayerId !== playerId) return { requiredAction: null, options: [] };
     return { requiredAction: 'CONTINUE', options: [continueOption(state, playerId)] };
@@ -260,7 +300,14 @@ export function projectDecisionCapabilities(state: GameState, playerId: string):
     };
   }
 
-  if (state.social && !state.social.resolutionComplete) return socialCapabilities(state, playerId);
+  if (state.social && !state.social.resolutionComplete) {
+    const social = socialCapabilities(state, playerId);
+    const nope = nopeReactionOption(state, playerId);
+    const options = [...social.options, ...(nope ? [nope] : []), ...(ghostActivation ? [ghostActivation] : [])];
+    return { requiredAction: options.length ? social.requiredAction ?? 'SELECT_OPTION' : null, options };
+  }
+
+  if (ghostActivation) return { requiredAction: 'SELECT_OPTION', options: [ghostActivation] };
 
   if (state.currentPlayerId !== playerId) return { requiredAction: null, options: [] };
 

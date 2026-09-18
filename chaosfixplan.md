@@ -1430,3 +1430,35 @@ Proof:
 Score: `9.1/10`.
 
 Reason for score: the actual Railway API production service now points at `main`, deployed the corrected rules commit successfully, and health/database readback passed. Score is not higher until the real Web/Telegram client entrypoints that call this Railway API are identified and click-through gameplay verifies the corrected rules end-to-end.
+
+### Phase 3A — live GameRules execution plan
+
+Execution boundary:
+
+- Repo/worktree: `C:\Users\GrowB\cribbit-chaos-app` / `/mnt/c/Users/GrowB/cribbit-chaos-app`.
+- Branch observed at start: `main` at `0fc29455f24e243238dfa535da382f8d879366e3`.
+- Existing worktree is already heavily modified; preserve existing user/worktree changes and use minimal patches only.
+- Follow Superpowers execution discipline: plan-first, TDD for behavior changes, one narrow rule slice at a time, no deployment/database mutation until source verification passes and deployment is explicitly approved.
+
+Execution order:
+
+1. Phase 0 — restore reliable WSL test/build environment.
+2. Phase 1 — lock runtime authority and quarantine simulation/live drift.
+3. Phase 2 — implement shared-engine forced-on-draw FIFO.
+4. Phase 3 — implement narrow Truth/Dare Nope behavior.
+5. Phase 4 — fix special-card rule gaps in shared engine.
+6. Phase 5 — sync Web/Telegram live clients to shared capability projection.
+7. Phase 6 — update docs/rule traceability proof.
+8. Phase 7 — full local verification.
+9. Phase 8 — live Railway/client verification after source proof.
+
+Live task log:
+
+- Phase 0 status: completed. `npm ci` exited 0 in WSL after reinstalling Linux-compatible packages. Observed warning: project declares Node `>=24.7.0`, current WSL Node is `v22.22.3`; verification still passed under the current environment. Baseline proof: `npm test` exited 0 with 140 tests, 134 passed, 6 skipped, 0 failed; `npm run typecheck` exited 0; `npm run build` exited 0 for Web, Telegram, and API.
+- Phase 1 status: completed. Re-check found existing runtime-authority coverage for Web/API/Telegram live rooms; added a failing test requiring the Web local simulation control to be visibly marked non-live QA, watched it fail, then changed only the simulation button label/aria/title in `apps/web/src/live-session.ts`. Focused proof: `npx tsx --test apps/api/test/bot-authority-contract.test.ts` exited 0 with 5/5 passing.
+- Phase 2 status: completed. Re-check showed forced-on-draw coverage existed only for `packages/legacy-runtime`, while the shared Railway engine still put drawn interaction cards into hands. Added failing shared-engine tests for normal drawn Truth and Draw-2 FIFO; implemented `pendingForcedInteractions` in shared `GameState`, initialized it in `createGame`, and routed normal/penalty draws so forced social cards start/queue instead of entering hand. Proof: focused corrected-rules/validation tests exited 0 with 8/8 passing; `npm run typecheck` exited 0; full `npm test` exited 0 with 143 tests, 137 passed, 6 skipped, 0 failed; `npm run build` exited 0 for Web, Telegram, and API.
+- Phase 3 status: completed. Re-check found public `applyCommand` routes `PLAY_NOPE` through `command-router.ts`, while existing coverage only proved actor-owned Truth Nope. Added a failing selected-target Truth Nope test, watched it fail, then changed the router to allow `social.pendingTargetId ?? social.actorId` as the affected Nope user while resolving turn flow from the original social actor. Proof: focused Nope test exited 0 with 2/2 passing; `npm run typecheck` exited 0; full `npm test` exited 0 with 144 tests, 138 passed, 6 skipped, 0 failed; `npm run build` exited 0 for Web, Telegram, and API.
+- Phase 4 status: completed. Re-check kept Phase 4 justified after compression: remaining special-card gaps were Chaos approved catalogue behavior, Truth or Chaos consensus/group-punishment behavior, and Ghost lifecycle. Added failing tests first, then implemented: Chaos approved catalogue slices for Blind Swap and Reverse Order with persistent reverse state; Truth or Chaos consensus matching and mismatch group-punishment state; Ghost arm/activate/two-own-turn draw suppression lifecycle; plus updated obsolete Chaos prompt-flow tests and bot expectations to match the corrected catalogue behavior. Proof: focused engine suites exited 0; `npm run typecheck` exited 0; full `npm test` exited 0; `npm run build` exited 0 for Web, Telegram, and API.
+- Phase 5 status: completed. Re-check showed Web and Telegram already called `projectDecisionCapabilities`, but still had stale local paths for Nope reaction eligibility and lacked shared projection for Ghost activation. Added failing capability/client contract tests first, then exposed `ACTIVATE_GHOST` and selected-target `PLAY_NOPE` through shared `projectDecisionCapabilities`; Web and Telegram now label/submit those actions through shared capability option IDs instead of local Nope buttons/lookups. Proof: focused Phase 5 suites exited 0 with 13/13 passing; `npm run typecheck` exited 0; full `npm test` exited 0 with 155 tests, 149 passed, 6 skipped, 0 failed; `npm run build` exited 0 for Web, Telegram, and API.
+- Phase 6 status: completed. Updated docs/rule traceability proof in `docs/social-engine-rule-decisions.md`, `docs/LIVING_STATUS.md`, and `PLAN.md`, mapping `Game_rules.md` authority to runtime files, test proof, client projection proof, unresolved rule gaps, and the Phase 8 live-deployment boundary. Proof: focused docs/rule suites exited 0 with 28/28 passing; `npm run typecheck` exited 0; `git diff --check -- docs/social-engine-rule-decisions.md docs/LIVING_STATUS.md PLAN.md` exited 0. Note: `git diff --check` against `chaosfixplan.md` still reports pre-existing CRLF/trailing-whitespace noise across the historical plan file, so it was not used as the docs-cleanliness proof.
+- Phase 7 status: completed. Ran the full local source gate fresh after Phase 6 docs and Phase 5 client capability work. Proof: `npm run typecheck` exited 0; full `npm test` exited 0 with 155 tests, 149 passed, 6 skipped, 0 failed; `npm run build` exited 0 for Web, Telegram, and API; `npm run audit:ui` exited 0 with 64 actions discovered, 66 assigned, no missing assignments, no unclassified buttons, no duplicate IDs, and no inline handlers. After normalizing CRLF endings in Phase 5 touched files, `git diff --check -- docs/social-engine-rule-decisions.md docs/LIVING_STATUS.md PLAN.md apps/api/test/bot-authority-contract.test.ts apps/telegram/src/gameView.ts apps/web/src/live-session.ts packages/game-engine/src/capabilities.ts packages/game-engine/test/bot-capabilities.test.ts` exited 0. Focused Phase 5 capability/client suites re-ran 13/13 passing. Next: Phase 8 — live Railway/client verification after explicit approval.

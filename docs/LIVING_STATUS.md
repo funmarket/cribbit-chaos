@@ -217,40 +217,44 @@ Generated/direct-to-hand cards follow their generating effect and are not silent
 
 Multiple physical draws are selected sequentially from the current adaptive state. Immediate interactions must then resolve FIFO in physical selection order, with no overlapping social flows.
 
-## Active integration task
+## Current corrected-rules implementation status
 
-PR #11 merged the shared CHAOS Pulse board seam and canonical forced-on-draw FIFO guards. The active follow-up is now bot stability through one shared backend policy, not separate Web-vs-Telegram bot fixes.
+The current local source has completed Phases 0–7 of the live GameRules execution plan recorded in `chaosfixplan.md`.
 
-Verified Phase 1 backend-contract facts:
+Verified source behavior now includes:
+
+- shared-engine forced-on-draw FIFO through `pendingForcedInteractions`;
+- narrow Truth/Dare Nope, including selected-target Nope through `PLAY_NOPE`;
+- Machiavelli Paranoia Spreads generating only approved DIG ME / Paranoia cards;
+- Paranoia Classic voluntary Keep Secret applying Draw 1 to the answer player;
+- Hijack swapping authoritative player order, not only seat labels;
+- Chaos approved catalogue slices: Blind Swap and Reverse Order;
+- Truth or Chaos consensus match / group-punishment state;
+- Ghost arm, activate, and two-own-turn normal-draw suppression lifecycle;
+- Web and Telegram live clients submitting Ghost and Nope through shared `projectDecisionCapabilities()` options.
+
+Current verification snapshot:
 
 ```text
-Web live room -> packages/api-client -> Railway API -> game_sessions state -> shared game-engine reducer -> API bot advancement
-Telegram live room -> packages/api-client -> Railway API -> game_sessions state -> shared game-engine reducer -> API bot advancement
+npm run typecheck -> exit 0
+npm test -> 155 tests, 149 passed, 6 skipped, 0 failed
+npm run build -> exit 0 for Web, Telegram, and API
 ```
 
-Current source still has local QA/simulation surfaces for fallback/demo use, but they are not the live multiplayer authority.
+This remains **source/local verification only**. It is not a live Railway/Cloudflare deployment claim; Phase 8 requires explicit approval before live mutation/readback.
 
-Do not implement separate Web bot behavior and Telegram bot behavior. Fix bot decisions at the shared API/game-engine boundary, then let both clients render the same resulting state.
+## Active integration task
 
-## Repository guardrails
-
-Never commit temporary artifacts such as `FIX.md`, scratch files, recovery notes, generated diffs, diagnostics, logs, or temporary planning files.
-
-Runtime-affecting work is not accepted until browser/live-Web verification confirms it.
-
-## Current next task
-
-**Phase 2 — extract one deterministic shared BotPolicy / legal-action enumerator for API bot advancement.**
+**Phase 8 — live Railway/client verification after source proof.**
 
 Verification checklist:
 
 - [x] Phase 1 contract guard proves live Web and Telegram both use the API session adapter.
 - [x] Phase 1 contract guard proves API command processing applies the shared reducer before backend bot advancement.
-- [x] Phase 2A adds a shared engine `projectDecisionCapabilities()` legal-action enumerator.
-- [x] Phase 2A tests prove advertised options are accepted by the reducer for play/draw, Wild color, Truth completion-only, and Duel target/response/vote flows.
-- [x] Phase 2A tests established the fail-closed legal-action boundary.
-- [x] Phase 2B moves API bot decision selection out of hardcoded card-family branches into shared `chooseBotOption()`.
-- [x] Phase 2B wires API bot advancement to choose from `projectDecisionCapabilities()`.
-- [x] Phase 2B adds no frontend-specific bot rule path.
-- [x] Phase 2B verifies bot settlement for Truth, Dare, Chaos, Paranoia, Duel, TAG, Truth or Chaos, Hijack, Taboo, Machiavelli, Reverse Confession, and DIG ME.
-- [ ] live browser/deployed-game readback after PR/CI/deployment.
+- [x] Phase 2 shared-engine forced-on-draw FIFO has reducer and contract coverage.
+- [x] Phase 3 selected-target Truth/Dare Nope has reducer/router coverage.
+- [x] Phase 4 special-card gaps have reducer coverage for Chaos, Truth or Chaos, Ghost, Machiavelli, Paranoia, and Hijack.
+- [x] Phase 5 proves Web and Telegram use shared capability projection for Ghost activation and Nope reaction.
+- [x] Phase 6 updates traceability docs.
+- [x] Phase 7 full local verification after docs are updated.
+- [>] Phase 8 live Railway/client deployment and readback after explicit approval.
