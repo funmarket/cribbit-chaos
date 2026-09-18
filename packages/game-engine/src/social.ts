@@ -271,6 +271,8 @@ export function createSocialState(
   paranoiaVote: null,
   classicAnswerPlayerId: null,
   classicRevealDecision: null,
+  truthOrChaosOutcome: null,
+  groupPunishmentPending: false,
   answerState: createAnswerRecord(),
     resolutionComplete: false,
     mayAdvanceTurn: false,
