@@ -100,3 +100,26 @@ failure, classify it by the table above, and fix only that owner.
 
 A gameplay change modifies the canonical rule and the single authoritative engine. It never creates another
 runtime, another engine file, or a second implementation beside an existing one.
+
+## R3 — Node 24.7 CI evidence (COMPLETE, green)
+
+Pushed a temporary evidence branch pointing at the exact cutover commit; no PR, no merge, no `main` change.
+
+| Item | Value |
+|---|---|
+| Remote evidence ref | `recovery/single-engine-authority-ci` |
+| Tested SHA | `f384c824a0553d1adceb05ef55612e177967bb1a` (exact cutover commit) |
+| Parent | `95febd07e4d739c96843fcc4a02f070eb3c623c0` (remote `main`, unchanged) |
+| Diff scope | exactly `apps/web/src/main.ts` (−3) and `apps/web/test/runtime-single-owner.test.ts` (+50/−6) |
+| CI run | **35476372150** — conclusion **success** |
+| Jobs | typecheck ✅ · test ✅ · build-web ✅ · build-telegram ✅ · build-api ✅ |
+| Run URL | https://github.com/funmarket/cribbit-chaos/actions/runs/35476372150 |
+| Deployment created? | **No** — latest GitHub deployment is still `2026-09-18T14:03:56Z` @ `95febd0` (production) |
+| Production check | `https://cribbit-chaos-web.pages.dev/` still serves `/assets/index-A3T819rq.css` + `/assets/index-BhtR9COZ.js` — unchanged |
+
+Comparison: baseline `95febd0` green in this same workflow; cutover `f384c82` green in the same workflow; two files
+differ. The local Node 22 "2 failures" are absent here, confirming they were CRLF artifacts, not source defects.
+
+Note: CI pins Node 24.7.0 but does not install npm 10.9.2, so this is **Node-24 CI evidence**, not npm-version proof.
+
+**STOPPED here.** PostgreSQL provisioning and R4/R5 require separate authorization.
