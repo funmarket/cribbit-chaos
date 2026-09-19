@@ -17,10 +17,27 @@ complete game once the competing browser runtime stops being booted.
 | Cutover commit | `f384c82` |
 | Before | typecheck 0 · test 151 pass / 2 fail · build:web 0 · build:telegram 0 · build:api 0 |
 | After cutover | typecheck 0 · test 152 pass / 2 fail (same 2 pre-existing) · build:web 0 · web JS 236.11 kB → 182.89 kB, CSS hash unchanged |
-| Pre-existing failures | `runtime-single-owner.test.ts` tests 42 and 43 (source-shape asserts on `live-session.ts`), failing **before** this branch |
+| Local test failures | `runtime-single-owner.test.ts` tests 42 and 43 — **NOT main failures**. Authoritative CI at `95febd0` passes on Node 24.7.0; these are **Windows CRLF test fragility** (see R2.5 below) |
 
 Node 22.23.2 results are **environment compatibility signal only**. Authoritative toolchain evidence is Node
 24.7.0, which `.github/workflows/ci.yml` already pins for all five jobs.
+
+## R2.5 — CRLF classification (read-only, verified)
+
+| Check | Result |
+|---|---|
+| `core.autocrlf` (local) | `true` |
+| `.gitattributes` | **absent** (no EOL normalisation) |
+| `apps/web/src/live-session.ts` on this box | 23,379 bytes · **395 CRLF · 0 bare LF** (pure CRLF) |
+| Literal `\n` escapes in `runtime-single-owner.test.ts` | 5 |
+| Failing assertions depend on LF | yes — e.g. `/const projected = decisionControls\(session,userId\);\n  if \(projected\) return projected;/` cannot match `;\r\n  if` |
+| `f384c82` parent | **exactly `95febd07e4d739c96843fcc4a02f070eb3c623c0`** |
+| `f384c82` scope | 2 files — `main.ts` −3, test +50/−6 |
+| Added guard test CRLF-safe | yes — no literal `\n`, uses `\s*` |
+
+Therefore tests 42/43 are **local-platform fragility, not a source defect**, and the cutover has no local
+regression (152 pass / 2 CRLF-artifact failures, identical before and after). A repo-level fix (`.gitattributes`
+with `* text=auto eol=lf`) is a separate, unapproved change and must not be bundled into this experiment.
 
 ## IN SCOPE
 
