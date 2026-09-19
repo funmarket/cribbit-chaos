@@ -6,15 +6,27 @@ function read(path: string): string {
   return readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8');
 }
 
-test('Web shell boots only one gameplay/display runtime owner', () => {
+test('production Web shells the engine/API path as the only gameplay owner', () => {
   const indexHtml = read('apps/web/index.html');
   const mainSource = read('apps/web/src/main.ts');
 
   const bootsCanonicalRuntime = /initializeCanonicalGameRuntime/.test(mainSource) || indexHtml.includes('initializeCanonicalGameRuntime') || indexHtml.includes('canonical-game-runtime');
   const bootsLegacyCompatibility = /runtimeMode\s*:\s*['"]legacy-compatibility['"]/.test(mainSource);
 
-  assert.equal(bootsCanonicalRuntime, true, 'Web local game must boot the Game_rules.md-aligned canonical runtime.');
-  assert.equal(bootsLegacyCompatibility, false, 'Web local game must not boot the stale legacy-compatibility runtime.');
+  const bootsLivePath =
+    indexHtml.includes('/src/live-entry.ts') && /runtimeMode\s*:\s*['"]none['"]/.test(mainSource);
+
+  assert.equal(
+    bootsCanonicalRuntime,
+    false,
+    'Production Web must not boot canonical-game-runtime: the shared engine/API path is the single gameplay authority.'
+  );
+  assert.equal(bootsLegacyCompatibility, false, 'Production Web must not boot the stale legacy-compatibility runtime.');
+  assert.equal(
+    bootsLivePath,
+    true,
+    'Production Web must boot the live/API path (live-entry plus runtimeMode none).'
+  );
   assert.equal(
     bootsCanonicalRuntime && bootsLegacyCompatibility,
     false,
@@ -71,4 +83,36 @@ test('Web live room controls render and submit shared capability buttons', () =>
   assert.match(liveSource, /const liveOption = target\.closest<HTMLElement>\('\[data-live-option-id\]'\);/);
   assert.match(liveSource, /const selected = projectDecisionCapabilities\(live\.state,userId\)\.options\.find\(option => option\.optionId === liveOption\.dataset\.liveOptionId\);\n      if \(selected\) return void send\(selected\.command as CommandBody\);/);
   assert.doesNotMatch(liveSource, /return '<span class="tag" data-tone="cyan">Shared special-card flow in progress<\/span>';/);
+});
+
+test('production Web cannot re-acquire client gameplay authority', () => {
+  const mainSource = read('apps/web/src/main.ts');
+  const indexHtml = read('apps/web/index.html');
+
+  // No boot of a duplicate runtime, now or later.
+  assert.doesNotMatch(mainSource, /initializeCanonicalGameRuntime/);
+  assert.doesNotMatch(mainSource, /from '\.\/canonical-game-runtime\.ts'/);
+  assert.doesNotMatch(indexHtml, /canonical-game-runtime/);
+
+  // The only scripts the production shell may load.
+  const scripts = [...indexHtml.matchAll(/<script[^>]+src="([^"]+)"/g)].map(match => match[1]);
+  assert.equal(scripts.includes('/src/live-entry.ts'), true, 'production Web must load the live/API entry');
+  for (const script of scripts) {
+    assert.equal(
+      /canonical-game-runtime|legacy-runtime/.test(script),
+      false,
+      `production Web must not load another gameplay runtime (${script})`
+    );
+  }
+
+  // Clients must not implement gameplay decisions: legality, turns, timers, bots, winner.
+  const clientAuthorityPattern =
+    /function\s+(legal|playCard|drawTurn|finishTurn|confirmWin|scheduleBot|autoBots)\s*\(/;
+  for (const file of [
+    'apps/web/src/live-session.ts',
+    'apps/telegram/src/backendGame.ts',
+    'apps/telegram/src/simulation.ts',
+  ]) {
+    assert.doesNotMatch(read(file), clientAuthorityPattern, `${file} must not implement gameplay authority`);
+  }
 });

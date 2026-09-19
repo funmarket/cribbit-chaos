@@ -1,7 +1,6 @@
 import { BrowserPlatform } from '../../../packages/platform/src/browser.ts';
 import { bootstrap, mountSharedTemplate } from '../../../packages/ui/src/bootstrap.ts';
 import { startCanonicalBoardCardHydration } from './canonical-board-cards.ts';
-import { initializeCanonicalGameRuntime } from './canonical-game-runtime.ts';
 import { startDiscardStateNarration } from './discard-state-narration.ts';
 import { startSimulationDiscardedPileSync } from './pile-presentation.ts';
 import './web-game.css';
@@ -374,8 +373,6 @@ async function startWeb(): Promise<void> {
   await bootstrap(platform, {
     runtimeMode: 'none',
   });
-
-  initializeCanonicalGameRuntime();
 
   startCanonicalBoardCardHydration();
   startSimulationDiscardedPileSync();
