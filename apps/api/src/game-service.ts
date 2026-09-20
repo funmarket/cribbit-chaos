@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { AuthUser, CommandResponse, GameCommand, GameEvent, GameState, SessionSnapshot, WaitingRoomResult } from '../../../packages/contracts/src/index.ts';
-import { applyCommand, chooseBotOption, createGame, projectDecisionCapabilities } from '../../../packages/game-engine/src/index.ts';
+import { applyCommand, chooseBotOption, createGame, projectDecisionCapabilities, projectRoulettePresentation } from '../../../packages/game-engine/src/index.ts';
 import { promptPoolForSources } from '../../../packages/prompts/src/index.ts';
 import { pool, withTransaction } from './db.ts';
 
@@ -86,6 +86,25 @@ function projectStateForPlayer(state: GameState, viewerId: string): GameState {
     };
   });
   projected.processedCommands = {};
+  if (projected.social) projected.social = projectSocialForViewer(projected.social);
+  return projected;
+}
+
+/**
+ * Viewer-aware social projection. Every outbound viewer receives the shared engine's Roulette
+ * view, so a SEALED presentation can never carry selectedResultId or candidateResultIds to any
+ * client -- the authoritative selection stays in the engine state. A REVEALED presentation is
+ * unchanged: once the result is public every viewer still receives it exactly as before.
+ *
+ * This decides visibility only: it is deterministic, side-effect free, never mutates the
+ * authoritative state and never changes which prompt or candidate the engine selected.
+ */
+function projectSocialForViewer(social: NonNullable<GameState['social']>): NonNullable<GameState['social']> {
+  const projected = structuredClone(social);
+  if (projected.roulettePresentation) {
+    // Viewers receive the masked view, which is the contract's own sealed/revealed boundary.
+    projected.roulettePresentation = projectRoulettePresentation(projected.roulettePresentation) as typeof projected.roulettePresentation;
+  }
   return projected;
 }
 
