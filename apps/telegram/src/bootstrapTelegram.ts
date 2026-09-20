@@ -1,5 +1,5 @@
 import type { AuthSession, AuthUser } from '../../../packages/contracts/src/index.ts';
-import { ApiError, CribbitApiClient, clientConfig, type RoomSessionResult } from '../../../packages/api-client/src/index.ts';
+import { ApiError, CribbitApiClient, CribbitRealtimeClient, clientConfig, type RoomSessionResult, type WaitingRoomResult } from '../../../packages/api-client/src/index.ts';
 import type { PlatformAdapter } from '../../../packages/platform/src/types.ts';
 import { resolveVisualFixture, VISUAL_FIXTURES, type VisualFixtureName } from '../../../packages/ui/src/fixtures.ts';
 import { createTelegramBackendGame } from './backendGame.ts';
@@ -323,10 +323,7 @@ function bindRoomCreation(
         sources: draft.sources,
       });
       setStatus(host, `Game created · opening room ${room.joinCode}…`, 'neutral');
-      const opened = await onSession(room);
-      if (!opened && host.querySelector('[data-room-form]')) {
-        setStatus(host, 'The game was created, but its live session could not be opened.', 'warning');
-      }
+      openWaitingRoom(host, api, room, onSession);
     } catch (error) {
       console.warn('[Cribbit] Room creation failed.', error);
       setStatus(host, 'The shared game could not be created.', 'warning');
@@ -400,10 +397,7 @@ async function joinRoom(
   try {
     const joined = await api.joinRoom(code);
     setStatus(host, `Room ${joined.joinCode} found · opening live session…`, 'neutral');
-    const opened = await onSession(joined);
-    if (!opened && host.querySelector('[data-room-form]')) {
-      setStatus(host, `Room ${joined.joinCode} was joined, but its live session could not be opened.`, 'warning');
-    }
+    openWaitingRoom(host, api, joined, onSession);
   } catch (error) {
     console.warn('[Cribbit] Room join request failed.', error);
     const detail = error instanceof ApiError ? error.message : '';
@@ -419,6 +413,70 @@ async function joinRoom(
       setStatus(host, 'Room joining is currently unavailable.', 'warning');
     }
   }
+}
+
+
+function escapeWaiting(value: unknown): string {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[char] || char);
+}
+
+async function startWaitingRoom(host: HTMLElement, api: CribbitApiClient, room: WaitingRoomResult, onSession: (room: RoomSessionResult) => Promise<boolean>): Promise<void> {
+  try {
+    await onSession(await api.startRoom(room.roomId));
+  } catch (error) {
+    console.warn('[Cribbit] Room start failed.', error);
+    setStatus(host, 'The game could not be started.', 'warning');
+  }
+}
+
+function openWaitingRoom(
+  host: HTMLElement,
+  api: CribbitApiClient,
+  room: WaitingRoomResult,
+  onSession: (room: RoomSessionResult) => Promise<boolean>,
+): void {
+  host.querySelector('[data-waiting-room]')?.remove();
+  if (room.status === 'STARTED' && room.sessionId) {
+    void onSession({ ok:true, roomId:room.roomId, sessionId:room.sessionId, joinCode:room.joinCode, players:[] });
+    return;
+  }
+
+  const panel = document.createElement('section');
+  panel.className = 'tg-setup-card';
+  panel.setAttribute('data-waiting-room', room.roomId);
+  const anchor = host.querySelector('[data-action-status]');
+  if (anchor?.parentElement) anchor.parentElement.insertBefore(panel, anchor);
+  else host.append(panel);
+
+  const auth = (window as unknown as { __CRIBBIT_AUTH__?: { user?: { id?: string } } }).__CRIBBIT_AUTH__;
+  const isHost = Boolean(auth?.user?.id) && auth?.user?.id === room.ownerUserId;
+
+  const paint = (state: WaitingRoomResult): void => {
+    panel.innerHTML = `
+      <label class="tg-field-label"><span aria-hidden="true">#</span> Live room ${escapeWaiting(state.joinCode)}</label>
+      <p class="tg-field-hint">${state.status === 'STARTED' ? 'Game started.' : `Waiting for real players · ${state.memberCount}/${state.playerCount}`}</p>
+      <ul class="tg-member-list">${state.members.map(member => `<li><b>${escapeWaiting(member.name)}</b><span>${escapeWaiting(member.role)}</span></li>`).join('')}</ul>
+      ${isHost && state.status !== 'STARTED' ? `<button class="tg-button tg-button--create" data-action="start-game" type="button"${state.memberCount === state.playerCount ? '' : ' disabled'}>Start Game</button>` : ''}`;
+  };
+  paint(room);
+
+  panel.addEventListener('click', event => {
+    const button = event.target instanceof Element ? event.target.closest('[data-action="start-game"]') : null;
+    if (!button) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    void startWaitingRoom(host, api, room, onSession);
+  });
+
+  const realtime = new CribbitRealtimeClient(api.config);
+  const socket = realtime.connect();
+  realtime.joinRoomChannel(room.roomId);
+  socket.on('room-updated', () => { void api.getRoom(room.roomId).then(next => { paint(next); }).catch(() => undefined); });
+  socket.on('room-started', (payload:{ sessionId?:string }) => {
+    if (!payload?.sessionId) return;
+    realtime.disconnect();
+    void onSession({ ok:true, roomId:room.roomId, sessionId:payload.sessionId, joinCode:room.joinCode, players:[] });
+  });
 }
 
 function telegramAuthFailureMessage(error: unknown): string {

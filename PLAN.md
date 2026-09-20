@@ -81,6 +81,19 @@ Machiavelli may create approved runtime card instances after game start. That ca
 
 ## Completed/accepted gameplay slices
 
+### Live multiplayer lifecycle (Create -> Join -> Start) — ACCEPTED (verified locally)
+
+- `POST /v1/rooms` creates a waiting room with real owner membership only: no fabricated bots, no game session, no deal.
+- `POST /v1/rooms/join` adds real membership only; rejects joins to a started game and joins past configured capacity.
+- `POST /v1/rooms/:roomId/start` is owner-only, requires the configured real-player count, and creates exactly one authoritative session with seven cards each.
+- Waiting-room realtime uses `room:<roomId>` (`room-updated` / `room-started`); PostgreSQL remains authoritative.
+- Client realtime root cause: `CribbitRealtimeClient.connect()` created a second socket while the first was still connecting, so listeners and room membership landed on different sockets. Fix: `if (this.socket) return this.socket`.
+- Web five-real-user lifecycle, five-client convergence after one ordinary command, and private-hand scoping: VERIFIED LOCALLY.
+- Telegram live runtime: NOT VERIFIED (no way to mint Telegram Mini App `initData` in the verification environment).
+- Simulation stays separate: production Web is CORE WORKING with a SPECIAL-FLOW BLOCKER where a bot reaches a special-card interaction expecting human-style input.
+
+Next app-recovery task: deployed-app/source parity recovery (read-only comparison first).
+
 ### Roulette presentation — ACCEPTED
 
 - One authoritative prompt is selected before animation.

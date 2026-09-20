@@ -7,6 +7,7 @@ import type {
   GameCommand,
   ProfileUpdateRequest,
   SessionSnapshot,
+  WaitingRoomResult,
   TelegramAuthRequest,
   WebAuthResponse,
   WebLoginRequest,
@@ -14,6 +15,8 @@ import type {
   WebTelegramLoginConfiguration
 } from '../../contracts/src/index.ts';
 import { cribbitSessionTokenStore } from './session-token-store.ts';
+
+export type { WaitingRoomMember, WaitingRoomResult } from '../../contracts/src/index.ts';
 
 export interface RoomSessionResult {
   ok: true;
@@ -96,11 +99,17 @@ export class CribbitApiClient {
   startWebTelegramLogin(): void {
     window.location.assign(`${this.config.apiUrl}/v1/auth/telegram/web/start`);
   }
-  createRoom(payload: RoomCreateRequest): Promise<RoomSessionResult> {
+  createRoom(payload: RoomCreateRequest): Promise<WaitingRoomResult> {
     return this.request('/v1/rooms', { method:'POST', body:JSON.stringify(payload) });
   }
-  joinRoom(code: string): Promise<RoomSessionResult> {
+  joinRoom(code: string): Promise<WaitingRoomResult> {
     return this.request('/v1/rooms/join', { method:'POST', body:JSON.stringify({ code }) });
+  }
+  getRoom(roomId: string): Promise<WaitingRoomResult> {
+    return this.request(`/v1/rooms/${encodeURIComponent(roomId)}`);
+  }
+  startRoom(roomId: string): Promise<RoomSessionResult> {
+    return this.request(`/v1/rooms/${encodeURIComponent(roomId)}/start`, { method:'POST', body:'{}' });
   }
   updateRoomConfig(roomId: string, config: unknown): Promise<unknown> {
     return this.request(`/v1/rooms/${encodeURIComponent(roomId)}/config`, { method:'PATCH', body:JSON.stringify(config) });
@@ -130,7 +139,7 @@ export class CribbitRealtimeClient {
   constructor(private readonly config: ClientConfig) {}
 
   connect(accessToken = this.config.platform === 'telegram' ? cribbitSessionTokenStore.get() || undefined : undefined): Socket {
-    if (this.socket?.connected) return this.socket;
+    if (this.socket) return this.socket;
     const origin = this.config.wsUrl.replace(/^wss:/,'https:').replace(/^ws:/,'http:').replace(/\/$/,'');
     this.socket = io(origin, {
       path:'/v1/realtime',
@@ -142,6 +151,7 @@ export class CribbitRealtimeClient {
   }
 
   joinSession(sessionId:string): void { this.connect().emit('join-session',{sessionId}); }
+  joinRoomChannel(roomId:string): void { this.connect().emit('join-room-channel',{roomId}); }
   sendCommand(command:GameCommand): void { this.connect().emit('game-command',command); }
   disconnect(): void { this.socket?.disconnect(); this.socket=null; }
 }

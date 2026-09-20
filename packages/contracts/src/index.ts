@@ -396,3 +396,25 @@ export interface ClientConfig {
   platform: ClientPlatform;
   appEnv: 'development' | 'preview' | 'production';
 }
+
+export type WaitingRoomMemberRole = 'owner' | 'player';
+
+export interface WaitingRoomMember {
+  userId: string;
+  name: string;
+  role: WaitingRoomMemberRole;
+  seat: number;
+  joinedAt: string;
+}
+
+export interface WaitingRoomResult {
+  ok: true;
+  roomId: string;
+  joinCode: string;
+  ownerUserId: string;
+  playerCount: number;
+  memberCount: number;
+  members: WaitingRoomMember[];
+  status: 'WAITING' | 'STARTED';
+  sessionId: string | null;
+}

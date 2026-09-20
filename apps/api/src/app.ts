@@ -15,13 +15,7 @@ import {
   revokeServerSession,
   updateUserProfile
 } from './db.ts';
-import {
-  createRoomAndSession,
-  getSessionSnapshot,
-  joinRoomByCode,
-  processSessionCommand,
-  type RoomCreateInput,
-} from './game-service.ts';
+import { createWaitingRoom, getSessionSnapshot, joinWaitingRoom, processSessionCommand, type RoomCreateInput, getWaitingRoom, startRoom } from './game-service.ts';
 import { validateTelegramInitData } from './telegram-auth.ts';
 
 type TelegramIdentityInput = { telegramId:string; displayName:string; username?:string };
@@ -358,7 +352,9 @@ export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
   app.post('/v1/rooms', async (request:any, reply:any) => {
     try {
       const auth = await principal(request);
-      return await createRoomAndSession(auth.user, (request.body ?? {}) as RoomCreateInput);
+      const room = await createWaitingRoom(auth.user, (request.body ?? {}) as RoomCreateInput);
+      sessions.to(`room:${room.roomId}`).emit('room-updated', { roomId: room.roomId });
+      return room;
     } catch (error) {
       return routeError(reply, error);
     }
@@ -369,14 +365,36 @@ export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
       const auth = await principal(request);
       const { code } = request.body as { code?:string };
       if (!code || !/^[A-Za-z0-9]{4,12}$/.test(code)) return reply.code(400).send({ ok:false, error:'INVALID_ROOM_CODE' });
-      return await joinRoomByCode(auth.user, code);
+      const room = await joinWaitingRoom(auth.user, code);
+      sessions.to(`room:${room.roomId}`).emit('room-updated', { roomId: room.roomId });
+      return room;
     } catch (error) {
       return routeError(reply, error);
     }
   });
 
   app.patch('/v1/rooms/:roomId/config', async (_request:any, reply:any) => reply.code(501).send({ error:'ROOM_CONFIG_NOT_IMPLEMENTED' }));
-  app.post('/v1/rooms/:roomId/start', async (_request:any, reply:any) => reply.code(409).send({ error:'SESSION_ALREADY_CREATED', message:'Room creation currently creates the authoritative session immediately.' }));
+  app.get('/v1/rooms/:roomId', async (request:any, reply:any) => {
+    try {
+      const auth = await principal(request);
+      const { roomId } = request.params as { roomId:string };
+      return await getWaitingRoom(auth.user, roomId);
+    } catch (error) {
+      return routeError(reply, error);
+    }
+  });
+
+  app.post('/v1/rooms/:roomId/start', async (request:any, reply:any) => {
+    try {
+      const auth = await principal(request);
+      const { roomId } = request.params as { roomId:string };
+      const started = await startRoom(auth.user, roomId);
+      sessions.to(`room:${roomId}`).emit('room-started', { roomId, sessionId: started.sessionId });
+      return started;
+    } catch (error) {
+      return routeError(reply, error);
+    }
+  });
   app.post('/v1/rooms/:roomId/prompt-pool/:promptId', async (_request:any, reply:any) => reply.code(501).send({ error:'PROMPT_POOL_NOT_MIGRATED' }));
   app.delete('/v1/rooms/:roomId/prompt-pool/:promptId', async (_request:any, reply:any) => reply.code(501).send({ error:'PROMPT_POOL_NOT_MIGRATED' }));
 
@@ -413,6 +431,11 @@ export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
   app.post('/v1/games/:sessionId/rematch', async (_request:any, reply:any) => reply.code(501).send({ error:'REMATCH_NOT_IMPLEMENTED' }));
 
   io.on('connection', (socket:any) => {
+    socket.on('join-room-channel', (payload:{roomId?:string}) => {
+      if (!payload?.roomId) return socket.emit('server-error',{code:'ROOM_REQUIRED'});
+      void socket.join(`room:${payload.roomId}`);
+      socket.emit('joined-room',{roomId:payload.roomId});
+    });
     socket.on('join-session', (payload:{sessionId?:string}) => {
       if (!payload?.sessionId) return socket.emit('server-error',{code:'SESSION_REQUIRED'});
       void socket.join(`game:${payload.sessionId}`);

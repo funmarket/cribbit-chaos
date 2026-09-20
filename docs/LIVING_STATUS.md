@@ -1,6 +1,8 @@
 # Cribbit CHAOS Living Status
 
-Last verified source branch: `main`
+Last verified source branch: `main` (remote `36915e4`, which adds `docs/audio-media-plan.md`; reconciliation pending)
+
+Local recovery branch: `recovery/single-engine-authority`. The Live multiplayer slice is committed locally only; nothing pushed or deployed.
 
 This file is the concise operational status companion to `PLAN.md`. It records what is accepted, what is currently implemented, and what we do next.
 
@@ -9,6 +11,25 @@ This file is the concise operational status companion to `PLAN.md`. It records w
 GitHub is canonical for deployable source, game rules, documentation, and implementation status.
 
 Current development mode: **Web-first**. Telegram remains contract/state compatible but is not the active UI priority until Web gameplay is stable.
+
+## Live multiplayer lifecycle — VERIFIED LOCALLY
+
+- Create -> waiting room with real owner membership only: no bots, no session, no deal.
+- Join -> real membership only; started games and full rooms are rejected.
+- Start -> owner only, configured capacity must be full, real players only, exactly one authoritative session, seven cards each.
+- Realtime `room:<roomId>` (`room-updated`, `room-started`) with PostgreSQL authoritative.
+- Realtime root cause: `CribbitRealtimeClient.connect()` built a second socket while the first was still connecting, so listeners and membership diverged. Fix: `if (this.socket) return this.socket`.
+- Web five-real-user lifecycle, five-client convergence after one ordinary command, and private hands: VERIFIED LOCALLY.
+- Telegram live runtime: NOT VERIFIED (Telegram Mini App `initData` cannot be minted here).
+- Production Web Simulation: CORE WORKING with a SPECIAL-FLOW BLOCKER (a bot reaches a special-card interaction expecting human-style input) — owner-verified on the deployed app; outside this slice.
+
+## Next task
+
+Deployed-app/source parity recovery: read-only comparison of deployed `95febd0` against accepted source and Git history to find lost or disconnected approved UI and rule changes (inactive buttons/navigation, unreachable pages, changed typography, missing prior UI/rule edits).
+
+## Backlog (recorded, untouched)
+
+Truth-or-Chaos engine deadlock (evidence session `c2cb7b4c`) · malformed `commandId` -> raw 500 · origin rejection -> 500 instead of 403 · CRLF-sensitive source-shape tests · duplicate/fallback Wild renderer.
 
 ## Canonical deck
 

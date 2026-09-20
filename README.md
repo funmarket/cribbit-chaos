@@ -39,6 +39,20 @@ Primary live endpoints:
 
 The authoritative multiplayer state lives on the server/shared game boundary. Clients render UI and submit commands; they do not own card legality, effects, timers, prompt eligibility, or winner state.
 
+### Live room lifecycle (verified locally)
+
+```text
+packages/game-engine -> apps/api -> PostgreSQL -> packages/api-client -> Web / Telegram
+```
+
+- Create: `POST /v1/rooms` creates the room and the owner's `room_members` row only. No bots, no `createGame()`, no deal, no `game_sessions` row. Returns a waiting-room projection.
+- Join: `POST /v1/rooms/join` inserts real membership only. A started game rejects new members (`GAME_ALREADY_STARTED`); a full room rejects with `ROOM_FULL`. No bot-seat substitution.
+- Start: `POST /v1/rooms/:roomId/start` is owner-only, refuses a duplicate start, requires real membership to equal the configured `playerCount`, seats the owner at 0 and the rest in `joined_at` order, calls the canonical `createGame()` exactly once, deals seven cards each, and persists one `game_sessions` row.
+- Realtime: `room:<roomId>` via `join-room-channel` carries `room-updated` and `room-started {roomId, sessionId}`. The server stays authoritative; clients refetch.
+- `GET /v1/rooms/:roomId` returns the waiting-room projection to members.
+
+Simulation remains a separate local/bot mode and does not use the Live session lifecycle.
+
 ## Repository structure
 
 ```text

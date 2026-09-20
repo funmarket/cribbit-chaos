@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import type { AuthUser, CommandResponse, GameCommand, GameEvent, GameState, SessionSnapshot } from '../../../packages/contracts/src/index.ts';
+import type { AuthUser, CommandResponse, GameCommand, GameEvent, GameState, SessionSnapshot, WaitingRoomResult } from '../../../packages/contracts/src/index.ts';
 import { applyCommand, chooseBotOption, createGame, projectDecisionCapabilities } from '../../../packages/game-engine/src/index.ts';
 import { promptPoolForSources } from '../../../packages/prompts/src/index.ts';
 import { pool, withTransaction } from './db.ts';
@@ -61,10 +61,6 @@ function normalizeRoomName(value: unknown): string {
 
 function makeJoinCode(): string {
   return randomBytes(6).toString('base64url').replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase();
-}
-
-function botId(sessionId: string, index: number): string {
-  return `${BOT_PREFIX}${sessionId}:${index}`;
 }
 
 function isBotPlayerId(playerId: string): boolean {
@@ -168,40 +164,71 @@ function advanceBots(initialState: GameState, config?: StoredRoomConfig, now = D
   return { state, events };
 }
 
-export async function createRoomAndSession(user: AuthUser, input: RoomCreateInput): Promise<RoomSessionResult> {
+interface RoomRow { id: string; join_code: string; owner_user_id: string; config: StoredRoomConfig }
+interface RoomMemberRow { user_id: string; role: string; joined_at: Date | string; display_name: string | null }
+
+function orderedMembers(members: RoomMemberRow[]): RoomMemberRow[] {
+  return [...members].sort((left, right) => {
+    if (left.role !== right.role) return left.role === 'owner' ? -1 : 1;
+    return new Date(left.joined_at).getTime() - new Date(right.joined_at).getTime();
+  });
+}
+
+function roomProjection(room: RoomRow, members: RoomMemberRow[], sessionId: string | null): WaitingRoomResult {
+  const ordered = orderedMembers(members);
+  return {
+    ok: true,
+    roomId: room.id,
+    joinCode: room.join_code,
+    ownerUserId: room.owner_user_id,
+    playerCount: normalizePlayerCount((room.config ?? {}).playerCount),
+    memberCount: ordered.length,
+    members: ordered.map((member, index) => ({
+      userId: member.user_id,
+      name: member.display_name ?? member.user_id,
+      role: member.role === 'owner' ? 'owner' : 'player',
+      seat: index,
+      joinedAt: new Date(member.joined_at).toISOString(),
+    })),
+    status: sessionId ? 'STARTED' : 'WAITING',
+    sessionId,
+  };
+}
+
+async function loadRoomRow(roomId: string, client: any = requirePool()): Promise<RoomRow> {
+  const result = await client.query(`select id,join_code,owner_user_id,config from rooms where id=$1`, [roomId]);
+  if (!result.rowCount) throw Object.assign(new Error('Room not found.'), { code: 'ROOM_NOT_FOUND', statusCode: 404 });
+  return result.rows[0] as RoomRow;
+}
+
+async function loadRoomMembers(roomId: string, client: any = requirePool()): Promise<RoomMemberRow[]> {
+  const result = await client.query(
+    `select rm.user_id,rm.role,rm.joined_at,u.display_name
+       from room_members rm
+       join users u on u.id = rm.user_id
+      where rm.room_id=$1
+      order by case when rm.role='owner' then 0 else 1 end, rm.joined_at asc`,
+    [roomId],
+  );
+  return result.rows as RoomMemberRow[];
+}
+
+async function activeSessionId(roomId: string, client: any = requirePool()): Promise<string | null> {
+  const result = await client.query(`select id from game_sessions where room_id=$1 and status='ACTIVE' order by created_at desc limit 1`, [roomId]);
+  return result.rowCount ? String(result.rows[0].id) : null;
+}
+
+async function requireRoomMembership(roomId: string, userId: string): Promise<void> {
+  const result = await requirePool().query(`select 1 from room_members where room_id=$1 and user_id=$2`, [roomId, userId]);
+  if (!result.rowCount) throw Object.assign(new Error('Authenticated user is not a member of this room.'), { code: 'ROOM_MEMBERSHIP_REQUIRED', statusCode: 403 });
+}
+
+export async function createWaitingRoom(user: AuthUser, input: RoomCreateInput): Promise<WaitingRoomResult> {
   const playerCount = normalizePlayerCount(input.playerCount);
   const roomName = normalizeRoomName(input.roomName);
   const world = input.world === 'adult' ? 'adult' : 'clean';
-  const sessionId = randomUUID();
   const joinCode = makeJoinCode();
-  const bots = Array.from({ length: playerCount - 1 }, (_, index) => ({ id: botId(sessionId, index + 1), seat: index + 1 }));
-  const playerNames: Record<string, string> = { [user.id]: user.displayName };
-  bots.forEach((bot, index) => { playerNames[bot.id] = BOT_NAMES[index] ?? `Player ${index + 2}`; });
-
-  const config: StoredRoomConfig = {
-    ...input,
-    roomName,
-    playerCount,
-    world,
-    playerNames,
-  };
-
-  const created = createGame(
-    {
-      seed: sessionId,
-      startingHandCount: 7,
-      startingPlayerIndex: 0,
-      allowVoluntaryDraw: true,
-      contentWorld: world === 'adult' ? '18+_ADULT' : 'UNDER_18_CLEAN',
-    },
-    [{ id: user.id, seat: 0 }, ...bots],
-    undefined,
-    { now: Date.now() },
-  );
-
-  if (!created.ok) throw Object.assign(new Error(created.error?.message ?? 'Unable to create game.'), { code: created.error?.code ?? 'INVALID_SETUP', statusCode: 400 });
-  created.state.id = sessionId;
-  created.events.forEach(event => { event.sessionId = sessionId; });
+  const config: StoredRoomConfig = { ...input, roomName, playerCount, world, playerNames: {} };
 
   const roomId = await withTransaction(async client => {
     const room = await client.query(
@@ -213,63 +240,108 @@ export async function createRoomAndSession(user: AuthUser, input: RoomCreateInpu
       `insert into room_members(room_id,user_id,role) values($1,$2,'owner') on conflict(room_id,user_id) do nothing`,
       [id, user.id],
     );
+    return id;
+  });
+
+  const room = await loadRoomRow(roomId);
+  return roomProjection(room, await loadRoomMembers(roomId), null);
+}
+
+export async function joinWaitingRoom(user: AuthUser, code: string): Promise<WaitingRoomResult> {
+  const db = requirePool();
+  const normalized = code.trim().toUpperCase();
+  const roomResult = await db.query(`select id,join_code,owner_user_id,config from rooms where upper(join_code)=upper($1)`, [normalized]);
+  if (!roomResult.rowCount) throw Object.assign(new Error('Room not found.'), { code: 'ROOM_NOT_FOUND', statusCode: 404 });
+  const room = roomResult.rows[0] as RoomRow;
+
+  const started = await activeSessionId(room.id);
+  const existing = await db.query(`select role from room_members where room_id=$1 and user_id=$2`, [room.id, user.id]);
+  if (started) {
+    if (!existing.rowCount) throw Object.assign(new Error('This game already started.'), { code: 'GAME_ALREADY_STARTED', statusCode: 409 });
+    return roomProjection(room, await loadRoomMembers(room.id), started);
+  }
+
+  if (!existing.rowCount) {
+    const members = await loadRoomMembers(room.id);
+    if (members.length >= normalizePlayerCount((room.config ?? {}).playerCount)) {
+      throw Object.assign(new Error('This room is already full.'), { code: 'ROOM_FULL', statusCode: 409 });
+    }
+    await db.query(
+      `insert into room_members(room_id,user_id,role) values($1,$2,'player') on conflict(room_id,user_id) do nothing`,
+      [room.id, user.id],
+    );
+  }
+
+  return roomProjection(room, await loadRoomMembers(room.id), null);
+}
+
+export async function getWaitingRoom(user: AuthUser, roomId: string): Promise<WaitingRoomResult> {
+  await requireRoomMembership(roomId, user.id);
+  const room = await loadRoomRow(roomId);
+  return roomProjection(room, await loadRoomMembers(roomId), await activeSessionId(roomId));
+}
+
+export async function startRoom(user: AuthUser, roomId: string): Promise<RoomSessionResult> {
+  const room = await loadRoomRow(roomId);
+  if (room.owner_user_id !== user.id) {
+    throw Object.assign(new Error('Only the room host can start this game.'), { code: 'NOT_ROOM_OWNER', statusCode: 403 });
+  }
+  if (await activeSessionId(roomId)) {
+    throw Object.assign(new Error('This room already has an active game.'), { code: 'SESSION_ALREADY_CREATED', statusCode: 409 });
+  }
+
+  const config = (room.config ?? {}) as StoredRoomConfig;
+  const playerCount = normalizePlayerCount(config.playerCount);
+  const members = orderedMembers(await loadRoomMembers(roomId));
+  if (members.length !== playerCount) {
+    throw Object.assign(
+      new Error(`This room needs exactly ${playerCount} real players before it can start.`),
+      { code: 'PLAYER_COUNT_NOT_REACHED', statusCode: 409 },
+    );
+  }
+
+  const sessionId = randomUUID();
+  const playerNames: Record<string, string> = {};
+  const seats = members.map((member, index) => {
+    playerNames[member.user_id] = member.display_name ?? member.user_id;
+    return { id: member.user_id, seat: index };
+  });
+
+  const created = createGame(
+    {
+      seed: sessionId,
+      startingHandCount: 7,
+      startingPlayerIndex: 0,
+      allowVoluntaryDraw: true,
+      contentWorld: config.world === 'adult' ? '18+_ADULT' : 'UNDER_18_CLEAN',
+    },
+    seats,
+    undefined,
+    { now: Date.now() },
+  );
+  if (!created.ok) throw Object.assign(new Error(created.error?.message ?? 'Unable to create game.'), { code: created.error?.code ?? 'INVALID_SETUP', statusCode: 400 });
+  created.state.id = sessionId;
+  created.events.forEach(event => { event.sessionId = sessionId; });
+
+  const storedConfig: StoredRoomConfig = { ...config, playerCount, playerNames };
+  await withTransaction(async client => {
+    if (await activeSessionId(roomId, client)) {
+      throw Object.assign(new Error('This room already has an active game.'), { code: 'SESSION_ALREADY_CREATED', statusCode: 409 });
+    }
+    await client.query(`update rooms set config=$2::jsonb where id=$1`, [roomId, JSON.stringify(storedConfig)]);
     await client.query(
       `insert into game_sessions(id,room_id,status,revision,state) values($1,$2,$3,$4,$5::jsonb)`,
-      [sessionId, id, created.state.status, created.state.revision, JSON.stringify(created.state)],
+      [sessionId, roomId, created.state.status, created.state.revision, JSON.stringify(created.state)],
     );
     await persistEvents(client, sessionId, created.events);
-    return id;
   });
 
   return {
     ok: true,
     roomId,
     sessionId,
-    joinCode,
-    players: playerViewsFromState(created.state, config, user.id),
-  };
-}
-
-export async function joinRoomByCode(user: AuthUser, code: string): Promise<RoomSessionResult> {
-  const db = requirePool();
-  const normalized = code.trim().toUpperCase();
-  const roomResult = await db.query(`select id,join_code,config from rooms where upper(join_code)=upper($1)`, [normalized]);
-  if (!roomResult.rowCount) throw Object.assign(new Error('Room not found.'), { code: 'ROOM_NOT_FOUND', statusCode: 404 });
-
-  const roomId = String(roomResult.rows[0].id);
-  const config = (roomResult.rows[0].config ?? {}) as StoredRoomConfig;
-  await db.query(
-    `insert into room_members(room_id,user_id,role) values($1,$2,'player') on conflict(room_id,user_id) do nothing`,
-    [roomId, user.id],
-  );
-
-  const sessionResult = await db.query(
-    `select id,state,revision from game_sessions where room_id=$1 and status='ACTIVE' order by created_at desc limit 1`,
-    [roomId],
-  );
-  if (!sessionResult.rowCount) throw Object.assign(new Error('Room has no active game yet.'), { code: 'SESSION_NOT_STARTED', statusCode: 409 });
-
-  const sessionId = String(sessionResult.rows[0].id);
-  const state = sessionResult.rows[0].state as GameState;
-  if (!state.players.some(player => player.id === user.id)) {
-    if (state.revision !== 0) throw Object.assign(new Error('This game already started.'), { code: 'GAME_ALREADY_STARTED', statusCode: 409 });
-    const replacement = state.players.find(player => isBotPlayerId(player.id));
-    if (!replacement) throw Object.assign(new Error('Room is full.'), { code: 'ROOM_FULL', statusCode: 409 });
-    const oldId = replacement.id;
-    replacement.id = user.id;
-    if (state.currentPlayerId === oldId) state.currentPlayerId = user.id;
-    config.playerNames = { ...(config.playerNames ?? {}), [user.id]: user.displayName };
-    delete config.playerNames[oldId];
-    await db.query(`update rooms set config=$2::jsonb where id=$1`, [roomId, JSON.stringify(config)]);
-    await db.query(`update game_sessions set state=$2::jsonb,updated_at=now() where id=$1`, [sessionId, JSON.stringify(state)]);
-  }
-
-  return {
-    ok: true,
-    roomId,
-    sessionId,
-    joinCode: String(roomResult.rows[0].join_code),
-    players: playerViewsFromState(state, config, user.id),
+    joinCode: room.join_code,
+    players: playerViewsFromState(created.state, storedConfig, user.id),
   };
 }
 

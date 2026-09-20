@@ -1,5 +1,5 @@
 import type { Card, CardColor, GameCommand, GameState } from '../../../packages/contracts/src/index.ts';
-import { ApiError, CribbitApiClient, CribbitRealtimeClient, type RoomSessionResult } from '../../../packages/api-client/src/index.ts';
+import { ApiError, CribbitApiClient, CribbitRealtimeClient, type RoomSessionResult, type WaitingRoomResult } from '../../../packages/api-client/src/index.ts';
 import { isLegalPlay, projectDecisionCapabilities } from '../../../packages/game-engine/src/index.ts';
 import { cribbitAuth } from '../../../packages/ui/src/auth-controller.ts';
 import { openWebAuthDialog } from './web-auth.ts';
@@ -233,6 +233,8 @@ function installLiveControls(): void {
 
 export function startWebLiveRooms(api:CribbitApiClient): () => void {
   let live: LiveSession | null = null;
+  let waitingRoom: WaitingRoomResult | null = null;
+  let waitingRealtime: CribbitRealtimeClient | null = null;
   let pendingAuthenticatedAction: (() => void) | null = null;
 
   const authUnsubscribe = cribbitAuth.subscribe(state => {
@@ -249,7 +251,60 @@ export function startWebLiveRooms(api:CribbitApiClient): () => void {
     openWebAuthDialog(api);
   };
 
+  const closeWaitingRoom = (): void => {
+    waitingRealtime?.disconnect();
+    waitingRealtime = null;
+    waitingRoom = null;
+    document.querySelector('#ccWaitingRoom')?.remove();
+  };
+
+  const renderWaitingRoom = (room: WaitingRoomResult, userId: string): void => {
+    const host = room.ownerUserId === userId;
+    let panel = document.querySelector<HTMLElement>('#ccWaitingRoom');
+    if (!panel) {
+      panel = document.createElement('section');
+      panel.id = 'ccWaitingRoom';
+      panel.className = 'panel cc-waiting-room';
+      const anchor = document.querySelector('[data-action="create-live-game"]');
+      if (anchor?.parentElement) anchor.parentElement.insertBefore(panel, anchor.nextSibling);
+      else document.querySelector('#app')?.append(panel);
+    }
+    panel.innerHTML = `
+      <div class="panel-header"><div><h2 class="panel-title">Live room · ${escapeHTML(room.joinCode)}</h2>
+      <p class="panel-subtitle">${room.status === 'STARTED' ? 'Game started' : `Waiting for players · ${room.memberCount}/${room.playerCount}`}</p></div></div>
+      <div class="stack">${room.members.map(member => `<div class="row"><span class="tag">${escapeHTML(member.role)}</span><b>${escapeHTML(member.name)}</b><span>${member.seat + 1}</span></div>`).join('')}</div>
+      ${host && room.status !== 'STARTED' ? `<button class="button button--primary" type="button" data-action="start-live-game" ${room.memberCount === room.playerCount ? '' : 'aria-disabled="true"'}>Start Game</button>` : ''}
+      <p class="field-help">Share room code <b>${escapeHTML(room.joinCode)}</b>. Live rooms use real players only.</p>`;
+  };
+
+  const enterWaitingRoom = (room: WaitingRoomResult): void => {
+    const auth = cribbitAuth.current;
+    if (auth.status !== 'AUTHENTICATED') return;
+    closeWaitingRoom();
+    waitingRoom = room;
+    if (room.status === 'STARTED' && room.sessionId) return void openRoom({ ok:true, roomId:room.roomId, sessionId:room.sessionId, joinCode:room.joinCode, players:[] });
+    renderWaitingRoom(room, auth.user.id);
+    waitingRealtime = new CribbitRealtimeClient(api.config);
+    const socket = waitingRealtime.connect();
+    waitingRealtime.joinRoomChannel(room.roomId);
+    socket.on('room-updated', () => { void api.getRoom(room.roomId).then(next => { waitingRoom = next; renderWaitingRoom(next, auth.user.id); }).catch(() => undefined); });
+    socket.on('room-started', (payload:{ sessionId?:string }) => {
+      if (!payload?.sessionId) return;
+      const room2 = waitingRoom;
+      closeWaitingRoom();
+      void openRoom({ ok:true, roomId:room2?.roomId ?? room.roomId, sessionId:payload.sessionId, joinCode:room2?.joinCode ?? room.joinCode, players:[] });
+    });
+    toast('Live room ready', `Room code ${room.joinCode}. Waiting for ${room.playerCount} real players.`);
+  };
+
+  const startWaitingRoom = (): void => {
+    const room = waitingRoom;
+    if (!room) return;
+    void api.startRoom(room.roomId).then(openRoom).catch(error => toast('Could not start game', extractApiMessage(error)));
+  };
+
   const openRoom = async (room:RoomSessionResult): Promise<void> => {
+    closeWaitingRoom();
     const auth = cribbitAuth.current;
     if (auth.status !== 'AUTHENTICATED') return;
     live?.unsubscribe?.();
@@ -302,12 +357,12 @@ export function startWebLiveRooms(api:CribbitApiClient): () => void {
   };
 
   const createLive = (): void => requireAuth(() => {
-    void api.createRoom(readRoomCreatePayload()).then(openRoom).catch(error => toast('Could not create live game',extractApiMessage(error)));
+    void api.createRoom(readRoomCreatePayload()).then(enterWaitingRoom).catch(error => toast('Could not create live game',extractApiMessage(error)));
   });
   const joinLive = (): void => requireAuth(() => {
     const code = (document.querySelector<HTMLInputElement>('#joinCode')?.value || '').trim().toUpperCase();
     if (!/^[A-Z0-9]{4,12}$/.test(code)) return toast('Invalid room code','Enter 4–12 letters or numbers.');
-    void api.joinRoom(code).then(openRoom).catch(error => toast('Could not join room',extractApiMessage(error)));
+    void api.joinRoom(code).then(enterWaitingRoom).catch(error => toast('Could not join room',extractApiMessage(error)));
   });
 
   installLiveControls();
@@ -317,6 +372,13 @@ export function startWebLiveRooms(api:CribbitApiClient): () => void {
     if (!target) return;
     const create = target.closest('[data-action="create-live-game"]');
     const join = target.closest('[data-action="join-room"]');
+    const startLive = target.closest('[data-action="start-live-game"]');
+    if (startLive) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      startWaitingRoom();
+      return;
+    }
     if (create || join) {
       event.preventDefault();
       event.stopImmediatePropagation();

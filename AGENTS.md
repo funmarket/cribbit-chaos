@@ -75,6 +75,12 @@ Both clients use one shared game model, one shared rule system, one shared card/
 
 Never implement Web and Telegram as separate games.
 
+### Live rooms vs Simulation (verified)
+
+- A Live room is a real multiplayer room: real authenticated members only, a waiting room before the game starts, and exactly one authoritative session created by the host's Start.
+- Live rooms must never contain fabricated bot players (`bot:<sessionId>:*`).
+- Simulation is the separate local/bot mode. Do not let Simulation behavior define Live-room behavior, and do not restore a duplicate gameplay runtime to make either mode work.
+
 ## Current implementation priority
 
 Until the mechanics migration is complete, prioritize functional gameplay over final card-art polish.
