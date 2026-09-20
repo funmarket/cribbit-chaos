@@ -53,41 +53,69 @@ export async function revokeServerSession(token:string): Promise<void> {
   );
 }
 
-export async function upsertTelegramIdentity(input:{telegramId:string; displayName:string; username?:string}): Promise<{id:string; displayName:string}> {
-  return resolveOrCreateTelegramIdentity(input);
-}
-
-export async function resolveOrCreateTelegramIdentity(input:{telegramId:string; displayName:string; username?:string}): Promise<AuthUser> {
+/**
+ * Resolve a validated Telegram provider identity to its canonical user.
+ * Read-only: it never provisions a user and never rewrites canonical profile presentation.
+ * Only provider metadata (the Telegram username) is refreshed.
+ */
+export async function findTelegramIdentityUser(telegramId:string, providerUsername?:string): Promise<AuthUser | null> {
+  if (!pool) throw new Error('DATABASE_URL is not configured.');
   return withTransaction(async client => {
-    await client.query(`select pg_advisory_xact_lock(hashtext($1))`, [`telegram:${input.telegramId}`]);
     const existing = await client.query(
-      `select u.id, u.display_name, u.display_username from user_identities i
+      `select u.id from user_identities i
        join users u on u.id=i.user_id
        where i.provider='telegram' and i.provider_user_id=$1
-       for update`, [input.telegramId]
+       for update`,
+      [telegramId]
+    );
+    if (!existing.rowCount) return null;
+    const userId = String(existing.rows[0].id);
+    await client.query(
+      `update user_identities set provider_username=$2 where provider='telegram' and provider_user_id=$1`,
+      [telegramId, providerUsername || null]
+    );
+    // Canonical display name is intentionally untouched: provider metadata is not profile authority.
+    const user = await client.query(`select id,display_name,display_username from users where id=$1`, [userId]);
+    const identities = await client.query(
+      `select provider,provider_username from user_identities where user_id=$1 order by provider,created_at`,
+      [userId]
+    );
+    return {
+      id:String(user.rows[0].id),
+      displayName:String(user.rows[0].display_name),
+      ...(user.rows[0].display_username ? { displayUsername:String(user.rows[0].display_username) } : {}),
+      identities:identities.rows.map((row:any): AuthIdentitySummary => ({
+        provider:row.provider,
+        username:row.provider_username || undefined
+      }))
+    };
+  });
+}
+
+/**
+ * Explicit Telegram account creation: only call this from a deliberate create-account action.
+ * It creates exactly one canonical user and attaches the validated Telegram identity to it.
+ */
+export async function createTelegramCanonicalUser(input:{ telegramId:string; displayName:string; username?:string }): Promise<AuthUser> {
+  return withTransaction(async client => {
+    await client.query(`select pg_advisory_xact_lock(hashtext($1))`, [`telegram:${input.telegramId}`]);
+
+    const existing = await client.query(
+      `select user_id from user_identities where provider='telegram' and provider_user_id=$1 for update`,
+      [input.telegramId]
     );
     if (existing.rowCount) {
-      await client.query(
-        `update users set display_name=$2, updated_at=now() where id=$1`,
-        [existing.rows[0].id, input.displayName]
-      );
-      await client.query(
-        `update user_identities set provider_username=$2 where provider='telegram' and provider_user_id=$1`,
-        [input.telegramId, input.username || null]
-      );
-      return {
-        id:String(existing.rows[0].id),
-        displayName:input.displayName,
-        ...(existing.rows[0].display_username ? { displayUsername:String(existing.rows[0].display_username) } : {}),
-        identities:[{ provider:'telegram', username:input.username }]
-      };
+      throw Object.assign(new Error('That Telegram account is already linked to a Cribbit account.'), { code:'IDENTITY_ALREADY_LINKED', statusCode:409 });
     }
+
     const user = await client.query(
-      `insert into users(display_name) values($1) returning id,display_name`, [input.displayName]
+      `insert into users(display_name) values($1) returning id,display_name`,
+      [input.displayName]
     );
     await client.query(
       `insert into user_identities(user_id,provider,provider_user_id,provider_username)
-       values($1,'telegram',$2,$3)`, [user.rows[0].id,input.telegramId,input.username || null]
+       values($1,'telegram',$2,$3)`,
+      [user.rows[0].id, input.telegramId, input.username || null]
     );
     return {
       id:String(user.rows[0].id),
@@ -96,6 +124,106 @@ export async function resolveOrCreateTelegramIdentity(input:{telegramId:string; 
     };
   });
 }
+
+/**
+ * Attach a Web credential to the caller's existing canonical user.
+ * Never creates a users row and never rewrites canonical display presentation.
+ */
+export async function attachWebCredential(userId:string, input:{ loginUsername:unknown; password:unknown; displayUsername:unknown; email?:unknown }): Promise<AuthUser> {
+  const loginUsernameNormalized = normalizeWebLoginUsername(input.loginUsername);
+  const display = normalizeDisplayUsername(input.displayUsername);
+  const email = normalizeOptionalEmail(input.email);
+  const passwordHash = hashWebPassword(validateWebPassword(input.password));
+
+  return withTransaction(async client => {
+    await client.query(`select pg_advisory_xact_lock(hashtext($1))`, [`web-login:${loginUsernameNormalized}`]);
+    await client.query(`select pg_advisory_xact_lock(hashtext($1))`, [`web-display:${display.normalized}`]);
+
+    const owner = await client.query(`select id from users where id=$1 for update`, [userId]);
+    if (!owner.rowCount) throw Object.assign(new Error('Canonical user not found.'), { code:'USER_NOT_FOUND', statusCode:404 });
+
+    const alreadyAttached = await client.query(
+      `select 1 from web_credentials where user_id=$1 limit 1`,
+      [userId]
+    );
+    if (alreadyAttached.rowCount) {
+      throw Object.assign(new Error('This Cribbit account already has a Web credential.'), { code:'IDENTITY_PROVIDER_ALREADY_LINKED', statusCode:409 });
+    }
+
+    const loginExists = await client.query(
+      `select 1 from web_credentials where login_username_normalized=$1`,
+      [loginUsernameNormalized]
+    );
+    if (loginExists.rowCount) {
+      throw Object.assign(new Error('That login username is already registered.'), { code:'LOGIN_USERNAME_TAKEN', statusCode:409 });
+    }
+
+    const displayExists = await client.query(
+      `select 1 from users where display_username_normalized=$1 and id<>$2`,
+      [display.normalized, userId]
+    );
+    if (displayExists.rowCount) {
+      throw Object.assign(new Error('That display username is already in use.'), { code:'DISPLAY_USERNAME_TAKEN', statusCode:409 });
+    }
+
+    await client.query(`update users set display_username=$2, display_username_normalized=$3, updated_at=now() where id=$1 and display_username is null`, [
+      userId, display.value, display.normalized
+    ]);
+
+    const credential = await client.query(
+      `insert into web_credentials(user_id,login_username,login_username_normalized,password_hash,email)
+       values($1,$2,$3,$4,$5) returning id`,
+      [userId, String(input.loginUsername).trim(), loginUsernameNormalized, passwordHash, email]
+    );
+    await client.query(
+      `insert into user_identities(user_id,provider,provider_user_id,provider_username)
+       values($1,'web',$2,$3)`,
+      [userId, `credential:${String(credential.rows[0].id)}`, display.value]
+    );
+  }).then(() => loadAuthUser(userId));
+}
+
+/** Short-lived, single-use link challenge bound to one canonical user (stored in auth_sessions). */
+export async function createIdentityLinkChallenge(userId:string, ttlSeconds = 600): Promise<{ code:string; expiresAt:string }> {
+  if (!pool) throw new Error('DATABASE_URL is not configured.');
+  const code = randomBytes(24).toString('base64url');
+  const ttl = Math.max(60, Math.min(3600, Math.round(ttlSeconds)));
+  const result = await pool.query(
+    `insert into auth_sessions (user_id, token_hash, provider, expires_at, last_used_at)
+     values ($1,$2,'web',now() + ($3 || ' seconds')::interval,now())
+     returning expires_at`,
+    [userId, hashSessionToken(identityLinkChallengeToken(code)), String(ttl)]
+  );
+  return { code, expiresAt:new Date(result.rows[0].expires_at).toISOString() };
+}
+
+/**
+ * Consume a link challenge exactly once. Returns the canonical user it is bound to,
+ * or null when the code is unknown, expired or already used.
+ */
+export async function consumeIdentityLinkChallenge(code:string): Promise<string | null> {
+  if (!pool) throw new Error('DATABASE_URL is not configured.');
+  return withTransaction(async client => {
+    const row = await client.query(
+      `select user_id from auth_sessions
+       where token_hash=$1 and revoked_at is null and expires_at > now()
+       for update`,
+      [hashSessionToken(identityLinkChallengeToken(code))]
+    );
+    if (!row.rowCount) return null;
+    await client.query(
+      `update auth_sessions set revoked_at=now() where token_hash=$1`,
+      [hashSessionToken(identityLinkChallengeToken(code))]
+    );
+    return String(row.rows[0].user_id);
+  });
+}
+
+function identityLinkChallengeToken(code:string): string {
+  // Namespaced so a link code can never be replayed as a server session token.
+  return `identity-link:${code}`;
+}
+
 
 export async function createGuestIdentity(displayName='Web Player'): Promise<{id:string; displayName:string}> {
   return withTransaction(async client => {

@@ -4,7 +4,7 @@ import cors from '@fastify/cors';
 import { Server as SocketIOServer } from 'socket.io';
 import type { AuthUser, GameCommand, TelegramMiniAppAuthRequest, WebLoginRequest, WebRegisterRequest } from '../../../packages/contracts/src/index.ts';
 import { ACTION_ASSIGNMENTS } from '../../../packages/action-registry/src/index.ts';
-import { authenticateSessionToken, authenticateWebUser, createGuestIdentity, createServerSession, dbHealth, registerWebUser, resolveOrCreateTelegramIdentity, revokeServerSession, updateUserProfile, linkTelegramIdentity } from './db.ts';
+import { authenticateSessionToken, authenticateWebUser, createGuestIdentity, createServerSession, dbHealth, registerWebUser, revokeServerSession, updateUserProfile, linkTelegramIdentity, findTelegramIdentityUser, createTelegramCanonicalUser, attachWebCredential, createIdentityLinkChallenge, consumeIdentityLinkChallenge } from './db.ts';
 import { createWaitingRoom, getSessionSnapshot, joinWaitingRoom, processSessionCommand, type RoomCreateInput, getWaitingRoom, startRoom } from './game-service.ts';
 import { validateTelegramInitData } from './telegram-auth.ts';
 
@@ -20,7 +20,11 @@ const WEB_SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 export interface ApiDependencies {
   dbHealth: () => Promise<boolean>;
   validateTelegramInitData: typeof validateTelegramInitData;
-  resolveOrCreateTelegramIdentity: (input:TelegramIdentityInput) => Promise<AuthUser>;
+  findTelegramIdentityUser: (telegramId:string, providerUsername?:string) => Promise<AuthUser | null>;
+  createTelegramCanonicalUser: (input:TelegramIdentityInput) => Promise<AuthUser>;
+  attachWebCredential: (userId:string, input:{ loginUsername:unknown; password:unknown; displayUsername:unknown; email?:unknown }) => Promise<AuthUser>;
+  createIdentityLinkChallenge: (userId:string, ttlSeconds?:number) => Promise<{ code:string; expiresAt:string }>;
+  consumeIdentityLinkChallenge: (code:string) => Promise<string | null>;
   registerWebUser: (input:WebRegisterRequest) => Promise<AuthUser>;
   authenticateWebUser: (input:{loginUsername:unknown; password:unknown; ipHash:string}) => Promise<AuthUser | null>;
   createServerSession: (userId:string, provider:SessionProvider) => Promise<string>;
@@ -35,7 +39,11 @@ export interface ApiDependencies {
 export const defaultDependencies: ApiDependencies = {
   dbHealth,
   validateTelegramInitData,
-  resolveOrCreateTelegramIdentity,
+  findTelegramIdentityUser,
+  createTelegramCanonicalUser,
+  attachWebCredential,
+  createIdentityLinkChallenge,
+  consumeIdentityLinkChallenge,
   registerWebUser,
   authenticateWebUser,
   createServerSession,
@@ -220,19 +228,93 @@ export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
   app.get('/health', async () => ({ ok:true, service:'cribbit-chaos-api', database:await deps.dbHealth(), time:new Date().toISOString() }));
   app.get('/v1/meta/action-map', async () => ({ actions:ACTION_ASSIGNMENTS }));
 
+  const validatedTelegramIdentity = (request:any) => deps.validateTelegramInitData(
+    ((request.body ?? {}) as { initData?:string })?.initData || '',
+    process.env.TELEGRAM_BOT_TOKEN || '',
+    Number(process.env.TELEGRAM_INITDATA_MAX_AGE_SECONDS || 3600),
+  );
+
+  // Stable Telegram failure surface: keep route-specific typed errors, otherwise report
+  // an invalid Telegram authentication rather than a generic one.
+  const telegramFailure = (reply:any, error:unknown) => {
+    const typed = error as { code?:string; statusCode?:number };
+    return authError(reply, Object.assign(
+      error instanceof Error ? error : new Error('Invalid Telegram authentication.'),
+      { code:typed?.code || 'TELEGRAM_AUTH_INVALID', statusCode:typed?.statusCode || 401 },
+    ));
+  };
+
+  const telegramIdentityUnlinked = (reply:any, telegramId:string, username:string | undefined) => reply.code(409).send({
+    error:'TELEGRAM_IDENTITY_UNLINKED',
+    message:'This Telegram account is not linked to a Cribbit account yet. Create one or link an existing account.',
+    telegram:{ id:telegramId, ...(username ? { username } : {}) },
+  });
+
+  // An existing Telegram identity authenticates its canonical user. An unknown Telegram
+  // identity is reported as UNLINKED and never silently provisions a canonical user.
   app.post('/v1/auth/telegram', async (request:any, reply:any) => {
-    const body = request.body as { initData?:string };
     try {
-      const tg = deps.validateTelegramInitData(body?.initData || '', process.env.TELEGRAM_BOT_TOKEN || '', Number(process.env.TELEGRAM_INITDATA_MAX_AGE_SECONDS || 3600));
-      const user = await deps.resolveOrCreateTelegramIdentity({
+      const tg = validatedTelegramIdentity(request);
+      const user = await deps.findTelegramIdentityUser(tg.id, tg.username);
+      if (!user) return telegramIdentityUnlinked(reply, tg.id, tg.username);
+      const accessToken = await deps.createServerSession(user.id, 'telegram');
+      return { accessToken, user };
+    } catch (error) {
+      return telegramFailure(reply, error);
+    }
+  });
+
+  // Explicit Telegram account creation: exactly one canonical user for the validated identity.
+  app.post('/v1/auth/telegram/register', async (request:any, reply:any) => {
+    try {
+      const tg = validatedTelegramIdentity(request);
+      const user = await deps.createTelegramCanonicalUser({
         telegramId:tg.id,
         displayName:displayNameFromTelegram(tg),
-        username:tg.username
+        username:tg.username,
       });
       const accessToken = await deps.createServerSession(user.id, 'telegram');
       return { accessToken, user };
     } catch (error) {
-      return authError(reply, Object.assign(error instanceof Error ? error : new Error('Invalid Telegram authentication.'), { code:'TELEGRAM_AUTH_INVALID', statusCode:401 }));
+      return telegramFailure(reply, error);
+    }
+  });
+
+  // Link an existing canonical account from Telegram by proving the Web credential.
+  app.post('/v1/auth/telegram/link', async (request:any, reply:any) => {
+    try {
+      const body = (request.body ?? {}) as { initData?:string; loginUsername?:unknown; password?:unknown };
+      const tg = validatedTelegramIdentity(request);
+      const webUser = await deps.authenticateWebUser({
+        loginUsername:body.loginUsername,
+        password:body.password,
+        ipHash:requestIpHash(request),
+      });
+      if (!webUser) {
+        throw Object.assign(new Error('Invalid username or password.'), { code:'INVALID_CREDENTIALS', statusCode:401 });
+      }
+      const linked = await deps.linkTelegramIdentity(webUser.id, { telegramId:tg.id, username:tg.username });
+      const accessToken = await deps.createServerSession(linked.user.id, 'telegram');
+      return { accessToken, user:linked.user, outcome:linked.outcome };
+    } catch (error) {
+      return telegramFailure(reply, error);
+    }
+  });
+
+  // Link an existing canonical account from Telegram with a single-use code created on Web.
+  app.post('/v1/auth/telegram/link-with-code', async (request:any, reply:any) => {
+    try {
+      const body = (request.body ?? {}) as { initData?:string; code?:string };
+      const tg = validatedTelegramIdentity(request);
+      const ownerUserId = await deps.consumeIdentityLinkChallenge(String(body.code || ''));
+      if (!ownerUserId) {
+        throw Object.assign(new Error('That link code is invalid, expired or already used.'), { code:'LINK_CODE_INVALID', statusCode:401 });
+      }
+      const linked = await deps.linkTelegramIdentity(ownerUserId, { telegramId:tg.id, username:tg.username });
+      const accessToken = await deps.createServerSession(linked.user.id, 'telegram');
+      return { accessToken, user:linked.user, outcome:linked.outcome };
+    } catch (error) {
+      return telegramFailure(reply, error);
     }
   });
 
@@ -313,9 +395,24 @@ export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
     if (!telegramWebLoginConfigured()) return reply.code(503).send({ error:'TELEGRAM_WEB_LOGIN_NOT_CONFIGURED' });
     try {
       const identity = await deps.verifyTelegramWebLoginCallback(request.query as Record<string, unknown>);
-      const user = await deps.resolveOrCreateTelegramIdentity(identity);
-      const accessToken = await deps.createServerSession(user.id, 'telegram');
-      return { accessToken, user };
+      const known = await deps.findTelegramIdentityUser(identity.telegramId, identity.username);
+      if (known) return { accessToken:await deps.createServerSession(known.id, 'telegram'), user:known };
+
+      // Unknown Telegram identity: link it to the canonical user this browser is already
+      // authenticated as (the session cookie is sent on this top-level redirect), otherwise
+      // the client must onboard explicitly. It is never provisioned automatically.
+      let sessionUserId: string | null = null;
+      try {
+        sessionUserId = (await authenticatePrincipal(request, deps)).userId;
+      } catch { sessionUserId = null; }
+      if (!sessionUserId) {
+        return reply.code(409).send({
+          error:'TELEGRAM_IDENTITY_UNLINKED',
+          message:'This Telegram account is not linked to a Cribbit account yet. Create one or link an existing account.',
+        });
+      }
+      const linked = await deps.linkTelegramIdentity(sessionUserId, { telegramId:identity.telegramId, username:identity.username });
+      return { user:linked.user, outcome:linked.outcome };
     } catch (error) {
       return authError(reply, error);
     }
@@ -350,6 +447,29 @@ export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
       );
       const result = await deps.linkTelegramIdentity(auth.userId, { telegramId:tg.id, username:tg.username });
       return { user:result.user, outcome:result.outcome };
+    } catch (error) {
+      return authError(reply, error);
+    }
+  });
+  app.post('/v1/me/identities/telegram/link-code', async (request:any, reply:any) => {
+    try {
+      const auth = await principal(request);
+      const challenge = await deps.createIdentityLinkChallenge(auth.userId);
+      return {
+        ...challenge,
+        instructions:'Open Cribbit inside Telegram, choose Link existing account, and enter this code. It works once.',
+      };
+    } catch (error) {
+      return authError(reply, error);
+    }
+  });
+
+  app.post('/v1/me/identities/web-credential', async (request:any, reply:any) => {
+    try {
+      const auth = await principal(request);
+      const body = (request.body ?? {}) as { loginUsername:unknown; password:unknown; displayUsername:unknown; email?:unknown };
+      const user = await deps.attachWebCredential(auth.userId, body);
+      return { user };
     } catch (error) {
       return authError(reply, error);
     }

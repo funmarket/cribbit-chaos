@@ -13,7 +13,11 @@ function deps(): ApiDependencies {
   return {
     dbHealth: async () => true,
     validateTelegramInitData: () => { throw new Error('not used'); },
-    resolveOrCreateTelegramIdentity: async () => user,
+    findTelegramIdentityUser: async () => null,
+    createTelegramCanonicalUser: async () => user,
+    attachWebCredential: async () => user,
+    createIdentityLinkChallenge: async () => ({ code:'code', expiresAt:new Date().toISOString() }),
+    consumeIdentityLinkChallenge: async () => null,
     registerWebUser: async () => user,
     authenticateWebUser: async () => user,
     createServerSession: async () => 'test-session-token',

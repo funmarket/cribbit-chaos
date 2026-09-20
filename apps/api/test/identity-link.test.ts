@@ -69,19 +69,22 @@ function makeStore() {
   const deps: ApiDependencies = {
     dbHealth: async () => true,
     validateTelegramInitData,
-    resolveOrCreateTelegramIdentity: async input => {
-      const existingId = telegramIdentities.get(input.telegramId);
-      if (existingId) {
-        const existing = users.get(existingId);
-        assert.ok(existing, 'identity points to a missing user');
-        existing.displayName = input.displayName;
-        return existing;
-      }
+    findTelegramIdentityUser: async (telegramId:string) => {
+      const existingId = telegramIdentities.get(telegramId);
+      if (!existingId) return null;
+      const existing = users.get(existingId);
+      assert.ok(existing, 'identity points to a missing user');
+      return existing;
+    },
+    createTelegramCanonicalUser: async input => {
       const created = makeUser(randomBytes(16).toString('hex'), input.displayName, 'telegram');
       users.set(created.id, created);
       telegramIdentities.set(input.telegramId, created.id);
       return created;
     },
+    attachWebCredential: async () => { throw new Error('not used'); },
+    createIdentityLinkChallenge: async () => ({ code:'code', expiresAt:new Date().toISOString() }),
+    consumeIdentityLinkChallenge: async () => null,
     registerWebUser: async input => {
       const created = makeUser(U1, input.displayName || input.displayUsername, 'web');
       users.set(created.id, created);
@@ -248,11 +251,11 @@ test('web and telegram authentication resolve to the same canonical user after l
     assert.equal((await linkRequest(app, token, freshInitData('555000666', 'linked'))).json().outcome, 'LINKED');
 
     const webUser = await store.deps.authenticateWebUser({ loginUsername: 'web', password: 'x', ipHash: 'h' });
-    const telegramUser_ = await store.deps.resolveOrCreateTelegramIdentity({ telegramId: '555000666', displayName: 'Linktester' });
+    const telegramUser_ = await store.deps.findTelegramIdentityUser('555000666');
     const me = await app.inject({ method: 'GET', url: '/v1/me', headers: { authorization: `Bearer ${token}` } });
 
     assert.equal(webUser?.id, U1);
-    assert.equal(telegramUser_.id, U1);
+    assert.equal(telegramUser_?.id, U1);
     assert.equal(me.json().user.id, U1);
     const providers = me.json().user.identities.map((identity: { provider: string }) => identity.provider).sort();
     assert.deepEqual(providers, ['telegram', 'web']);

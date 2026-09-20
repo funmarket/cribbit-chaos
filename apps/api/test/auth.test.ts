@@ -18,7 +18,7 @@ function makeStore() {
   const telegramIdentities = new Map<string, string>();
   const webCredentials = new Map<string, WebCredentialRecord>();
   const sessions = new Map<string, SessionRecord>();
-  const calls = { resolveTelegram:0, webRegister:0, webLogin:0, revoked:0 };
+  const calls = { resolveTelegram:0, createTelegramUser:0, webRegister:0, webLogin:0, revoked:0 };
 
   function makeUser(displayName:string, provider:'telegram'|'web', username?:string): AuthUser {
     const id = randomBytes(16).toString('hex');
@@ -33,20 +33,27 @@ function makeStore() {
       if (initData !== 'valid-mini') throw new Error('bad initData');
       return { id:'123456789', firstName:'Telly', username:'telly', authDate:Math.floor(Date.now()/1000) };
     },
-    resolveOrCreateTelegramIdentity: async input => {
+    findTelegramIdentityUser: async (telegramId:string) => {
       calls.resolveTelegram += 1;
-      const existingUserId = telegramIdentities.get(input.telegramId);
-      if (existingUserId) {
-        const existing = users.get(existingUserId);
-        if (!existing) throw new Error('identity points to missing user');
-        existing.displayName = input.displayName;
-        existing.identities = [{ provider:'telegram', username:input.username }];
-        return existing;
+      const existingUserId = telegramIdentities.get(telegramId);
+      if (!existingUserId) return null;
+      const existing = users.get(existingUserId);
+      if (!existing) throw new Error('identity points to missing user');
+      // Provider metadata refreshes; the canonical display name is never rewritten here.
+      return existing;
+    },
+    createTelegramCanonicalUser: async input => {
+      calls.createTelegramUser += 1;
+      if (telegramIdentities.has(input.telegramId)) {
+        throw Object.assign(new Error('That Telegram account is already linked to a Cribbit account.'), { code:'IDENTITY_ALREADY_LINKED', statusCode:409 });
       }
       const user = makeUser(input.displayName, 'telegram', input.username);
       telegramIdentities.set(input.telegramId, user.id);
       return user;
     },
+    attachWebCredential: async () => { throw new Error('not used'); },
+    createIdentityLinkChallenge: async userId => ({ code:`link-code-${userId}`, expiresAt:new Date(Date.now() + 600000).toISOString() }),
+    consumeIdentityLinkChallenge: async code => (code === 'valid-code' ? [...users.values()][0].id : null),
     registerWebUser: async (input:WebRegisterRequest) => {
       calls.webRegister += 1;
       const login = String(input.loginUsername).trim().toLowerCase();
@@ -127,23 +134,26 @@ function withTelegramWebConfig<T>(fn:()=>Promise<T>): Promise<T> {
 
 test('same Telegram provider ID resolves the same internal UUID', async () => {
   const store = makeStore();
-  const first = await store.deps.resolveOrCreateTelegramIdentity({ telegramId:'123', displayName:'One' });
-  const second = await store.deps.resolveOrCreateTelegramIdentity({ telegramId:'123', displayName:'Two' });
-  assert.equal(second.id, first.id);
+  const created = await store.deps.createTelegramCanonicalUser({ telegramId:'123', displayName:'One' });
+  const found = await store.deps.findTelegramIdentityUser('123');
+  assert.equal(found?.id, created.id);
 });
 
-test('repeated Telegram login does not create a second user', async () => {
+test('repeated Telegram authentication does not create a second user', async () => {
   const store = makeStore();
-  await store.deps.resolveOrCreateTelegramIdentity({ telegramId:'123', displayName:'One' });
-  await store.deps.resolveOrCreateTelegramIdentity({ telegramId:'123', displayName:'Two' });
+  const created = await store.deps.createTelegramCanonicalUser({ telegramId:'123', displayName:'One' });
+  await store.deps.findTelegramIdentityUser('123');
+  await store.deps.findTelegramIdentityUser('123');
   assert.equal(store.users.size, 1);
+  assert.equal((await store.deps.findTelegramIdentityUser('123'))?.id, created.id);
 });
 
-test('Mini App auth uses the canonical Telegram resolver', async () => withApp(makeStore(), async (app, store) => {
+test('an unknown Telegram identity is reported UNLINKED and provisions nothing', async () => withApp(makeStore(), async (app, store) => {
   const response = await app.inject({ method:'POST', url:'/v1/auth/telegram', payload:{ initData:'valid-mini' } });
-  assert.equal(response.statusCode, 200);
-  assert.equal(store.calls.resolveTelegram, 1);
-  assert.equal(response.json().user.id, [...store.users.values()][0].id);
+  assert.equal(response.statusCode, 409);
+  assert.equal(response.json().error, 'TELEGRAM_IDENTITY_UNLINKED');
+  assert.equal(store.users.size, 0, 'authentication must never provision a canonical user');
+  assert.equal(store.telegramIdentities.size, 0);
 }));
 
 test('invalid initData is rejected', async () => withApp(makeStore(), async app => {
@@ -154,14 +164,14 @@ test('invalid initData is rejected', async () => withApp(makeStore(), async app 
 
 test('session tokens are stored hashed', async () => {
   const store = makeStore();
-  const user = await store.deps.resolveOrCreateTelegramIdentity({ telegramId:'123', displayName:'One' });
+  const user = await store.deps.createTelegramCanonicalUser({ telegramId:'123', displayName:'One' });
   const token = await store.deps.createServerSession(user.id, 'telegram');
   assert.equal(store.sessions.has(token), false);
   assert.equal(store.sessionHashes()[0], createHash('sha256').update(token).digest('hex'));
 });
 
 test('valid Telegram bearer authenticates /v1/me', async () => withApp(makeStore(), async (app, store) => {
-  const user = await store.deps.resolveOrCreateTelegramIdentity({ telegramId:'123', displayName:'One' });
+  const user = await store.deps.createTelegramCanonicalUser({ telegramId:'123', displayName:'One' });
   const token = await store.deps.createServerSession(user.id, 'telegram');
   const response = await app.inject({ method:'GET', url:'/v1/me', headers:{ authorization:`Bearer ${token}` } });
   assert.equal(response.statusCode, 200);
@@ -180,7 +190,7 @@ test('malformed bearer token is rejected', async () => withApp(makeStore(), asyn
 }));
 
 test('expired bearer session is rejected', async () => withApp(makeStore(), async (app, store) => {
-  const user = await store.deps.resolveOrCreateTelegramIdentity({ telegramId:'123', displayName:'One' });
+  const user = await store.deps.createTelegramCanonicalUser({ telegramId:'123', displayName:'One' });
   const token = await store.deps.createServerSession(user.id, 'telegram');
   store.expireToken(token);
   const response = await app.inject({ method:'GET', url:'/v1/me', headers:{ authorization:`Bearer ${token}` } });
@@ -234,7 +244,7 @@ test('Web session cookie resolves canonical user and logout revokes it', async (
 }));
 
 test('same-looking Telegram username and Web login username do not auto-link', async () => withApp(makeStore(), async (app, store) => {
-  const telegram = await store.deps.resolveOrCreateTelegramIdentity({ telegramId:'777', displayName:'John', username:'john' });
+  const telegram = await store.deps.createTelegramCanonicalUser({ telegramId:'777', displayName:'John', username:'john' });
   const web = await app.inject({ method:'POST', url:'/v1/auth/register', payload:{ loginUsername:'john', password:'Password1234', displayUsername:'john_web' } });
   assert.equal(web.statusCode, 200);
   assert.notEqual(web.json().user.id, telegram.id);
@@ -242,7 +252,7 @@ test('same-looking Telegram username and Web login username do not auto-link', a
 }));
 
 test('Telegram bearer plus Web cookie for different users returns AUTH_CONFLICT', async () => withApp(makeStore(), async (app, store) => {
-  const telegramUser = await store.deps.resolveOrCreateTelegramIdentity({ telegramId:'888', displayName:'Telegram' });
+  const telegramUser = await store.deps.createTelegramCanonicalUser({ telegramId:'888', displayName:'Telegram' });
   const bearer = await store.deps.createServerSession(telegramUser.id, 'telegram');
   const registration = await app.inject({ method:'POST', url:'/v1/auth/register', payload:{ loginUsername:'webuser', password:'Password1234', displayUsername:'WebUser' } });
   const cookie = cookieValue(registration.headers['set-cookie']);
@@ -252,7 +262,7 @@ test('Telegram bearer plus Web cookie for different users returns AUTH_CONFLICT'
 }));
 
 test('Telegram bearer and Web cookie for the same explicitly shared user are accepted', async () => withApp(makeStore(), async (app, store) => {
-  const user = await store.deps.resolveOrCreateTelegramIdentity({ telegramId:'999', displayName:'Linked' });
+  const user = await store.deps.createTelegramCanonicalUser({ telegramId:'999', displayName:'Linked' });
   const bearer = await store.deps.createServerSession(user.id, 'telegram');
   const webToken = await store.deps.createServerSession(user.id, 'web');
   const response = await app.inject({ method:'GET', url:'/v1/me', headers:{ authorization:`Bearer ${bearer}`, cookie:`cribbit_web_session=${webToken}` } });
@@ -279,11 +289,12 @@ test('Web Telegram login route fails closed when configuration is missing', asyn
   assert.equal(response.json().error, 'TELEGRAM_WEB_LOGIN_NOT_CONFIGURED');
 }));
 
-test('verified Telegram OIDC fixture resolves through the same canonical resolver', async () => withTelegramWebConfig(async () => withApp(makeStore(), async (app, store) => {
+test('Telegram OIDC callback never provisions a canonical user without a session', async () => withTelegramWebConfig(async () => withApp(makeStore(), async (app, store) => {
   const response = await app.inject({ method:'GET', url:'/v1/auth/telegram/web/callback?code=test&state=test' });
-  assert.equal(response.statusCode, 200);
-  assert.equal(store.calls.resolveTelegram, 1);
-  assert.equal(store.telegramIdentities.size, 1);
+  assert.equal(response.statusCode, 409);
+  assert.equal(response.json().error, 'TELEGRAM_IDENTITY_UNLINKED');
+  assert.equal(store.users.size, 0, 'the callback must not create a user');
+  assert.equal(store.telegramIdentities.size, 0);
 })));
 
 test('database migrations preserve canonical identity uniqueness and add Web credential separation', async () => {
