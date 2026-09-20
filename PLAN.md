@@ -39,6 +39,15 @@ GitHub = source of truth
 
 Web and Telegram are two clients of one game. They may use different responsive layouts, but may not own separate deck composition, card behavior, commands, or authoritative rules.
 
+### Canonical cross-client identity invariant
+
+Web and Telegram are two frontend entry points into one Cribbit CHAOS account system. The same human must resolve to the same canonical internal `users.id` across Web and Telegram authentication; provider-specific identities are linked beneath that user rather than creating parallel platform accounts.
+
+A user moving between Web and Telegram must see the same profile, room memberships, active game/session state, saved prompts/library data, history/recaps, permissions, and other persistent domain data, subject to normal authorization/privacy rules.
+
+Both clients must use the same API, shared contracts, shared game engine, room/session model, and Railway PostgreSQL persistence. Platform-specific code may differ only in authentication handoff, layout, input, and presentation. It must not fork identity, gameplay mechanics, persistence, or domain behavior.
+
+
 ## Canonical physical deck — CHAOS-133-V1
 
 The game starts from exactly 133 physical playable card instances.
