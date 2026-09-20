@@ -11,15 +11,15 @@ import { projectDecisionCapabilities } from '../../../packages/game-engine/src/i
 import { cribbitAuth } from '../../../packages/ui/src/auth-controller.ts';
 import { readRoomCreatePayload, renderLiveSession, toast, type LiveSessionView } from './live-session.ts';
 import {
-  createWebSimulation,
-  type WebSimulationCommand,
-  type WebSimulationSession,
-} from './simulation-session.ts';
+  createSimulation,
+  type SimulationCommand,
+  type SimulationSession,
+} from '../../../packages/simulation/src/index.ts';
 
 const SIMULATION_JOIN_CODE = 'QA Simulation';
 
 export function startLocalSimulationMode(): () => void {
-  let simulation: WebSimulationSession | null = null;
+  let simulation: SimulationSession | null = null;
 
   const humanName = (): string | undefined => {
     const auth = cribbitAuth.current;
@@ -53,12 +53,13 @@ export function startLocalSimulationMode(): () => void {
 
     const payload = readRoomCreatePayload();
     try {
-      simulation = createWebSimulation({
+      simulation = createSimulation({
         playerCount: payload.playerCount,
-        profileName: humanName(),
+        humanDisplayName: humanName(),
         world: payload.world,
         ceiling: payload.ceiling,
         sources: payload.sources,
+        qaHand: false,
       });
     } catch (error) {
       toast(
@@ -115,7 +116,7 @@ export function startLocalSimulationMode(): () => void {
       event.stopImmediatePropagation();
       const selected = projectDecisionCapabilities(simulation.getState(), simulation.humanPlayerId)
         .options.find(option => option.optionId === liveOption.dataset.liveOptionId);
-      if (selected) report(simulation.send(selected.command as WebSimulationCommand));
+      if (selected) report(simulation.send(selected.command as SimulationCommand));
       return;
     }
 

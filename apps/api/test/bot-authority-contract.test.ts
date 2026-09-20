@@ -48,7 +48,11 @@ test('Telegram live rooms use the same API session adapter; local simulation rem
   assert.match(bootstrapTelegram, /createTelegramBackendGame\(api,\s*room,\s*auth\.user\.id\)/);
   assert.match(bootstrapTelegram, /Railway API is not configured in this build\. Simulation remains available\./);
   assert.match(bootstrapTelegram, /live rooms require a valid Telegram launch/);
-  assert.match(simulation, /chooseBotOption\(state,\s*playerId/);
+  // SIMSHARE-1 moved simulation orchestration into one shared owner: the Telegram file is
+  // now a presentation adapter, and the shared Simulation package drives the bot policy.
+  assert.match(simulation, /packages\/simulation\/src\/index\.ts/);
+  assert.doesNotMatch(simulation, /chooseBotOption\(|createGame\(|applyCommand\(/);
+  assert.match(source('packages/simulation/src/index.ts'), /chooseBotOption\(state,\s*playerId/);
   assert.doesNotMatch(simulation, /if\s*\(social\.cardKind\s*===\s*['"]truth['"]\s*\|\|\s*social\.cardKind\s*===\s*['"]dare['"]\)/);
   assert.match(gameView, /projectDecisionCapabilities\(state,\s*game\.humanPlayerId\)/);
 });
