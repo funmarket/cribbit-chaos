@@ -108,7 +108,21 @@ Machiavelli may create approved runtime card instances after game start. That ca
 - Browser-verified: a real click starts the simulation (game view, five players, seven cards each, engine deal/discard), ordinary human play and draw update the board, bots complete ordinary turns, zero `/v1` requests and zero database rows during the whole simulation, and Live Create still creates a waiting room with no session before host Start.
 - `packages/action-registry` corrected: `#startGameButton` now records `local game-engine simulation` instead of the Live start endpoint.
 
-Next app-recovery task: Roulette recovery, in this order — mask sealed `social.roulettePresentation` fields in the player snapshot using the existing `projectRoulettePresentation()`, then restore the approved SVG Roulette presentation driven by that authoritative state. After that: persistent webpage wiring (Rooms -> CHAOS Board -> Library/Create -> Recap) through `UI -> packages/api-client -> API/domain -> PostgreSQL`.
+### Canonical identity convergence (IDENTITY-2) — ACCEPTED (verified locally)
+
+One human uses Web and Telegram as the same canonical `users.id`. `users` plus `user_identities` remain the only account model; `auth_sessions` and `web_credentials` attach to it.
+
+- Telegram authentication is lookup-only: an unknown Telegram identity returns `409 TELEGRAM_IDENTITY_UNLINKED` and never provisions a canonical user.
+- Explicit creation is a separate action: `POST /v1/auth/telegram/register` creates exactly one user for the validated identity.
+- Linking an existing account is explicit: `POST /v1/auth/telegram/link` (proves the Web credential) or `POST /v1/auth/telegram/link-with-code` (consumes a short-lived single-use code from `POST /v1/me/identities/telegram/link-code`). Codes are stored in `auth_sessions` under a namespaced hash, so a code can never be replayed as a session token.
+- The reciprocal direction exists: `POST /v1/me/identities/web-credential` attaches a Web login to the current canonical user without creating a user.
+- Preserved LINK-1 semantics: ATTACH, IDEMPOTENT, `409 IDENTITY_ALREADY_LINKED` for a foreign Telegram identity, `409 IDENTITY_PROVIDER_ALREADY_LINKED` for a second Telegram identity on one account. No merges, no product-data movement.
+- Profile ownership: authentication refreshes provider metadata only. Telegram re-authentication no longer overwrites the canonical display name (regression-tested).
+- Minimum account UI: the Web profile panel shows linked transports and issues link codes; the Telegram client renders an explicit onboarding panel (create / link existing / use a link code) and an "Add a Web login" panel. No account logic lives in the frontends.
+- Real API + PostgreSQL proof: unknown identity provisions nothing, explicit creation creates exactly one user, Web-first and Telegram-first converge on one `users.id`, the code issued by the real Web UI linked a spec-signed Telegram identity to the same user and could not be replayed, foreign identities conflict without movement, and invalid or stale proof is rejected.
+- A real Telegram Mini App runtime still cannot mint `initData` in this environment: server validation is proven with locally minted, algorithm-correct `initData`, and the Mini App client path remains NOT VERIFIED.
+
+Next task: `SIMSHARE-1` — replace the two duplicated simulation harnesses (`apps/web/src/simulation-session.ts`, `apps/telegram/src/simulation.ts`) with one shared engine-backed harness both clients consume.
 
 ### Roulette presentation — ACCEPTED
 

@@ -29,6 +29,14 @@ Current development mode: **Web-first**. Telegram remains contract/state compati
 
 Browser-verified: all seven destinations switch through their real controls, the mobile path uses the same handler, and the desktop Play popover reveals through real hover and keyboard focus with real clicks reaching Active Game and Recent Recap. The existing `:hover` / `:focus-within` CSS already worked, so no navigation source change was needed for the popover. Commit `efb72401ed23f007f8db4c95137a0769cca9ff63`.
 
+## Canonical identity (IDENTITY-2) — VERIFIED LOCALLY
+
+Telegram authentication is lookup-only: an unknown Telegram identity returns `409 TELEGRAM_IDENTITY_UNLINKED` and never provisions a user; `POST /v1/auth/telegram/register` is the explicit creation action, `POST /v1/auth/telegram/link` (Web credential) and `POST /v1/auth/telegram/link-with-code` (single-use code from `POST /v1/me/identities/telegram/link-code`) link an existing account, and `POST /v1/me/identities/web-credential` attaches a Web login to the current canonical user. Codes live in `auth_sessions` under a namespaced hash, so they cannot be replayed as sessions.
+
+LINK-1 conflict semantics are preserved (`IDENTITY_ALREADY_LINKED`, `IDENTITY_PROVIDER_ALREADY_LINKED`) with no merges or data movement, and authentication refreshes provider metadata only — Telegram re-authentication no longer rewrites the canonical display name.
+
+Real API + PostgreSQL proof: no silent provisioning, exactly one user per explicit creation, Web-first and Telegram-first converging on one `users.id`, a link code issued by the real Web UI consumed over the Telegram transport for the same user with replay rejected, and invalid or stale proof rejected. A real Telegram Mini App runtime is still unavailable here, so the Mini App client path remains NOT VERIFIED.
+
 ## Web Local QA Simulation (SIM-1) — VERIFIED LOCALLY
 
 `#startGameButton` is Local QA Simulation (locked product decision), not Live host Start. It is served by `apps/web/src/simulation-mode.ts` -> `apps/web/src/simulation-session.ts` -> the shared `packages/game-engine`, with ephemeral local state and no persistence.
@@ -39,7 +47,7 @@ Browser-verified: a real click starts it (game view, five players, seven cards e
 
 ## Next task
 
-Roulette recovery in two ordered slices: mask sealed `social.roulettePresentation` fields in the player snapshot using the existing `projectRoulettePresentation()`, then restore the approved SVG Roulette presentation driven only by that authoritative state. After that, persistent webpage wiring (Rooms -> CHAOS Board -> Library/Create -> Recap) through `UI -> packages/api-client -> API/domain -> PostgreSQL`.
+`SIMSHARE-1`: replace the two duplicated simulation harnesses with one shared engine-backed harness consumed by both clients. After that: Roulette privacy projection, approved SVG Roulette presentation, then persistent webpage verticals (Rooms -> CHAOS Board -> Library/Create -> Recap) through `UI -> packages/api-client -> API/domain -> PostgreSQL`.
 
 ## Backlog (recorded, untouched)
 
