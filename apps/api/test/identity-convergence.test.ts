@@ -300,7 +300,7 @@ test('Telegram re-authentication never rewrites canonical profile presentation',
   }));
 });
 
-test('Telegram OIDC callback links to the authenticated session and rejects anonymous callers', async () => {
+test('the dormant Telegram OIDC callback cannot attach an identity from a browser cookie alone', async () => {
   const store = makeStore();
   const previous = { id: process.env.TELEGRAM_LOGIN_CLIENT_ID, secret: process.env.TELEGRAM_LOGIN_CLIENT_SECRET, redirect: process.env.TELEGRAM_LOGIN_REDIRECT_URI };
   process.env.TELEGRAM_LOGIN_CLIENT_ID = 'test-client';
@@ -312,18 +312,17 @@ test('Telegram OIDC callback links to the authenticated session and rejects anon
       const userId = web.json().user.id;
       const cookie = cookieValue(web.headers['set-cookie']);
 
-      // Anonymous caller with an unlinked Telegram identity: reported, never provisioned.
+      // The callback is dormant and fails closed: no state-bound link flow exists yet.
       const anonymous = await app.inject({ method: 'GET', url: '/v1/auth/telegram/web/callback?code=test&state=test' });
-      assert.equal(anonymous.statusCode, 409);
-      assert.equal(anonymous.json().error, 'TELEGRAM_IDENTITY_UNLINKED');
-      assert.equal(store.users.size, 1, 'the callback must not create a second user');
+      assert.equal(anonymous.statusCode, 501);
+      assert.equal(anonymous.json().error, 'TELEGRAM_WEB_LOGIN_NOT_IMPLEMENTED');
 
-      // Authenticated browser session: the same identity links to the canonical user.
-      const linked = await app.inject({ method: 'GET', url: '/v1/auth/telegram/web/callback?code=test&state=test', headers: { cookie } });
-      assert.equal(linked.statusCode, 200);
-      assert.equal(linked.json().outcome, 'LINKED');
-      assert.equal(linked.json().user.id, userId);
-      assert.equal(store.users.size, 1);
+      // An authenticated browser cookie is NOT authority to attach a Telegram identity.
+      const withSession = await app.inject({ method: 'GET', url: '/v1/auth/telegram/web/callback?code=test&state=test', headers: { cookie } });
+      assert.equal(withSession.statusCode, 501, 'a browser session cookie must never attach a Telegram identity');
+      assert.equal(store.users.size, 1, 'no canonical user may be created or merged by the callback');
+      assert.equal(store.telegramIdentities.size, 0, 'the callback must not attach a Telegram identity');
+      assert.equal(userId, store.users.values().next().value?.id, 'the registered canonical user is untouched');
     }));
   } finally {
     if (previous.id === undefined) delete process.env.TELEGRAM_LOGIN_CLIENT_ID; else process.env.TELEGRAM_LOGIN_CLIENT_ID = previous.id;

@@ -183,45 +183,57 @@ export async function attachWebCredential(userId:string, input:{ loginUsername:u
   }).then(() => loadAuthUser(userId));
 }
 
-/** Short-lived, single-use link challenge bound to one canonical user (stored in auth_sessions). */
-export async function createIdentityLinkChallenge(userId:string, ttlSeconds = 600): Promise<{ code:string; expiresAt:string }> {
+/** Challenge purposes. Only the Telegram account-link purpose exists today. */
+export const IDENTITY_LINK_CHALLENGE_PURPOSES = ['telegram-link','telegram-web-link'] as const;
+export type IdentityLinkChallengePurpose = (typeof IDENTITY_LINK_CHALLENGE_PURPOSES)[number];
+export const DEFAULT_IDENTITY_LINK_CHALLENGE_PURPOSE: IdentityLinkChallengePurpose = 'telegram-link';
+
+/**
+ * Short-lived, single-use link challenge bound to one canonical user.
+ *
+ * Stored in identity_link_challenges, never in auth_sessions: a link challenge is not a
+ * login session and must never be resolvable by authenticateSessionToken.
+ * Only the SHA-256 hash of the code is persisted.
+ */
+export async function createIdentityLinkChallenge(
+  userId:string,
+  ttlSeconds = 600,
+  purpose:IdentityLinkChallengePurpose = DEFAULT_IDENTITY_LINK_CHALLENGE_PURPOSE
+): Promise<{ code:string; expiresAt:string }> {
   if (!pool) throw new Error('DATABASE_URL is not configured.');
   const code = randomBytes(24).toString('base64url');
   const ttl = Math.max(60, Math.min(3600, Math.round(ttlSeconds)));
   const result = await pool.query(
-    `insert into auth_sessions (user_id, token_hash, provider, expires_at, last_used_at)
-     values ($1,$2,'web',now() + ($3 || ' seconds')::interval,now())
+    `insert into identity_link_challenges (user_id, code_hash, purpose, expires_at)
+     values ($1,$2,$3,now() + ($4 || ' seconds')::interval)
      returning expires_at`,
-    [userId, hashSessionToken(identityLinkChallengeToken(code)), String(ttl)]
+    [userId, hashSessionToken(code), purpose, String(ttl)]
   );
   return { code, expiresAt:new Date(result.rows[0].expires_at).toISOString() };
 }
 
 /**
- * Consume a link challenge exactly once. Returns the canonical user it is bound to,
- * or null when the code is unknown, expired or already used.
+ * Consume a link challenge exactly once and atomically.
+ *
+ * A single UPDATE claims the row only when the code hash, the expected purpose, the
+ * unconsumed state and the unexpired lifetime all match, and returns the canonical user
+ * it was bound to. Concurrent consumers cannot both succeed; an unknown, expired,
+ * already-consumed or wrong-purpose code returns null.
  */
-export async function consumeIdentityLinkChallenge(code:string): Promise<string | null> {
+export async function consumeIdentityLinkChallenge(
+  code:string,
+  purpose:IdentityLinkChallengePurpose = DEFAULT_IDENTITY_LINK_CHALLENGE_PURPOSE
+): Promise<string | null> {
   if (!pool) throw new Error('DATABASE_URL is not configured.');
-  return withTransaction(async client => {
-    const row = await client.query(
-      `select user_id from auth_sessions
-       where token_hash=$1 and revoked_at is null and expires_at > now()
-       for update`,
-      [hashSessionToken(identityLinkChallengeToken(code))]
-    );
-    if (!row.rowCount) return null;
-    await client.query(
-      `update auth_sessions set revoked_at=now() where token_hash=$1`,
-      [hashSessionToken(identityLinkChallengeToken(code))]
-    );
-    return String(row.rows[0].user_id);
-  });
-}
-
-function identityLinkChallengeToken(code:string): string {
-  // Namespaced so a link code can never be replayed as a server session token.
-  return `identity-link:${code}`;
+  const result = await pool.query(
+    `update identity_link_challenges
+        set consumed_at=now()
+      where code_hash=$1 and purpose=$2 and consumed_at is null and expires_at > now()
+      returning user_id`,
+    [hashSessionToken(code), purpose]
+  );
+  if (!result.rowCount) return null;
+  return String(result.rows[0].user_id);
 }
 
 

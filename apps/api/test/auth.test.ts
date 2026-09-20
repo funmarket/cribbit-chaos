@@ -289,12 +289,12 @@ test('Web Telegram login route fails closed when configuration is missing', asyn
   assert.equal(response.json().error, 'TELEGRAM_WEB_LOGIN_NOT_CONFIGURED');
 }));
 
-test('Telegram OIDC callback never provisions a canonical user without a session', async () => withTelegramWebConfig(async () => withApp(makeStore(), async (app, store) => {
+test('Telegram OIDC callback fails closed and never attaches an identity', async () => withTelegramWebConfig(async () => withApp(makeStore(), async (app, store) => {
   const response = await app.inject({ method:'GET', url:'/v1/auth/telegram/web/callback?code=test&state=test' });
-  assert.equal(response.statusCode, 409);
-  assert.equal(response.json().error, 'TELEGRAM_IDENTITY_UNLINKED');
+  assert.equal(response.statusCode, 501);
+  assert.equal(response.json().error, 'TELEGRAM_WEB_LOGIN_NOT_IMPLEMENTED');
   assert.equal(store.users.size, 0, 'the callback must not create a user');
-  assert.equal(store.telegramIdentities.size, 0);
+  assert.equal(store.telegramIdentities.size, 0, 'the callback must not attach a Telegram identity');
 })));
 
 test('database migrations preserve canonical identity uniqueness and add Web credential separation', async () => {

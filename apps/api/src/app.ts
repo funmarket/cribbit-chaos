@@ -391,31 +391,13 @@ export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
     if (!telegramWebLoginConfigured()) return reply.code(503).send({ error:'TELEGRAM_WEB_LOGIN_NOT_CONFIGURED' });
     return reply.code(501).send({ error:'TELEGRAM_WEB_LOGIN_NOT_IMPLEMENTED' });
   });
-  app.get('/v1/auth/telegram/web/callback', async (request:any, reply:any) => {
+  // Dormant Telegram Web Login/OIDC endpoint. Canonical Telegram authentication is the
+  // Mini App initData route below and canonical linking is the explicit authenticated link
+  // endpoints, so this callback stays unavailable and never attaches an identity: a browser
+  // session cookie is not authority to attach a Telegram identity to any canonical user.
+  app.get('/v1/auth/telegram/web/callback', async (_request:any, reply:any) => {
     if (!telegramWebLoginConfigured()) return reply.code(503).send({ error:'TELEGRAM_WEB_LOGIN_NOT_CONFIGURED' });
-    try {
-      const identity = await deps.verifyTelegramWebLoginCallback(request.query as Record<string, unknown>);
-      const known = await deps.findTelegramIdentityUser(identity.telegramId, identity.username);
-      if (known) return { accessToken:await deps.createServerSession(known.id, 'telegram'), user:known };
-
-      // Unknown Telegram identity: link it to the canonical user this browser is already
-      // authenticated as (the session cookie is sent on this top-level redirect), otherwise
-      // the client must onboard explicitly. It is never provisioned automatically.
-      let sessionUserId: string | null = null;
-      try {
-        sessionUserId = (await authenticatePrincipal(request, deps)).userId;
-      } catch { sessionUserId = null; }
-      if (!sessionUserId) {
-        return reply.code(409).send({
-          error:'TELEGRAM_IDENTITY_UNLINKED',
-          message:'This Telegram account is not linked to a Cribbit account yet. Create one or link an existing account.',
-        });
-      }
-      const linked = await deps.linkTelegramIdentity(sessionUserId, { telegramId:identity.telegramId, username:identity.username });
-      return { user:linked.user, outcome:linked.outcome };
-    } catch (error) {
-      return authError(reply, error);
-    }
+    return reply.code(501).send({ error:'TELEGRAM_WEB_LOGIN_NOT_IMPLEMENTED' });
   });
 
   app.get('/v1/me', async (request:any, reply:any) => {
