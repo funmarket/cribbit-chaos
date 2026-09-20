@@ -53,11 +53,14 @@ export class CribbitApiClient {
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const token = this.config.platform === 'telegram' ? cribbitSessionTokenStore.get() : null;
+    // Only declare a JSON body when one is actually sent: Fastify rejects an empty body
+    // that claims to be application/json.
+    const hasBody = init.body !== undefined && init.body !== null;
     const response = await fetch(`${this.config.apiUrl}${path}`, {
       ...init,
       credentials:'include',
       headers: {
-        'content-type':'application/json',
+        ...(hasBody ? { 'content-type':'application/json' } : {}),
         ...(token ? { authorization:`Bearer ${token}` } : {}),
         ...(init.headers || {})
       }
@@ -71,6 +74,38 @@ export class CribbitApiClient {
       if (this.config.platform === 'telegram') cribbitSessionTokenStore.set(session.accessToken);
       return session;
     });
+  }
+
+  /** Explicit Telegram account creation (unknown identities never auto-provision). */
+  telegramRegisterAccount(payload: TelegramAuthRequest): Promise<AuthSession> {
+    return this.request<AuthSession>('/v1/auth/telegram/register', { method:'POST', body:JSON.stringify(payload) })
+      .then(session => this.rememberTelegramSession(session));
+  }
+
+  /** Link the validated Telegram identity to an existing canonical account by proving its Web credential. */
+  telegramLinkExistingAccount(payload: { initData:string; loginUsername:string; password:string }): Promise<AuthSession> {
+    return this.request<AuthSession>('/v1/auth/telegram/link', { method:'POST', body:JSON.stringify(payload) })
+      .then(session => this.rememberTelegramSession(session));
+  }
+
+  /** Link with a short-lived single-use code created from the authenticated Web session. */
+  telegramLinkWithCode(payload: { initData:string; code:string }): Promise<AuthSession> {
+    return this.request<AuthSession>('/v1/auth/telegram/link-with-code', { method:'POST', body:JSON.stringify(payload) })
+      .then(session => this.rememberTelegramSession(session));
+  }
+
+  createTelegramLinkCode(): Promise<{ code:string; expiresAt:string; instructions:string }> {
+    return this.request('/v1/me/identities/telegram/link-code', { method:'POST' });
+  }
+
+  /** Attach a Web login credential to the current canonical user (Telegram-origin accounts). */
+  attachWebCredential(payload: { loginUsername:string; password:string; displayUsername:string; email?:string }): Promise<{ user: AuthUser }> {
+    return this.request('/v1/me/identities/web-credential', { method:'POST', body:JSON.stringify(payload) });
+  }
+
+  private rememberTelegramSession(session: AuthSession): AuthSession {
+    if (this.config.platform === 'telegram') cribbitSessionTokenStore.set(session.accessToken);
+    return session;
   }
 
   webRegister(payload: WebRegisterRequest): Promise<WebAuthResponse> {
@@ -154,4 +189,9 @@ export class CribbitRealtimeClient {
   joinRoomChannel(roomId:string): void { this.connect().emit('join-room-channel',{roomId}); }
   sendCommand(command:GameCommand): void { this.connect().emit('game-command',command); }
   disconnect(): void { this.socket?.disconnect(); this.socket=null; }
+}
+
+/** True when Telegram authentication reported an unlinked identity instead of a session. */
+export function isTelegramIdentityUnlinked(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 409 && error.message.includes('TELEGRAM_IDENTITY_UNLINKED');
 }

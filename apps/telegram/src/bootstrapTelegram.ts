@@ -1,5 +1,5 @@
 import type { AuthSession, AuthUser } from '../../../packages/contracts/src/index.ts';
-import { ApiError, CribbitApiClient, CribbitRealtimeClient, clientConfig, type RoomSessionResult, type WaitingRoomResult } from '../../../packages/api-client/src/index.ts';
+import { ApiError, CribbitApiClient, isTelegramIdentityUnlinked, CribbitRealtimeClient, clientConfig, type RoomSessionResult, type WaitingRoomResult } from '../../../packages/api-client/src/index.ts';
 import type { PlatformAdapter } from '../../../packages/platform/src/types.ts';
 import { resolveVisualFixture, VISUAL_FIXTURES, type VisualFixtureName } from '../../../packages/ui/src/fixtures.ts';
 import { createTelegramBackendGame } from './backendGame.ts';
@@ -95,11 +95,112 @@ export async function bootstrapTelegram(platform: PlatformAdapter): Promise<void
     applyUser(host, draft, me.user);
     setAuthState(host, 'Connected', 'success');
     setStatus(host, 'Telegram identity connected to the shared Cribbit account.', 'success');
+    if (!me.user.identities.some(identity => identity.provider === 'web')) {
+      renderWebCredentialPanel(host, api);
+    }
   } catch (error) {
+    if (isTelegramIdentityUnlinked(error)) {
+      setAuthState(host, 'Account required', 'warning');
+      renderAccountOnboarding(host, api, initData);
+      return;
+    }
     console.warn('[Cribbit] Telegram server authentication not available yet.', error);
     setAuthState(host, 'Auth unavailable', 'warning');
     setStatus(host, telegramAuthFailureMessage(error), 'warning');
   }
+}
+
+/**
+ * Unknown Telegram identities are never provisioned automatically: the human chooses
+ * either to create a Cribbit account, to link an existing one (Web credential or link
+ * code), and Telegram-origin accounts can attach a Web login afterwards.
+ */
+function renderAccountOnboarding(host:HTMLElement, api:CribbitApiClient, initData:string):void {
+  host.innerHTML = `
+    <main class="tg-app" data-telegram-app>
+      <header class="tg-app__header"><h1>Cribbit CHAOS</h1></header>
+      <section class="tg-card">
+        <h2>Finish setting up Cribbit</h2>
+        <p>This Telegram account is not connected to a Cribbit account yet.</p>
+        <button class="tg-button tg-button--primary" type="button" data-account="create">Create Cribbit account</button>
+        <form data-account-form="link">
+          <h3>I already have a Cribbit account</h3>
+          <input class="tg-input" name="loginUsername" placeholder="Cribbit login" autocomplete="username" />
+          <input class="tg-input" name="password" type="password" placeholder="Cribbit password" autocomplete="current-password" />
+          <button class="tg-button" type="submit">Link existing account</button>
+        </form>
+        <form data-account-form="code">
+          <h3>I have a link code from the Web app</h3>
+          <input class="tg-input" name="code" placeholder="Link code" />
+          <button class="tg-button" type="submit">Use link code</button>
+        </form>
+        <p data-account-status role="status"></p>
+      </section>
+    </main>
+  `;
+
+  const status = host.querySelector<HTMLElement>('[data-account-status]');
+  const report = (message:string):void => { if (status) status.textContent = message; };
+  const finish = ():void => { report('Connected. Reloading…'); window.location.reload(); };
+
+  host.querySelector<HTMLButtonElement>('[data-account="create"]')?.addEventListener('click', () => {
+    report('Creating your Cribbit account…');
+    void api.telegramRegisterAccount({ initData }).then(finish).catch(() => report('Could not create the account.'));
+  });
+
+  host.querySelector<HTMLFormElement>('[data-account-form="link"]')?.addEventListener('submit', event => {
+    event.preventDefault();
+    const form = event.currentTarget as HTMLFormElement;
+    const data = new FormData(form);
+    report('Linking your existing Cribbit account…');
+    void api.telegramLinkExistingAccount({
+      initData,
+      loginUsername:String(data.get('loginUsername') || ''),
+      password:String(data.get('password') || ''),
+    }).then(finish).catch(() => report('That Cribbit login or password was not accepted.'));
+  });
+
+  host.querySelector<HTMLFormElement>('[data-account-form="code"]')?.addEventListener('submit', event => {
+    event.preventDefault();
+    const form = event.currentTarget as HTMLFormElement;
+    const data = new FormData(form);
+    report('Using your link code…');
+    void api.telegramLinkWithCode({ initData, code:String(data.get('code') || '').trim() })
+      .then(finish)
+      .catch(() => report('That link code is invalid, expired or already used.'));
+  });
+}
+
+/** Telegram-origin accounts may attach a Web login without creating another user. */
+function renderWebCredentialPanel(host:HTMLElement, api:CribbitApiClient):void {
+  const panel = document.createElement('section');
+  panel.className = 'tg-card';
+  panel.dataset.webCredential = 'true';
+  panel.innerHTML = `
+    <h2>Add a Web login</h2>
+    <p>Use the same Cribbit account on the Web app. This never creates a second account.</p>
+    <form data-web-credential-form>
+      <input class="tg-input" name="loginUsername" placeholder="Choose a login" autocomplete="username" />
+      <input class="tg-input" name="displayUsername" placeholder="Display username" autocomplete="nickname" />
+      <input class="tg-input" name="password" type="password" placeholder="Password (10+ characters)" autocomplete="new-password" />
+      <button class="tg-button" type="submit">Attach Web login</button>
+    </form>
+    <p data-web-credential-status role="status"></p>
+  `;
+  host.append(panel);
+  const status = panel.querySelector<HTMLElement>('[data-web-credential-status]');
+  panel.querySelector<HTMLFormElement>('[data-web-credential-form]')?.addEventListener('submit', event => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget as HTMLFormElement);
+    if (status) status.textContent = 'Attaching your Web login…';
+    void api.attachWebCredential({
+      loginUsername:String(data.get('loginUsername') || ''),
+      displayUsername:String(data.get('displayUsername') || ''),
+      password:String(data.get('password') || ''),
+    })
+      .then(() => { if (status) status.textContent = 'Web login attached to this Cribbit account.'; })
+      .catch(() => { if (status) status.textContent = 'That login or display username is not available.'; });
+  });
 }
 
 function renderRoomCreation(draft: TelegramRoomDraft): string {
