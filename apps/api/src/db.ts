@@ -1,8 +1,8 @@
 import pg from 'pg';
 import { createHash, randomBytes } from 'node:crypto';
-import type { AuthIdentitySummary, AuthUser } from '../../../packages/contracts/src/index.ts';
+import type { AuthIdentitySummary, AuthUser, WebLoginSuggestionResponse } from '../../../packages/contracts/src/index.ts';
 import { hashWebPassword, validateWebPassword, verifyAgainstCredentialOrDummy } from './web-password.ts';
-import { decideTelegramIdentityLink, type IdentityLinkOutcome } from './identity-linking.ts';
+import { decideTelegramIdentityLink, decideWebLoginUsernameSuggestion, type IdentityLinkOutcome } from './identity-linking.ts';
 
 const { Pool } = pg;
 
@@ -236,6 +236,43 @@ export async function consumeIdentityLinkChallenge(
   return String(result.rows[0].user_id);
 }
 
+
+/**
+ * Backend-owned Web login username suggestion for the caller's Telegram provider metadata.
+ *
+ * The suggestion is derived from provider metadata and the canonical Web login-username
+ * rules only. Reading it claims nothing: the caller must still complete the explicit
+ * attach action, and a username owned by another canonical user is never suggested.
+ */
+export async function suggestWebLoginUsername(userId:string): Promise<WebLoginSuggestionResponse> {
+  if (!pool) throw new Error('DATABASE_URL is not configured.');
+  const identity = await pool.query(
+    `select provider_username from user_identities
+      where user_id=$1 and provider='telegram'
+      order by created_at
+      limit 1`,
+    [userId]
+  );
+  const rawUsername = identity.rows[0]?.provider_username;
+  const telegramUsername = typeof rawUsername === 'string' && rawUsername.trim() ? rawUsername.trim() : null;
+
+  let normalizedCandidate: string | null = null;
+  if (telegramUsername) {
+    try { normalizedCandidate = normalizeWebLoginUsername(telegramUsername); }
+    catch { normalizedCandidate = null; }
+  }
+
+  let loginTakenByOtherUser = false;
+  if (normalizedCandidate) {
+    const taken = await pool.query(
+      `select 1 from web_credentials where login_username_normalized=$1 and user_id<>$2 limit 1`,
+      [normalizedCandidate, userId]
+    );
+    loginTakenByOtherUser = Boolean(taken.rowCount);
+  }
+
+  return decideWebLoginUsernameSuggestion({ telegramUsername, normalizedCandidate, loginTakenByOtherUser });
+}
 
 export async function createGuestIdentity(displayName='Web Player'): Promise<{id:string; displayName:string}> {
   return withTransaction(async client => {

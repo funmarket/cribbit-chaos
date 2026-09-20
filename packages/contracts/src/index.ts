@@ -385,6 +385,23 @@ export interface AuthSession {
   user: AuthUser;
 }
 
+/** Why a Web login username suggestion is or is not available. Provider metadata only. */
+export type WebLoginSuggestionReason =
+  | 'AVAILABLE'
+  | 'NO_TELEGRAM_USERNAME'
+  | 'INVALID_TELEGRAM_USERNAME'
+  | 'LOGIN_TAKEN';
+
+/**
+ * Backend-owned suggestion for the "Add Web login" flow. It is convenience only: nothing
+ * is claimed, no credential is created and no account is linked by reading this.
+ */
+export interface WebLoginSuggestionResponse {
+  /** Canonical Web login username suggested from Telegram provider metadata, or null. */
+  loginUsername: string | null;
+  reason: WebLoginSuggestionReason;
+}
+
 export interface WebTelegramLoginConfiguration {
   configured: boolean;
   error?: 'TELEGRAM_WEB_LOGIN_NOT_CONFIGURED';

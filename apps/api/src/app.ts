@@ -2,9 +2,9 @@ import { createHash } from 'node:crypto';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { Server as SocketIOServer } from 'socket.io';
-import type { AuthUser, GameCommand, TelegramMiniAppAuthRequest, WebLoginRequest, WebRegisterRequest } from '../../../packages/contracts/src/index.ts';
+import type { AuthUser, GameCommand, TelegramMiniAppAuthRequest, WebLoginRequest, WebLoginSuggestionResponse, WebRegisterRequest } from '../../../packages/contracts/src/index.ts';
 import { ACTION_ASSIGNMENTS } from '../../../packages/action-registry/src/index.ts';
-import { authenticateSessionToken, authenticateWebUser, createGuestIdentity, createServerSession, dbHealth, registerWebUser, revokeServerSession, updateUserProfile, linkTelegramIdentity, findTelegramIdentityUser, createTelegramCanonicalUser, attachWebCredential, createIdentityLinkChallenge, consumeIdentityLinkChallenge } from './db.ts';
+import { authenticateSessionToken, authenticateWebUser, createGuestIdentity, createServerSession, dbHealth, registerWebUser, revokeServerSession, updateUserProfile, linkTelegramIdentity, findTelegramIdentityUser, createTelegramCanonicalUser, attachWebCredential, createIdentityLinkChallenge, consumeIdentityLinkChallenge, suggestWebLoginUsername } from './db.ts';
 import { createWaitingRoom, getSessionSnapshot, joinWaitingRoom, processSessionCommand, type RoomCreateInput, getWaitingRoom, startRoom } from './game-service.ts';
 import { validateTelegramInitData } from './telegram-auth.ts';
 
@@ -23,6 +23,7 @@ export interface ApiDependencies {
   findTelegramIdentityUser: (telegramId:string, providerUsername?:string) => Promise<AuthUser | null>;
   createTelegramCanonicalUser: (input:TelegramIdentityInput) => Promise<AuthUser>;
   attachWebCredential: (userId:string, input:{ loginUsername:unknown; password:unknown; displayUsername:unknown; email?:unknown }) => Promise<AuthUser>;
+  suggestWebLoginUsername: (userId:string) => Promise<WebLoginSuggestionResponse>;
   createIdentityLinkChallenge: (userId:string, ttlSeconds?:number) => Promise<{ code:string; expiresAt:string }>;
   consumeIdentityLinkChallenge: (code:string) => Promise<string | null>;
   registerWebUser: (input:WebRegisterRequest) => Promise<AuthUser>;
@@ -42,6 +43,7 @@ export const defaultDependencies: ApiDependencies = {
   findTelegramIdentityUser,
   createTelegramCanonicalUser,
   attachWebCredential,
+  suggestWebLoginUsername,
   createIdentityLinkChallenge,
   consumeIdentityLinkChallenge,
   registerWebUser,
@@ -441,6 +443,17 @@ export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
         ...challenge,
         instructions:'Open Cribbit inside Telegram, choose Link existing account, and enter this code. It works once.',
       };
+    } catch (error) {
+      return authError(reply, error);
+    }
+  });
+
+  // Convenience only: a suggested Web login username from Telegram provider metadata, when
+  // one exists, passes canonical login-username validation and is not owned by someone else.
+  app.get('/v1/me/web-login-suggestion', async (request:any, reply:any) => {
+    try {
+      const auth = await principal(request);
+      return await deps.suggestWebLoginUsername(auth.userId);
     } catch (error) {
       return authError(reply, error);
     }
