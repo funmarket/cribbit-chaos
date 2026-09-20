@@ -11,6 +11,7 @@ import type {
   TelegramAuthRequest,
   WebAuthResponse,
   WebLoginRequest,
+  WebLoginSuggestionResponse,
   WebRegisterRequest,
   WebTelegramLoginConfiguration
 } from '../../contracts/src/index.ts';
@@ -106,6 +107,14 @@ export class CribbitApiClient {
   private rememberTelegramSession(session: AuthSession): AuthSession {
     if (this.config.platform === 'telegram') cribbitSessionTokenStore.set(session.accessToken);
     return session;
+  }
+
+  /**
+   * Backend-owned suggestion for the Telegram "Add Web login" pre-fill. The backend decides
+   * availability from provider metadata and canonical ownership; nothing is claimed here.
+   */
+  getWebLoginSuggestion(): Promise<WebLoginSuggestionResponse> {
+    return this.request('/v1/me/web-login-suggestion');
   }
 
   webRegister(payload: WebRegisterRequest): Promise<WebAuthResponse> {

@@ -185,10 +185,31 @@ function renderWebCredentialPanel(host:HTMLElement, api:CribbitApiClient):void {
       <input class="tg-input" name="password" type="password" placeholder="Password (10+ characters)" autocomplete="new-password" />
       <button class="tg-button" type="submit">Attach Web login</button>
     </form>
+    <p class="tg-hint" data-web-login-hint role="status"></p>
     <p data-web-credential-status role="status"></p>
   `;
   host.append(panel);
   const status = panel.querySelector<HTMLElement>('[data-web-credential-status]');
+  const hint = panel.querySelector<HTMLElement>('[data-web-login-hint]');
+  const loginInput = panel.querySelector<HTMLInputElement>('input[name="loginUsername"]');
+
+  // The backend decides whether the Telegram username may be suggested as a Web login.
+  // Nothing is claimed here: an unavailable suggestion just means the human picks a login.
+  void api.getWebLoginSuggestion().then(suggestion => {
+    if (suggestion.loginUsername && loginInput) {
+      loginInput.value = suggestion.loginUsername;
+      if (hint) hint.textContent = 'Suggested from your Telegram username. Edit it or choose another login.';
+      return;
+    }
+    if (hint) {
+      hint.textContent = suggestion.reason === 'LOGIN_TAKEN'
+        ? 'Your Telegram username is already used as a Web login. Choose another login.'
+        : 'Choose your own Cribbit login username.';
+    }
+  }).catch(() => {
+    if (hint) hint.textContent = 'Choose your own Cribbit login username.';
+  });
+
   panel.querySelector<HTMLFormElement>('[data-web-credential-form]')?.addEventListener('submit', event => {
     event.preventDefault();
     const data = new FormData(event.currentTarget as HTMLFormElement);
