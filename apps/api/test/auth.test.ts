@@ -88,6 +88,7 @@ function makeStore() {
       user.displayName = input.displayName;
       return user;
     },
+    linkTelegramIdentity: async () => { throw new Error('not used'); },
     verifyTelegramWebLoginCallback: async () => ({ telegramId:'123456789', displayName:'Telly Web', username:'telly' })
   };
 

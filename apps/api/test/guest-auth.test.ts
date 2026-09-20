@@ -16,6 +16,7 @@ function deps(): ApiDependencies {
     createGuestIdentity: async () => ({ id:user.id, displayName:user.displayName }),
     authenticateSessionToken: async () => null,
     updateUserProfile: async () => user,
+    linkTelegramIdentity: async () => { throw new Error('not used'); },
     verifyTelegramWebLoginCallback: async () => { throw new Error('not used'); }
   };
 }

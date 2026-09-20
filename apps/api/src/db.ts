@@ -2,6 +2,7 @@ import pg from 'pg';
 import { createHash, randomBytes } from 'node:crypto';
 import type { AuthIdentitySummary, AuthUser } from '../../../packages/contracts/src/index.ts';
 import { hashWebPassword, validateWebPassword, verifyAgainstCredentialOrDummy } from './web-password.ts';
+import { decideTelegramIdentityLink, type IdentityLinkOutcome } from './identity-linking.ts';
 
 const { Pool } = pg;
 
@@ -296,6 +297,57 @@ export async function authenticateSessionToken(token:string): Promise<AuthUser |
   if (!result.rowCount) return null;
   await pool.query(`update auth_sessions set last_used_at=now() where token_hash=$1`, [tokenHash]);
   return loadAuthUser(String(result.rows[0].id));
+}
+
+/**
+ * Attach a server-validated Telegram identity to an already-authenticated canonical user.
+ * Never merges users and never moves rooms, games, saved data, history or memberships.
+ */
+export async function linkTelegramIdentity(
+  userId:string,
+  input:{ telegramId:string; username?:string }
+): Promise<{ outcome:IdentityLinkOutcome; user:AuthUser }> {
+  if (!pool) throw new Error('DATABASE_URL is not configured.');
+
+  const outcome = await withTransaction(async client => {
+    await client.query(`select pg_advisory_xact_lock(hashtext($1))`, [`telegram:${input.telegramId}`]);
+
+    const identityOwner = await client.query(
+      `select user_id from user_identities where provider='telegram' and provider_user_id=$1 for update`,
+      [input.telegramId]
+    );
+    const callerTelegram = await client.query(
+      `select provider_user_id from user_identities where user_id=$1 and provider='telegram' limit 1 for update`,
+      [userId]
+    );
+
+    const decision = decideTelegramIdentityLink({
+      requestedUserId:userId,
+      identityOwnerUserId:identityOwner.rowCount ? String(identityOwner.rows[0].user_id) : null,
+      callerTelegramIdentityId:callerTelegram.rowCount ? String(callerTelegram.rows[0].provider_user_id) : null,
+    });
+
+    if (decision.kind === 'CONFLICT') {
+      throw Object.assign(new Error(decision.message), { code:decision.code, statusCode:decision.statusCode });
+    }
+
+    if (decision.kind === 'IDEMPOTENT') {
+      await client.query(
+        `update user_identities set provider_username=$3 where user_id=$1 and provider='telegram' and provider_user_id=$2`,
+        [userId, input.telegramId, input.username || null]
+      );
+      return 'ALREADY_LINKED' as IdentityLinkOutcome;
+    }
+
+    await client.query(
+      `insert into user_identities(user_id,provider,provider_user_id,provider_username)
+       values($1,'telegram',$2,$3)`,
+      [userId, input.telegramId, input.username || null]
+    );
+    return 'LINKED' as IdentityLinkOutcome;
+  });
+
+  return { outcome, user:await loadAuthUser(userId) };
 }
 
 export async function loadAuthUser(userId:string): Promise<AuthUser> {

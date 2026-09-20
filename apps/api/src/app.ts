@@ -2,19 +2,9 @@ import { createHash } from 'node:crypto';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { Server as SocketIOServer } from 'socket.io';
-import type { AuthUser, GameCommand, WebLoginRequest, WebRegisterRequest } from '../../../packages/contracts/src/index.ts';
+import type { AuthUser, GameCommand, TelegramMiniAppAuthRequest, WebLoginRequest, WebRegisterRequest } from '../../../packages/contracts/src/index.ts';
 import { ACTION_ASSIGNMENTS } from '../../../packages/action-registry/src/index.ts';
-import {
-  authenticateSessionToken,
-  authenticateWebUser,
-  createGuestIdentity,
-  createServerSession,
-  dbHealth,
-  registerWebUser,
-  resolveOrCreateTelegramIdentity,
-  revokeServerSession,
-  updateUserProfile
-} from './db.ts';
+import { authenticateSessionToken, authenticateWebUser, createGuestIdentity, createServerSession, dbHealth, registerWebUser, resolveOrCreateTelegramIdentity, revokeServerSession, updateUserProfile, linkTelegramIdentity } from './db.ts';
 import { createWaitingRoom, getSessionSnapshot, joinWaitingRoom, processSessionCommand, type RoomCreateInput, getWaitingRoom, startRoom } from './game-service.ts';
 import { validateTelegramInitData } from './telegram-auth.ts';
 
@@ -39,6 +29,7 @@ export interface ApiDependencies {
   authenticateSessionToken: (token:string) => Promise<AuthUser | null>;
   updateUserProfile: (userId:string, input:{ displayName:string }) => Promise<AuthUser>;
   verifyTelegramWebLoginCallback: (query:Record<string, unknown>) => Promise<TelegramIdentityInput>;
+  linkTelegramIdentity: (userId:string, input:{ telegramId:string; username?:string }) => Promise<{ outcome:'LINKED' | 'ALREADY_LINKED'; user:AuthUser }>;
 }
 
 export const defaultDependencies: ApiDependencies = {
@@ -52,6 +43,7 @@ export const defaultDependencies: ApiDependencies = {
   createGuestIdentity,
   authenticateSessionToken,
   updateUserProfile,
+  linkTelegramIdentity,
   verifyTelegramWebLoginCallback: async () => {
     throw Object.assign(new Error('Telegram Web Login OIDC verification is not configured.'), {
       code:'TELEGRAM_WEB_LOGIN_NOT_CONFIGURED',
@@ -347,6 +339,22 @@ export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
       return authError(reply, error);
     }
   });
+  app.post('/v1/me/identities/telegram', async (request:any, reply:any) => {
+    try {
+      const auth = await principal(request);
+      const body = (request.body ?? {}) as TelegramMiniAppAuthRequest;
+      const tg = deps.validateTelegramInitData(
+        body?.initData || '',
+        process.env.TELEGRAM_BOT_TOKEN || '',
+        Number(process.env.TELEGRAM_INITDATA_MAX_AGE_SECONDS || 3600),
+      );
+      const result = await deps.linkTelegramIdentity(auth.userId, { telegramId:tg.id, username:tg.username });
+      return { user:result.user, outcome:result.outcome };
+    } catch (error) {
+      return authError(reply, error);
+    }
+  });
+
   app.get('/v1/me/notifications', async (_request:any, reply:any) => reply.code(501).send({ error:'NOTIFICATIONS_NOT_MIGRATED' }));
 
   app.post('/v1/rooms', async (request:any, reply:any) => {
