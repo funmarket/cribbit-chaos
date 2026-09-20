@@ -2,6 +2,7 @@ import type { Card, CardColor, GameCommand, GameState } from '../../../packages/
 import { ApiError, CribbitApiClient, CribbitRealtimeClient, type RoomSessionResult, type WaitingRoomResult } from '../../../packages/api-client/src/index.ts';
 import { isLegalPlay, projectDecisionCapabilities } from '../../../packages/game-engine/src/index.ts';
 import { cribbitAuth } from '../../../packages/ui/src/auth-controller.ts';
+import { activateSharedView, type SharedNavigationRoot } from '../../../packages/ui/src/navigation-controller.ts';
 import { openWebAuthDialog } from './web-auth.ts';
 import { renderDiscardedPile } from './pile-presentation.ts';
 
@@ -15,6 +16,13 @@ type LiveSession = {
   realtime: CribbitRealtimeClient;
   unsubscribe?: () => void;
   status?: string;
+};
+
+/** Presentation contract shared by the Live board and the Local QA Simulation board. */
+export type LiveSessionView = {
+  room: Pick<RoomSessionResult, 'joinCode'>;
+  state: GameState;
+  players: LivePlayer[];
 };
 
 function escapeHTML(value:unknown): string {
@@ -39,7 +47,7 @@ function iconForCard(card:Card): string {
   return 'i-card';
 }
 
-function renderCard(card:Card, interactive:boolean, legal:boolean): string {
+function renderCard(card:Card, interactive:boolean, legal:boolean, ruleCopy = 'Shared live session'): string {
   const kind = escapeHTML(card.kind);
   const color = card.color ? ` data-color="${escapeHTML(card.color)}"` : '';
   const number = card.kind === 'number' ? `<span class="game-card__icon is-number">${escapeHTML(card.value)}</span>` : `<svg class="game-card__icon icon" aria-hidden="true"><use href="#${iconForCard(card)}"></use></svg>`;
@@ -49,22 +57,17 @@ function renderCard(card:Card, interactive:boolean, legal:boolean): string {
     <span class="game-card__tab"><svg class="icon" aria-hidden="true"><use href="#${iconForCard(card)}"></use></svg></span>
     <strong class="game-card__title">${escapeHTML(titleForCard(card))}</strong>
     ${number}
-    <p class="game-card__rule">Shared live session</p>
+    <p class="game-card__rule">${escapeHTML(ruleCopy)}</p>
     <svg class="frog-seal icon" aria-hidden="true"><use href="#i-frog"></use></svg>
   </${element}>`;
 }
 
-function showGameView(): void {
-  document.querySelectorAll<HTMLElement>('.view').forEach(view => view.classList.toggle('is-active', view.dataset.view === 'game'));
-  document.body.classList.add('is-game-view');
-  window.scrollTo(0,0);
-}
 
-function playerName(session:LiveSession, playerId:string | null | undefined): string {
+function playerName(session:LiveSessionView, playerId:string | null | undefined): string {
   return session.players.find(player => player.id === playerId)?.name || playerId || '—';
 }
 
-function activeStateCopy(session:LiveSession): {title:string; copy:string} {
+function activeStateCopy(session:LiveSessionView): {title:string; copy:string} {
   const state = session.state;
   if (state.pendingEffect?.type === 'WILD_COLOR') return { title:'Choose a color', copy:'Wild is waiting for the active player to choose the next color.' };
   const social = state.social;
@@ -82,7 +85,7 @@ function button(label:string, action:string, extra=''): string {
   return `<button class="button button--sm" type="button" data-live-action="${action}" ${extra}>${escapeHTML(label)}</button>`;
 }
 
-function decisionLabel(session:LiveSession, option: ReturnType<typeof projectDecisionCapabilities>['options'][number]): string {
+function decisionLabel(session:LiveSessionView, option: ReturnType<typeof projectDecisionCapabilities>['options'][number]): string {
   const presentation = option.presentation;
   const command = option.command;
   if (presentation.category === 'TARGET' && presentation.targetPlayerId) return `Target ${playerName(session,presentation.targetPlayerId)}`;
@@ -99,13 +102,13 @@ function decisionLabel(session:LiveSession, option: ReturnType<typeof projectDec
   return command.type.replaceAll('_',' ');
 }
 
-function decisionControls(session:LiveSession, userId:string): string {
+function decisionControls(session:LiveSessionView, userId:string): string {
   const capabilities = projectDecisionCapabilities(session.state,userId);
   if (!capabilities.options.length) return '';
   return `<div class="filter-row">${capabilities.options.map(option => `<button class="button button--sm" type="button" data-live-option-id="${escapeHTML(option.optionId)}">${escapeHTML(decisionLabel(session,option))}</button>`).join('')}</div>`;
 }
 
-function socialControls(session:LiveSession, userId:string): string {
+function socialControls(session:LiveSessionView, userId:string): string {
   const projected = decisionControls(session,userId);
   if (projected) return projected;
   const state = session.state;
@@ -120,7 +123,9 @@ function socialControls(session:LiveSession, userId:string): string {
   return `<span class="tag" data-tone="cyan">Waiting for shared rule action from ${escapeHTML(waitingFor)}</span>`;
 }
 
-function renderLiveSession(session:LiveSession, userId:string): void {
+export function renderLiveSession(session:LiveSessionView, userId:string, mode:'LIVE'|'LOCAL' = 'LIVE'): void {
+  const local = mode === 'LOCAL';
+  const boardCopy = local ? 'Local QA Simulation' : 'Shared live session';
   const state = session.state;
   const human = state.players.find(player => player.id === userId);
   const current = state.players.find(player => player.id === state.currentPlayerId);
@@ -129,11 +134,11 @@ function renderLiveSession(session:LiveSession, userId:string): void {
   const humanTurn = state.currentPlayerId === userId && !state.social && !state.pendingEffect;
 
   const roomName = document.querySelector<HTMLElement>('#gameRoomName');
-  if (roomName) roomName.textContent = `Room ${session.room.joinCode}`;
+  if (roomName) roomName.textContent = local ? `Local ${session.room.joinCode}` : `Room ${session.room.joinCode}`;
   const roomMeta = document.querySelector<HTMLElement>('#gameRoomMeta');
-  if (roomMeta) roomMeta.textContent = `${state.players.length} players • shared live session • rev ${state.revision}`;
+  if (roomMeta) roomMeta.textContent = `${state.players.length} players • ${local ? 'ephemeral local simulation' : 'shared live session'} • rev ${state.revision}`;
   const badge = document.querySelector<HTMLElement>('#modeBadge');
-  if (badge) { badge.textContent = 'LIVE'; badge.dataset.tone = 'lime'; }
+  if (badge) { badge.textContent = local ? 'SIMULATION' : 'LIVE'; badge.dataset.tone = local ? 'cyan' : 'lime'; }
   const phase = document.querySelector<HTMLElement>('#boardPhaseLabel');
   if (phase) phase.textContent = state.phase.replaceAll('_',' / ');
   const currentName = document.querySelector<HTMLElement>('#currentTurnName');
@@ -156,11 +161,11 @@ function renderLiveSession(session:LiveSession, userId:string): void {
   }).join('');
 
   const hand = document.querySelector<HTMLElement>('#handScroll');
-  if (hand) hand.innerHTML = human?.hand.map(card => renderCard(card,true,isLegalPlay(state,userId,card.id))).join('') || '<div class="empty-state"><h3>Empty hand</h3><p>Awaiting authoritative win check.</p></div>';
+  if (hand) hand.innerHTML = human?.hand.map(card => renderCard(card,true,isLegalPlay(state,userId,card.id), boardCopy)).join('') || '<div class="empty-state"><h3>Empty hand</h3><p>Awaiting authoritative win check.</p></div>';
   const handCount = document.querySelector<HTMLElement>('#handCount');
   if (handCount) handCount.textContent = `${human?.hand.length ?? 0} cards`;
   const discard = document.querySelector<HTMLElement>('#discardSlot');
-  if (discard) discard.innerHTML = top ? renderCard(top,false,false) : '<span class="tag">No discard</span>';
+  if (discard) discard.innerHTML = top ? renderCard(top,false,false,boardCopy) : '<span class="tag">No discard</span>';
   renderDiscardedPile(state.discardPile);
   const drawCount = document.querySelector<HTMLElement>('#drawPileCount');
   if (drawCount) drawCount.textContent = `${state.drawPile.length} left`;
@@ -175,8 +180,8 @@ function renderLiveSession(session:LiveSession, userId:string): void {
   if (flag) flag.setAttribute('aria-disabled',String(!state.social?.prompt));
 
   const revision = document.querySelector<HTMLElement>('#revisionLabel');
-  if (revision) revision.textContent = `Server rev ${state.revision} · Railway live`;
-  showGameView();
+  if (revision) revision.textContent = local ? `Local rev ${state.revision} · ephemeral, not persisted` : `Server rev ${state.revision} · Railway live`;
+  activateSharedView('game', document as unknown as SharedNavigationRoot);
 }
 
 function extractApiMessage(error:unknown): string {
@@ -189,7 +194,7 @@ function extractApiMessage(error:unknown): string {
   return error instanceof Error ? error.message : 'Request failed.';
 }
 
-function toast(title:string, copy:string): void {
+export function toast(title:string, copy:string): void {
   const node = document.createElement('div');
   node.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:99999;background:#111827;color:#fff;padding:12px 14px;border-radius:12px;max-width:360px;box-shadow:0 10px 30px #0008';
   node.innerHTML = `<b>${escapeHTML(title)}</b><div style="margin-top:4px;font-size:12px">${escapeHTML(copy)}</div>`;
@@ -197,7 +202,7 @@ function toast(title:string, copy:string): void {
   window.setTimeout(() => node.remove(),3200);
 }
 
-function readRoomCreatePayload() {
+export function readRoomCreatePayload() {
   const sources: Record<string,boolean> = {};
   document.querySelectorAll<HTMLButtonElement>('[data-source]').forEach(item => { if (item.dataset.source) sources[item.dataset.source] = item.getAttribute('aria-pressed') !== 'false'; });
   return {

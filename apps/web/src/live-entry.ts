@@ -1,6 +1,7 @@
 import type { CribbitApiClient } from '../../../packages/api-client/src/index.ts';
 import { startWebAuthUI } from './web-auth.ts';
 import { startWebLiveRooms } from './live-session.ts';
+import { startLocalSimulationMode } from './simulation-mode.ts';
 
 let started = false;
 let attempts = 0;
@@ -15,6 +16,7 @@ function startWhenReady(): void {
     started = true;
     startWebAuthUI(api);
     startWebLiveRooms(api);
+    startLocalSimulationMode();
     return;
   }
   if (attempts < 200) window.setTimeout(startWhenReady,25);

@@ -92,7 +92,23 @@ Machiavelli may create approved runtime card instances after game start. That ca
 - Telegram live runtime: NOT VERIFIED (no way to mint Telegram Mini App `initData` in the verification environment).
 - Simulation stays separate: production Web is CORE WORKING with a SPECIAL-FLOW BLOCKER where a bot reaches a special-card interaction expecting human-style input.
 
-Next app-recovery task: deployed-app/source parity recovery (read-only comparison first).
+### Shared page navigation (NAV-1) — ACCEPTED (browser-verified)
+
+- `packages/ui/src/navigation-controller.ts` owns presentation-only page switching for the shared template: `[data-nav]` activates the matching existing `[data-view]`, sets `aria-current`, closes the mobile navigation dialog, honours `data-room-anchor`, and opens `#mobileNavDialog` from the existing trigger control.
+- Installed from `bootstrap()` only when `runtimeMode` is `'none'`, so no client ever has two navigation owners while Telegram still runs the compatibility runtime.
+- Browser-verified: all seven destinations switch through their real controls (game and recap exist only as popover items, proven with real hover plus real clicks), the mobile path uses the same delegated handler, and the desktop Play popover reveals on hover/focus (`:hover` / `:focus-within` CSS already worked, so no navigation source change was required for the popover).
+- Commit: `efb72401ed23f007f8db4c95137a0769cca9ff63`.
+
+### Web Local QA Simulation (SIM-1) — ACCEPTED (browser-verified)
+
+- `#startGameButton` means Local QA Simulation, per the locked product decision: it is not Live host Start and does not reuse the Live flow.
+- Architecture: Web Simulation UI -> `apps/web/src/simulation-mode.ts` -> `apps/web/src/simulation-session.ts` -> shared `packages/game-engine` (`createGame`, `applyCommand`, `chooseBotOption`) against ephemeral local state.
+- No PostgreSQL persistence, no `/v1` room creation, no fabricated Live users, no duplicated deck/rule logic, and no boot of `packages/legacy-runtime` or `canonical-game-runtime.ts`.
+- Board presentation reuses the shared renderer (`renderLiveSession(..., mode: 'LOCAL')`); the duplicate private view switcher in `live-session.ts` was retired in favour of the shared navigation controller.
+- Browser-verified: a real click starts the simulation (game view, five players, seven cards each, engine deal/discard), ordinary human play and draw update the board, bots complete ordinary turns, zero `/v1` requests and zero database rows during the whole simulation, and Live Create still creates a waiting room with no session before host Start.
+- `packages/action-registry` corrected: `#startGameButton` now records `local game-engine simulation` instead of the Live start endpoint.
+
+Next app-recovery task: Roulette recovery, in this order — mask sealed `social.roulettePresentation` fields in the player snapshot using the existing `projectRoulettePresentation()`, then restore the approved SVG Roulette presentation driven by that authoritative state. After that: persistent webpage wiring (Rooms -> CHAOS Board -> Library/Create -> Recap) through `UI -> packages/api-client -> API/domain -> PostgreSQL`.
 
 ### Roulette presentation — ACCEPTED
 

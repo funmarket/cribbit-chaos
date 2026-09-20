@@ -102,7 +102,7 @@ export const CONTROL_ASSIGNMENTS: readonly ControlAssignment[] = [
   { selector:'[data-filter]', backendClass:'client-only', target:'board query state', notes:'Presentation/query filter.' },
   { selector:'[data-close-dialog]', backendClass:'client-only', target:'dialog close', notes:'Presentation only.' },
   { selector:'[data-call-mode]', backendClass:'game-command', target:'SELECT_ANSWER_MODE', notes:'Same explicit answer-mode command as in game flow.' },
-  { selector:'#startGameButton', backendClass:'rest', target:'POST /v1/rooms/:roomId/start', notes:'Authoritative server creates/deals session and first turn.' },
+  { selector:'#startGameButton', backendClass:'client-only', target:'local game-engine simulation', notes:'Local QA Simulation only: drives the shared game engine against ephemeral local state. Creates no room, session or PostgreSQL row. Live host Start is the separate [data-action="start-live-game"] control.' },
   { selector:'#ecosystemPromptForm', backendClass:'rest', target:'POST /v1/prompts', notes:'Create/save/submit prompt according to selected destination.' },
   { selector:'#playerCount', backendClass:'client-only', target:'room setup draft', notes:'Balancing/config draft until room start.' },
   { selector:'#worldSelect', backendClass:'rest', target:'PATCH /v1/me/profile + room eligibility', notes:'Profile/world eligibility is persisted server-side.' },

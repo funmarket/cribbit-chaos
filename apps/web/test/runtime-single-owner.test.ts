@@ -78,7 +78,7 @@ test('Web live room controls never invent stale social-card actions outside shar
 test('Web live room controls render and submit shared capability buttons', () => {
   const liveSource = read('apps/web/src/live-session.ts');
 
-  assert.match(liveSource, /function decisionControls\(session:LiveSession, userId:string\): string \{\n  const capabilities = projectDecisionCapabilities\(session\.state,userId\);/);
+  assert.match(liveSource, /function decisionControls\(session:LiveSessionView, userId:string\): string \{\n  const capabilities = projectDecisionCapabilities\(session\.state,userId\);/);
   assert.match(liveSource, /capabilities\.options\.map\(option => `<button class="button button--sm" type="button" data-live-option-id="\$\{escapeHTML\(option\.optionId\)\}">/);
   assert.match(liveSource, /const liveOption = target\.closest<HTMLElement>\('\[data-live-option-id\]'\);/);
   assert.match(liveSource, /const selected = projectDecisionCapabilities\(live\.state,userId\)\.options\.find\(option => option\.optionId === liveOption\.dataset\.liveOptionId\);\n      if \(selected\) return void send\(selected\.command as CommandBody\);/);

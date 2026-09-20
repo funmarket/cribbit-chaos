@@ -23,9 +23,23 @@ Current development mode: **Web-first**. Telegram remains contract/state compati
 - Telegram live runtime: NOT VERIFIED (Telegram Mini App `initData` cannot be minted here).
 - Production Web Simulation: CORE WORKING with a SPECIAL-FLOW BLOCKER (a bot reaches a special-card interaction expecting human-style input) — owner-verified on the deployed app; outside this slice.
 
+## Page navigation (NAV-1) — VERIFIED LOCALLY
+
+`packages/ui/src/navigation-controller.ts` restores presentation-only page switching for the shared template: `[data-nav]` activates the matching existing `[data-view]`, sets `aria-current`, closes the mobile navigation dialog, honours `data-room-anchor`, and opens `#mobileNavDialog` from its existing trigger. It is installed from `bootstrap()` only when `runtimeMode` is `'none'`, so no client has two navigation owners.
+
+Browser-verified: all seven destinations switch through their real controls, the mobile path uses the same handler, and the desktop Play popover reveals through real hover and keyboard focus with real clicks reaching Active Game and Recent Recap. The existing `:hover` / `:focus-within` CSS already worked, so no navigation source change was needed for the popover. Commit `efb72401ed23f007f8db4c95137a0769cca9ff63`.
+
+## Web Local QA Simulation (SIM-1) — VERIFIED LOCALLY
+
+`#startGameButton` is Local QA Simulation (locked product decision), not Live host Start. It is served by `apps/web/src/simulation-mode.ts` -> `apps/web/src/simulation-session.ts` -> the shared `packages/game-engine`, with ephemeral local state and no persistence.
+
+Browser-verified: a real click starts it (game view, five players, seven cards each, engine deal and discard), ordinary human play and draw update the board, bots complete ordinary turns, and the whole simulation produced zero `/v1` requests and zero database rows. Live Create still creates a waiting room with real membership and no session before host Start.
+
+`packages/action-registry` was corrected: `#startGameButton` now records `local game-engine simulation`, not the Live start endpoint.
+
 ## Next task
 
-Deployed-app/source parity recovery: read-only comparison of deployed `95febd0` against accepted source and Git history to find lost or disconnected approved UI and rule changes (inactive buttons/navigation, unreachable pages, changed typography, missing prior UI/rule edits).
+Roulette recovery in two ordered slices: mask sealed `social.roulettePresentation` fields in the player snapshot using the existing `projectRoulettePresentation()`, then restore the approved SVG Roulette presentation driven only by that authoritative state. After that, persistent webpage wiring (Rooms -> CHAOS Board -> Library/Create -> Recap) through `UI -> packages/api-client -> API/domain -> PostgreSQL`.
 
 ## Backlog (recorded, untouched)
 
@@ -186,15 +200,13 @@ Status: **REMOVED PANEL — MAIN BOARD MIGRATION PENDING**.
 
 ## Important compatibility boundary
 
-The current main Web gameplay board now has one boot path: `apps/web/src/main.ts` starts the shared UI and requests `runtimeMode: legacy-compatibility`.
+On the recovery branch (`recovery/single-engine-authority`) the Web client boots as follows: `apps/web/src/main.ts` mounts the shared template and calls `bootstrap()` with `runtimeMode: 'none'`, so neither `packages/legacy-runtime` nor `canonical-game-runtime.ts` is loaded by Web.
 
-PR #9 removed the extra direct `canonical-game-runtime.ts` bootstrap from `apps/web/index.html`, so the Web shell no longer starts both the canonical browser runtime and the compatibility path at page load.
+Current runtime classification on this branch:
 
-Current runtime classification:
-
-- `apps/web/src/canonical-game-runtime.ts` is reference/dead for Web boot and must not be imported by `apps/web/index.html`.
-- `packages/legacy-runtime/src/runtime.ts` remains the active transitional board runtime.
-- `apps/web/src/live-entry.ts` and `apps/web/src/live-session.ts` remain active auth/live-room command bridges.
+- `apps/web/src/canonical-game-runtime.ts` is dead for Web boot and must not be imported by Web entry points.
+- `packages/legacy-runtime/src/runtime.ts` is loaded only by the Telegram client (`runtimeMode: 'legacy-compatibility'`); it is not a Web board runtime.
+- `apps/web/src/live-entry.ts` is the active auth/Live entry; `apps/web/src/live-session.ts` owns the Live board, and `apps/web/src/simulation-mode.ts` + `apps/web/src/simulation-session.ts` own the local QA simulation board.
 
 That legacy runtime still contains its own old local deck/deal/draw implementation. Therefore:
 
