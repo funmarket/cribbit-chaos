@@ -114,13 +114,33 @@ One human uses Web and Telegram as the same canonical `users.id`. `users` plus `
 
 - Telegram authentication is lookup-only: an unknown Telegram identity returns `409 TELEGRAM_IDENTITY_UNLINKED` and never provisions a canonical user.
 - Explicit creation is a separate action: `POST /v1/auth/telegram/register` creates exactly one user for the validated identity.
-- Linking an existing account is explicit: `POST /v1/auth/telegram/link` (proves the Web credential) or `POST /v1/auth/telegram/link-with-code` (consumes a short-lived single-use code from `POST /v1/me/identities/telegram/link-code`). Codes are stored in `auth_sessions` under a namespaced hash, so a code can never be replayed as a session token.
+- Linking an existing account is explicit: `POST /v1/auth/telegram/link` (proves the Web credential) or `POST /v1/auth/telegram/link-with-code` (consumes a short-lived single-use code from `POST /v1/me/identities/telegram/link-code`). Codes live in the dedicated `identity_link_challenges` table, never in `auth_sessions` (see LOGIN-A): the earlier namespaced-hash approach did allow the challenge string to authenticate, and that is fixed.
 - The reciprocal direction exists: `POST /v1/me/identities/web-credential` attaches a Web login to the current canonical user without creating a user.
 - Preserved LINK-1 semantics: ATTACH, IDEMPOTENT, `409 IDENTITY_ALREADY_LINKED` for a foreign Telegram identity, `409 IDENTITY_PROVIDER_ALREADY_LINKED` for a second Telegram identity on one account. No merges, no product-data movement.
 - Profile ownership: authentication refreshes provider metadata only. Telegram re-authentication no longer overwrites the canonical display name (regression-tested).
 - Minimum account UI: the Web profile panel shows linked transports and issues link codes; the Telegram client renders an explicit onboarding panel (create / link existing / use a link code) and an "Add a Web login" panel. No account logic lives in the frontends.
 - Real API + PostgreSQL proof: unknown identity provisions nothing, explicit creation creates exactly one user, Web-first and Telegram-first converge on one `users.id`, the code issued by the real Web UI linked a spec-signed Telegram identity to the same user and could not be replayed, foreign identities conflict without movement, and invalid or stale proof is rejected.
 - A real Telegram Mini App runtime still cannot mint `initData` in this environment: server validation is proven with locally minted, algorithm-correct `initData`, and the Mini App client path remains NOT VERIFIED.
+
+### LOGIN-A — identity-link challenge security boundary — ACCEPTED (verified locally)
+
+`auth_sessions` now means authenticated login sessions only. Identity-link challenges live in the additive `db/migrations/003_identity_link_challenges.sql` table (`user_id -> users.id`, `code_hash` unique, `purpose` check, `expires_at`, `consumed_at`) and are consumed by a single atomic `UPDATE` bound to hash + purpose + unconsumed + unexpired that returns the canonical user, so concurrent consumers cannot both succeed and a challenge value can never resolve as a session. Previously `identity-link:<code>` presented as the Web session cookie returned `200` on `/v1/me`; it now returns `401`, while the intended link endpoint still consumes the code exactly once (`200 LINKED`, replay `401 LINK_CODE_INVALID`). The dormant Telegram Web Login/OIDC callback fails closed and no longer attaches an identity from whichever browser cookie accompanies it. Commit `11eadf4`.
+
+### LOGIN-B — account lifecycle — ACCEPTED (verified locally)
+
+Unknown Telegram is lookup-only (`409 TELEGRAM_IDENTITY_UNLINKED`, zero provisioning), explicit creation creates exactly one canonical user, Web-only registration/login needs no Telegram, Web-first and Telegram-first linking converge on one `users.id`, foreign and provider conflicts move nothing, and provider authentication refreshes provider metadata only. The Telegram username may be offered as a convenient Web login username through the backend-owned `GET /v1/me/web-login-suggestion` (`AVAILABLE` / `NO_TELEGRAM_USERNAME` / `INVALID_TELEGRAM_USERNAME` / `LOGIN_TAKEN`); it claims nothing and never links accounts. Commit `6e99205`.
+
+### LOGIN-C — minimum account UI — ACCEPTED (browser-verified)
+
+Both clients reach identity only through `packages/api-client` (no frontend HTTP, no frontend identity decision). The Web account panel states the canonical model ("Web login: Connected", "Telegram: Not connected|Connected"), issues the short-lived single-use link code and shows when it expires, and never renders the canonical user id. The Telegram "Add Web login" form pre-fills the backend suggestion only when the backend reports it available. Commit `6970960`.
+
+### LOGIN-D — cross-client acceptance — ACCEPTED (runtime + database verified)
+
+One server-authoritative game across both transports: the same human reading a session through the Web cookie and through the Telegram bearer gets the identical session id, seat, private hand, revision and current player, with exactly one room membership per canonical user and no fabricated bots; an independent Web user and Telegram user share one session with each other's hands masked, and each client observed the other's authoritative revision (0 -> 1 from Web, then 1 -> 2 from Telegram). Database proof: `users` 24 -> 26 for exactly two intentional accounts, one credential and one Telegram identity per user, zero challenge rows left behind.
+
+### Locked account model
+
+> Cribbit has one canonical account identifier: `users.id`. Telegram and Web are optional authentication methods attached to that account. Telegram authenticates directly from server-verified Telegram numeric identity; Web authenticates with username/password. Telegram username is provider metadata and may be used only as a convenient suggested Web login username when available. Username equality never links accounts. Linking requires explicit proof and attaches the second authentication method to the existing `users.id`. Telegram-only and Web-only accounts are both valid.
 
 Next task: `SIMSHARE-1` — replace the two duplicated simulation harnesses (`apps/web/src/simulation-session.ts`, `apps/telegram/src/simulation.ts`) with one shared engine-backed harness both clients consume.
 

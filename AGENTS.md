@@ -75,6 +75,18 @@ Both clients use one shared game model, one shared rule system, one shared card/
 
 Never implement Web and Telegram as separate games.
 
+### Account / identity rule — locked
+
+> Cribbit has one canonical account identifier: `users.id`. Telegram and Web are optional authentication methods attached to that account. Telegram authenticates directly from server-verified Telegram numeric identity; Web authenticates with username/password. Telegram username is provider metadata and may be used only as a convenient suggested Web login username when available. Username equality never links accounts. Linking requires explicit proof and attaches the second authentication method to the existing `users.id`. Telegram-only and Web-only accounts are both valid.
+
+- A canonical account is always `users.id`; `user_identities`, `web_credentials` and `auth_sessions` attach to it. Never create a platform-specific user, room or session table, and never infer identity from matching usernames, display names, emails, IPs, browsers or devices.
+- Unknown Telegram authentication is lookup-only: it returns an explicit unlinked/onboarding state and must never silently create a user during normal authentication. Telegram-only account creation is an explicit action that creates exactly one user, and no Web password may be required for a Telegram-only account.
+- Linking is explicit and attaches the second authentication method to the existing `users.id`: a foreign Telegram identity yields a deterministic `409` with zero movement and one account may not attach two different Telegram identities.
+- Provider authentication refreshes provider metadata only. It must never rewrite the canonical display name, profile presentation or Web login username.
+- Identity-link challenges are a separate security artifact from login sessions: dedicated storage, short TTL, explicit purpose, atomic one-time consumption. A challenge value must never authenticate a session, and session revocation must never mean challenge consumption.
+- The dormant Telegram Web Login/OIDC callback fails closed: a browser cookie alone is never authority to attach a Telegram identity.
+- Linked Web and Telegram access must resolve the same room membership, game seat, private hand and authoritative revision; there is one server-authoritative game, never a Web game synchronized with a Telegram game.
+
 ### Live rooms vs Simulation (verified)
 
 - A Live room is a real multiplayer room: real authenticated members only, a waiting room before the game starts, and exactly one authoritative session created by the host's Start.
