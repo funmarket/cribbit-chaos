@@ -6,6 +6,7 @@ import type { PlatformAdapter } from '../../platform/src/types.ts';
 import { ApiError, CribbitApiClient, clientConfig } from '../../api-client/src/index.ts';
 import type { AuthSession } from '../../contracts/src/index.ts';
 import { cribbitAuth } from './auth-controller.ts';
+import { installSharedNavigation } from './navigation-controller.ts';
 import { resolveVisualFixture, type VisualFixtureName, VISUAL_FIXTURES } from './fixtures.ts';
 
 export type BootstrapRuntimeMode = 'none' | 'legacy-compatibility';
@@ -42,6 +43,12 @@ export async function bootstrap(
   if (!host) throw new Error('Missing #app host');
 
   platform.initialize();
+
+  // Page switching is shared presentation, not game authority: install it only
+  // when no compatibility runtime is loaded, so no client has two owners.
+  if (options.runtimeMode === 'none') {
+    installSharedNavigation(document);
+  }
 
   const config = clientConfig(platform.kind);
   const api = new CribbitApiClient(config);
