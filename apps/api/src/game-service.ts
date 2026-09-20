@@ -388,9 +388,30 @@ export async function getSessionSnapshot(user: AuthUser, sessionId: string): Pro
   };
 }
 
+/**
+ * Canonical Live command identity: game_commands.command_id is a PostgreSQL uuid column, so a
+ * persisted Live command id must be an RFC 4122 UUID. Simulation builds its own deterministic
+ * in-memory ids and never persists them, so this contract applies to Live commands only.
+ */
+const LIVE_COMMAND_ID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+function assertLiveCommandId(commandId: unknown): asserts commandId is string {
+  if (typeof commandId !== 'string' || !LIVE_COMMAND_ID_PATTERN.test(commandId)) {
+    // Rejected here, before any persistence: PostgreSQL must never be the input validator and
+    // its uuid parse error must never reach the client.
+    throw Object.assign(
+      new Error('commandId must be a UUID for a persisted Live command.'),
+      { code: 'INVALID_COMMAND_ENVELOPE', statusCode: 400 },
+    );
+  }
+}
+
 export async function processSessionCommand(user: AuthUser, sessionId: string, command: GameCommand): Promise<CommandResponse<GameState>> {
   if (command.sessionId !== sessionId) throw Object.assign(new Error('Command session does not match route.'), { code: 'SESSION_MISMATCH', statusCode: 400 });
   if (command.playerId !== user.id) throw Object.assign(new Error('Command player does not match authenticated user.'), { code: 'PLAYER_MISMATCH', statusCode: 403 });
+  // Authorized for this session and seat, so the payload identity format is checked here --
+  // before any persistence, and never by PostgreSQL.
+  assertLiveCommandId(command?.commandId);
 
   return withTransaction(async client => {
     const duplicate = await client.query(`select result from game_commands where command_id=$1 and session_id=$2`, [command.commandId, sessionId]);
