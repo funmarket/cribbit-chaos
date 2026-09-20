@@ -75,6 +75,17 @@ Both clients use one shared game model, one shared rule system, one shared card/
 
 Never implement Web and Telegram as separate games.
 
+## Canonical cross-client identity rule — mandatory
+
+Web and Telegram are two frontend entry points into the same Cribbit CHAOS account and backend.
+
+The same human must resolve to the same canonical internal `users.id` regardless of whether they authenticate through Web or Telegram. Platform/provider identities belong under that canonical user identity (for example through `user_identities`); they must not create parallel Web and Telegram user records for the same person.
+
+A user who moves between Web and Telegram must see the same profile, room memberships, active sessions, saved prompts/library data, history/recaps, permissions, and authoritative game state, subject only to normal privacy/authorization rules.
+
+Both clients must use the same API, shared contracts, shared game engine, room/session model, and PostgreSQL persistence. Platform-specific code may adapt authentication handoff, layout, input, and presentation only; it must not fork account ownership, gameplay mechanics, persistence, or domain behavior.
+
+
 ## Current implementation priority
 
 Until the mechanics migration is complete, prioritize functional gameplay over final card-art polish.
