@@ -17,8 +17,6 @@ A CI traceability gate must require rule IDs for every claimed LOCKED behavior/t
 - `RULE-TAG-002` through `RULE-TAG-012` are superseded by `RULE-TAG-DRAW-001` through `RULE-TAG-DRAW-010`.
 - `RULE-REVERSE-CONFESSION-002` and `RULE-REVERSE-CONFESSION-003` are superseded by `RULE-REVERSE-CONFESSION-TARGET-001` through `RULE-REVERSE-CONFESSION-TARGET-006`.
 - `RULE-TRUTH-OR-CHAOS-003` through `RULE-TRUTH-OR-CHAOS-011` remain active but are clarified by `RULE-TRUTH-OR-CHAOS-CONSENSUS-001` through `RULE-TRUTH-OR-CHAOS-CONSENSUS-004`: matching answers are the success condition; no external answer key is required.
-- `RULE-TURN-CHOICE-001` through `RULE-TURN-CHOICE-005` supersede any earlier implementation/configuration behavior that blocked a normal voluntary draw merely because a legal hand play existed.
-- `RULE-SPECIAL-PLAY-001` through `RULE-SPECIAL-PLAY-005` govern normal-turn Special-card stacking; any older runtime matching behavior that permits Special-on-Special stacking conflicts with the active canonical rule.
 
 <!-- BEGIN CANONICAL SOURCE WITH ID ANNOTATIONS -->
 # Cribbit CHAOS — GameRules.md
@@ -299,52 +297,6 @@ A normal turn follows this authority order:
 
 <!-- RULE-TURN-003 | supplied source lines 232-232 -->
 A UI Continue button may not run duplicate win checks or duplicate turn advancement.
-
----
-
-# 6A. Normal-Turn Play Choice and Special-Card Stacking — LOCKED
-
-<!-- RULE-PLAY-PILE-001 | owner-approved later decision -->
-The **Play Pile** is the face-up played/discard pile whose top card is used to determine normal-turn hand-play legality.
-
-<!-- RULE-SPECIAL-CLASS-001 | owner-approved later decision -->
-For this rule, a **Special card** is every non-Number card family.
-
-<!-- RULE-SPECIAL-CLASS-002 | owner-approved later decision -->
-Being classified as Special does not override a card's own timing restriction. In particular, Nope remains reaction-only and is not converted into an ordinary normal-turn play.
-
-<!-- RULE-SPECIAL-PLAY-001 | owner-approved later decision -->
-On a normal turn, if the top card of the Play Pile is **not** a Special card, the current player may play a normal-turn-eligible Special card from their hand regardless of color, number, value, or symbol matching.
-
-<!-- RULE-SPECIAL-PLAY-002 | owner-approved later decision -->
-If the top card of the Play Pile **is** a Special card, the current player may not stack another Special card from hand on top of it.
-
-<!-- RULE-SPECIAL-PLAY-003 | owner-approved later decision -->
-When Special-on-Special stacking is blocked, the current player must either:
-
-- play a legal Number card under the normal Number matching rule; or
-- draw one card.
-
-<!-- RULE-SPECIAL-PLAY-004 | owner-approved later decision -->
-Special cards received in the initial deal remain dormant in the player's hand as already defined by `RULE-OPENING-006`, `RULE-OPENING-007`, `RULE-ACQUISITION-001`, and `RULE-ACQUISITION-002`. When one of those hand-resident Special cards is later chosen for a normal-turn play, the Special-card stacking rule above applies.
-
-<!-- RULE-SPECIAL-PLAY-005 | owner-approved later decision -->
-This normal-turn hand-play rule does not change forced-on-draw behavior. Post-start physical draws of forced-on-draw families still immediately enter their authoritative card flow and do not become optional hand plays.
-
-<!-- RULE-TURN-CHOICE-001 | owner-approved later decision -->
-A player is **not required to play a card merely because a legal card exists in their hand**.
-
-<!-- RULE-TURN-CHOICE-002 | owner-approved later decision -->
-On a normal turn, the player may choose to draw one card instead of playing from hand.
-
-<!-- RULE-TURN-CHOICE-003 | owner-approved later decision -->
-After a voluntary draw is committed, that player's normal hand-play opportunity for the turn ends immediately. They may not then play another card from their hand during that same normal turn.
-
-<!-- RULE-TURN-CHOICE-004 | owner-approved later decision -->
-If the voluntarily drawn card is a forced-on-draw family, its mandatory interaction must resolve completely, including any FIFO forced-interaction chain, before the turn can advance. Completing that forced interaction does not restore another normal hand-play opportunity to the drawing player.
-
-<!-- RULE-TURN-CHOICE-005 | owner-approved later decision -->
-Voluntary draw is a locked normal-game rule, not an optional room or lab setting. Any implementation flag equivalent to `allowVoluntaryDraw` must be effectively enabled for normal gameplay and must not be used to force a player to play a legal card instead of drawing.
 
 ---
 
