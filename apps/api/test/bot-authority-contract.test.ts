@@ -43,6 +43,7 @@ test('Telegram live rooms use the same API session adapter; local simulation rem
 
   assert.match(backendGame, /api\.getSnapshot<GameState>\(room\.sessionId\)/);
   assert.match(backendGame, /api\.sendCommand<GameState>\(command\)/);
+  assert.match(backendGame, /let\s+capabilities\s*=\s*snapshot\.capabilities/);
   assert.doesNotMatch(backendGame, /function\s+advanceBots\s*\(/);
   assert.doesNotMatch(backendGame, /createGame\s*\(/);
   assert.match(bootstrapTelegram, /createTelegramBackendGame\(api,\s*room,\s*auth\.user\.id\)/);
@@ -54,29 +55,32 @@ test('Telegram live rooms use the same API session adapter; local simulation rem
   assert.doesNotMatch(simulation, /chooseBotOption\(|createGame\(|applyCommand\(/);
   assert.match(source('packages/simulation/src/index.ts'), /chooseBotOption\(state,\s*playerId/);
   assert.doesNotMatch(simulation, /if\s*\(social\.cardKind\s*===\s*['"]truth['"]\s*\|\|\s*social\.cardKind\s*===\s*['"]dare['"]\)/);
-  assert.match(gameView, /projectDecisionCapabilities\(state,\s*game\.humanPlayerId\)/);
+  assert.match(gameView, /const\s+capabilities\s*=\s*game\.getCapabilities\(\)/);
+  assert.doesNotMatch(gameView, /packages\/game-engine|\bprojectDecisionCapabilities\b|\bisLegalPlay\b/);
 });
 
 
-test('Web live rooms render shared engine capabilities for human special-card decisions', () => {
+test('Web live rooms render server-projected capabilities for human special-card decisions', () => {
   const liveSession = source('apps/web/src/live-session.ts');
 
-  assert.match(liveSession, /projectDecisionCapabilities\(session\.state,\s*userId\)/);
+  assert.match(liveSession, /const\s+capabilities\s*=\s*session\.capabilities/);
   assert.match(liveSession, /data-live-option-id/);
-  assert.match(liveSession, /projectDecisionCapabilities\(live\.state,\s*userId\)\.options\.find/);
+  assert.match(liveSession, /live\.capabilities\.options\.find/);
   assert.match(liveSession, /ACTIVATE_GHOST/);
   assert.match(liveSession, /PLAY_NOPE/);
+  assert.doesNotMatch(liveSession, /packages\/game-engine|\bprojectDecisionCapabilities\b|\bisLegalPlay\b/);
   assert.doesNotMatch(liveSession, /target\.closest\('\[data-action="use-nope"\]'\)/);
   assert.doesNotMatch(liveSession, /hand\.find\(card => card\.kind === 'nope'\)/);
 });
 
-test('Telegram live rooms render Ghost and Nope only through shared decision capabilities', () => {
+test('Telegram live rooms render Ghost and Nope only through server-projected decision capabilities', () => {
   const gameView = source('apps/telegram/src/gameView.ts');
 
-  assert.match(gameView, /projectDecisionCapabilities\(state,\s*game\.humanPlayerId\)/);
+  assert.match(gameView, /const\s+capabilities\s*=\s*game\.getCapabilities\(\)/);
   assert.match(gameView, /data-decision-option-id/);
   assert.match(gameView, /ACTIVATE_GHOST/);
   assert.match(gameView, /PLAY_NOPE/);
+  assert.doesNotMatch(gameView, /packages\/game-engine|\bprojectDecisionCapabilities\b|\bisLegalPlay\b/);
   assert.doesNotMatch(gameView, /data-action="safety-nope"/);
   assert.doesNotMatch(gameView, /data-nope-card-id/);
 });
