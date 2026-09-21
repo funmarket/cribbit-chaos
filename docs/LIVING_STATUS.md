@@ -107,17 +107,17 @@ Implementation owners: `packages/game-engine/src/validation.ts`, `packages/game-
 
 ## Current phase
 
-**Recovery consolidation / authority hardening.** RECOVERY-HARDEN-1 and RECOVERY-HARDEN-2 are accepted and published. Live clients now consume authoritative server-projected gameplay capabilities. Whole-product scope remains preserved while the remaining authority/persistence contradictions are resolved.
+**Recovery consolidation / authority hardening.** RECOVERY-HARDEN-1, RECOVERY-HARDEN-2 and RECOVERY-HARDEN-3 are implemented and published. Live clients consume authoritative server-projected gameplay capabilities, and persisted command-ID replay/collision semantics now use one shared semantic fingerprint. Whole-product scope remains preserved.
 
 ## CURRENT TASK
 
-**None in flight after RECOVERY-HARDEN-2 documentation reconciliation.** The next implementation slice requires explicit owner authorization.
+**None in flight after RECOVERY-HARDEN-3 documentation reconciliation.** The next implementation slice requires explicit owner authorization.
 
 ## Current blockers / hardening queue
 
-- Persistent command-ID replay/collision behavior is not fully aligned with engine collision semantics.
 - Active gameplay mutation is REST, while stale realtime/action-registry metadata still describes socket `game-command` behavior.
 - Truth-or-Chaos can enter `groupPunishmentPending` without a proven completion path; instigator participation and refusal behavior remain unresolved owner decisions.
+- RECOVERY-HARDEN-3's DB-backed cross-session command-ID regression test has not been rerun against disposable PostgreSQL here because GitHub CI has no `DATABASE_URL`.
 - Real Telegram Mini App runtime is not verified with genuine Telegram-generated `initData`.
 - Whole-product verticals listed above remain UNMIGRATED and must be preserved.
 
@@ -125,38 +125,37 @@ Implementation owners: `packages/game-engine/src/validation.ts`, `packages/game-
 
 **No implementation task is currently authorized after this slice.**
 
-Owner-selectable hardening candidates are: command-ID persistence reconciliation; REST-vs-WS/action-registry reconciliation; or, after resolving the missing owner rule decisions, Truth-or-Chaos completion hardening. The whole-product ownership/dependency audit remains mandatory before broad deletion/migration decisions.
+Owner-selectable hardening candidates are REST-vs-WS/action-registry reconciliation; or, after resolving the missing owner rule decisions, Truth-or-Chaos completion hardening. The whole-product ownership/dependency audit remains mandatory before broad deletion/migration decisions.
 
 **AUTHORITY-GUARD-1 remains deferred** until the known authority contradictions are reconciled.
 
 ## Checks and evidence
 
-RECOVERY-HARDEN-1 evidence remains recorded in its accepted slice.
-
-RECOVERY-HARDEN-2:
+RECOVERY-HARDEN-3:
 
 ```text
-source commit 3b1da012792ba2a21682cdb3d3b70f781cc58a05
-  server snapshot/command responses project PlayerDecisionCapabilities
-  Web Live direct game-engine decision imports removed
-  Telegram Live direct game-engine decision imports removed
-  Local QA Simulation keeps engine decisions inside packages/simulation
+RED test commit cbe8c6fd0fee710e2f0e892d201168798a8bde0b
+  changed only apps/api/test/command-id-boundary.test.ts
+  CI 35663801731 FAILED as intended:
+    fingerprintGameCommand missing
+    persisted duplicate path not yet using shared fingerprint/global command_id lookup
 
-CI run 35661546655 on 3b1da012
-  typecheck       PASS
-  build-web       PASS
-  build-telegram  PASS
-  build-api       PASS
-  test            FAIL — three stale architecture assertions still expected client-side projectDecisionCapabilities calls
+GREEN implementation 67dbff10ee60e38957d0d969ee4a20669d74e0bf
+  packages/game-engine/src/command-identity.ts  one semantic fingerprint owner
+  reducer.ts / command-router.ts                consume shared fingerprint
+  game-service.ts                              global command_id lookup + semantic replay/collision
+  packages/game-engine/src/index.ts             exports fingerprintGameCommand
 
-test-only follow-up 812acce7356c22336bb41e0e77f02893a3d4c771
-  changed only apps/api/test/bot-authority-contract.test.ts
-  assertions now require server-projected capabilities and forbid Live client engine-decision imports
+GitHub CI 35663953597 on 67dbff10   SUCCESS
+  typecheck, test, build-web, build-telegram, build-api
 
-GitHub CI 35661725013 on 812acce   SUCCESS
+Evidence limitation
+  GitHub CI does not provide DATABASE_URL.
+  DB-backed command-ID tests, including the new cross-session collision row,
+  are therefore skipped there and have not been rerun against disposable PostgreSQL in this environment.
 ```
 
-Current GitHub CI runs typecheck, test, build-web, build-telegram and build-api. `npm run architecture:check` does not exist in this repository (reported, not invented). No RECOVERY-HARDEN-2 schema, migration, `Game_rules.md`, deployment or production mutation occurred.
+Current GitHub CI runs typecheck, test, build-web, build-telegram and build-api. `npm run architecture:check` does not exist in this repository. No RECOVERY-HARDEN-3 schema, migration, `Game_rules.md`, deployment or production mutation occurred.
 
 ## Known unknowns
 

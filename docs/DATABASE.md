@@ -45,7 +45,7 @@ There is no `game_players`, `session_snapshots`, `house_decks`, `moderation` or 
 
 - `game_sessions.state` is `jsonb` and holds the authoritative `GameState`. **Its keys are part of the database contract**: renaming or removing a `GameState` key silently changes the meaning of already-persisted rows. Add keys, migrate deliberately, and never "clean up" a key name as a refactor.
 - `game_sessions.revision` is the authoritative monotonic revision used by clients for optimistic concurrency (`expectedRevision`).
-- `game_commands.command_id` is `uuid` and is the primary key of the command log: it is the idempotency/deduplication identity of a Live command. `command_type` is `text`, `payload`/`result` are `jsonb`, `expected_revision` is `bigint`, `session_id`/`actor_user_id` are `uuid`.
+- `game_commands.command_id` is `uuid` and is the **global** primary key/idempotency key of the command log. The API looks it up globally, not by `(command_id, session_id)`. The persisted `payload` is compared with the incoming command through the same `fingerprintGameCommand` used by the shared engine. Same UUID + same semantic fingerprint replays the stored result; same UUID + different session/player/type/payload returns controlled `COMMAND_ID_COLLISION` without a second gameplay mutation. `expected_revision` is intentionally excluded from semantic identity because it is an execution precondition, not command meaning. `command_type` is `text`, `payload`/`result` are `jsonb`, `expected_revision` is `bigint`, `session_id`/`actor_user_id` are `uuid`.
 - A Live command id must be an RFC 4122 UUID; the API rejects any other value with `400 INVALID_COMMAND_ENVELOPE` before persistence (COMMAND-ID-1). Simulation command ids are deterministic in-memory strings and are never persisted.
 - `game_events` is the event log for a session; clients render the authoritative projection, not the raw event log.
 - Reserved-but-unused tables (`answers`, `recaps`, `prompts`, `saved_prompts`, `room_prompt_pool`, `prompt_flags`) exist for product verticals that are still UNMIGRATED. Their presence is not proof of a feature: do not treat "table exists" as "feature implemented", and do not add a second store for the same concern.
@@ -67,7 +67,7 @@ link challenge         identity_link_challenges -> users.id   (purpose-scoped, s
 ## Verified state
 
 - Local disposable PostgreSQL used for recovery proofs; the production Railway database is untouched by this work.
-- Schema migrations applied and verified locally; command-log idempotency and privacy projections verified by tests and runtime probes.
+- Schema migrations were previously applied and verified locally. RECOVERY-HARDEN-3 reconciled command-log idempotency/collision source semantics and is exact-SHA CI green; however, the new DB-backed cross-session collision regression has not been rerun against disposable PostgreSQL in this environment because GitHub CI has no `DATABASE_URL`.
 - Cross-client same-`users.id` convergence is verified locally with spec-signed Telegram `initData`; a genuine Telegram Mini App runtime is NOT VERIFIED here.
 
 ## Rules for future work
