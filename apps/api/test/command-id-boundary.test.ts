@@ -57,12 +57,72 @@ test('shared command identity ignores retry-envelope revision but changes with s
   assert.notEqual(fingerprintGameCommand(original), fingerprintGameCommand(differentSession), 'session changes must collide for a globally unique command id');
 });
 
+
+test('semantic fingerprint automatically covers payload-bearing commands and ignores envelope-only fields', () => {
+  const commandIdA = randomUUID();
+  const commandIdB = randomUUID();
+  const baseMeta = { sessionId:'session-a', playerId:'viewer-1', expectedRevision:3 };
+
+  const ghostA = { ...baseMeta, type:'ACTIVATE_GHOST', commandId:commandIdA, cardId:'ghost-a' } as GameCommand;
+  const ghostRetry = { ...baseMeta, type:'ACTIVATE_GHOST', commandId:commandIdB, expectedRevision:99, cardId:'ghost-a' } as GameCommand;
+  const ghostB = { ...baseMeta, type:'ACTIVATE_GHOST', commandId:commandIdA, cardId:'ghost-b' } as GameCommand;
+  const nopeUse = { ...baseMeta, type:'NOPE_REACTION', commandId:commandIdA, useNope:true } as GameCommand;
+  const nopeDecline = { ...baseMeta, type:'NOPE_REACTION', commandId:commandIdA, useNope:false } as GameCommand;
+
+  assert.equal(fingerprintGameCommand(ghostA), fingerprintGameCommand(ghostRetry), 'commandId and expectedRevision are envelope-only');
+  assert.notEqual(fingerprintGameCommand(ghostA), fingerprintGameCommand(ghostB), 'ACTIVATE_GHOST.cardId is semantic payload');
+  assert.notEqual(fingerprintGameCommand(nopeUse), fingerprintGameCommand(nopeDecline), 'NOPE_REACTION.useNope is semantic payload');
+});
+
+test('semantic fingerprint is stable across object property order', () => {
+  const commandId = randomUUID();
+  const first = {
+    sessionId:'session-a',
+    playerId:'viewer-1',
+    expectedRevision:4,
+    commandId,
+    type:'REVIEW_ANSWER',
+    value:'same answer',
+    choice:'A',
+    completionOnly:true,
+  } as GameCommand;
+  const reordered = {
+    completionOnly:true,
+    choice:'A',
+    value:'same answer',
+    type:'REVIEW_ANSWER',
+    commandId:randomUUID(),
+    expectedRevision:999,
+    playerId:'viewer-1',
+    sessionId:'session-a',
+  } as GameCommand;
+
+  assert.equal(fingerprintGameCommand(first), fingerprintGameCommand(reordered));
+});
+
 test('persistent duplicate handling delegates identity to the shared fingerprint and checks command ids globally', async () => {
   const source = await import('node:fs').then(({ readFileSync }) => readFileSync(new URL('../src/game-service.ts', import.meta.url), 'utf8'));
   assert.match(source, /fingerprintGameCommand\(persistedCommand\)/);
   assert.match(source, /fingerprintGameCommand\(command\)/);
   assert.match(source, /select\s+session_id,payload,result\s+from\s+game_commands\s+where\s+command_id=\$1/i);
   assert.doesNotMatch(source, /where\s+command_id=\$1\s+and\s+session_id=\$2/i);
+});
+
+
+test('persistent command ids are serialized before duplicate lookup', async () => {
+  const source = await import('node:fs').then(({ readFileSync }) => readFileSync(new URL('../src/game-service.ts', import.meta.url), 'utf8'));
+  const lockIndex = source.indexOf('pg_advisory_xact_lock(hashtextextended($1, 0))');
+  const lookupIndex = source.indexOf('select session_id,payload,result from game_commands where command_id=$1');
+  assert.ok(lockIndex >= 0, 'global command-id advisory lock must exist');
+  assert.ok(lookupIndex >= 0, 'global command-id duplicate lookup must exist');
+  assert.ok(lockIndex < lookupIndex, 'command-id advisory lock must be acquired before duplicate lookup');
+});
+
+test('CI executes PostgreSQL-backed tests against PostgreSQL 16', async () => {
+  const workflow = await import('node:fs').then(({ readFileSync }) => readFileSync(new URL('../../../.github/workflows/ci.yml', import.meta.url), 'utf8'));
+  assert.match(workflow, /image:\s*postgres:16/);
+  assert.match(workflow, /DATABASE_URL:\s*postgresql:\/\//);
+  assert.match(workflow, /run:\s*npm run migrate:db/);
 });
 
 const dbTest = process.env.DATABASE_URL ? test : test.skip;
@@ -173,6 +233,75 @@ dbTest('a command UUID reused in another session returns COMMAND_ID_COLLISION in
     const secondAfter = await revisionAndRows(secondFixture.sessionId);
     assert.equal(secondAfter.revision, secondStart.revision, 'cross-session collision must not mutate gameplay');
     assert.equal(secondAfter.processed, secondStart.processed, 'cross-session collision must not insert another command row');
+  } finally {
+    await cleanup(firstFixture.roomId, firstFixture.sessionId);
+    await cleanup(secondFixture.roomId, secondFixture.sessionId);
+  }
+});
+
+dbTest('concurrent identical retries with one UUID execute once and both receive the recorded success', async () => {
+  const { owner, sessionId, roomId } = await liveFixture();
+  try {
+    const before = await revisionAndRows(sessionId);
+    const commandId = randomUUID();
+    const command = liveCommand(owner.id, sessionId, { type:'DRAW_CARD', commandId, expectedRevision:before.revision });
+
+    const [first, second] = await Promise.all([
+      processSessionCommand(owner, sessionId, command),
+      processSessionCommand(owner, sessionId, command),
+    ]);
+
+    assert.equal(first.ok, true);
+    assert.equal(second.ok, true);
+    assert.equal(first.commandId, commandId);
+    assert.equal(second.commandId, commandId);
+    assert.equal(first.revision, second.revision, 'concurrent retry must replay the first committed outcome');
+
+    const after = await revisionAndRows(sessionId);
+    assert.equal(after.revision, before.revision + 1, 'identical concurrent retries must advance gameplay once');
+    assert.equal(after.processed, before.processed + 1, 'identical concurrent retries must persist one command row');
+  } finally {
+    await cleanup(roomId, sessionId);
+  }
+});
+
+dbTest('concurrent cross-session UUID reuse yields one success and one controlled collision with one persisted row', async () => {
+  const firstFixture = await liveFixture();
+  const secondFixture = await liveFixture();
+  try {
+    const commandId = randomUUID();
+    const beforeFirst = await revisionAndRows(firstFixture.sessionId);
+    const beforeSecond = await revisionAndRows(secondFixture.sessionId);
+
+    const results = await Promise.all([
+      processSessionCommand(firstFixture.owner, firstFixture.sessionId, liveCommand(firstFixture.owner.id, firstFixture.sessionId, {
+        type:'DRAW_CARD',
+        commandId,
+        expectedRevision:beforeFirst.revision,
+      })),
+      processSessionCommand(secondFixture.owner, secondFixture.sessionId, liveCommand(secondFixture.owner.id, secondFixture.sessionId, {
+        type:'DRAW_CARD',
+        commandId,
+        expectedRevision:beforeSecond.revision,
+      })),
+    ]);
+
+    assert.equal(results.filter(result => result.ok).length, 1, 'exactly one session may own a globally unique command id');
+    const collision = results.find(result => !result.ok);
+    assert.equal(collision?.error?.code, 'COMMAND_ID_COLLISION');
+
+    const [afterFirst, afterSecond] = await Promise.all([
+      revisionAndRows(firstFixture.sessionId),
+      revisionAndRows(secondFixture.sessionId),
+    ]);
+    const totalRevisionAdvance =
+      (afterFirst.revision - beforeFirst.revision) +
+      (afterSecond.revision - beforeSecond.revision);
+    assert.equal(totalRevisionAdvance, 1, 'cross-session UUID race must mutate exactly one game');
+
+    assert.ok(pool);
+    const globalRows = await pool.query('select count(*)::int as n from game_commands where command_id=$1', [commandId]);
+    assert.equal(globalRows.rows[0].n, 1, 'global command id must persist exactly once');
   } finally {
     await cleanup(firstFixture.roomId, firstFixture.sessionId);
     await cleanup(secondFixture.roomId, secondFixture.sessionId);
