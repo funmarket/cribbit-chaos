@@ -36,7 +36,7 @@ Cribbit CHAOS
 | Telegram Mini App Live gameplay | `apps/telegram/src/backendGame.ts` | UNMIGRATED / NOT VERIFIED | Contract- and state-compatible; no verified Mini App runtime in this environment |
 | Browser Telegram Web Login / OIDC | `GET /v1/auth/telegram/web/*` | UNMIGRATED (fails closed) | Endpoints reply `503`/`501`; a browser cookie alone is never authority |
 | Legacy canonical Web board runtime | `packages/legacy-runtime`, `reference/approved-v4-template.html` | COMPATIBILITY REFERENCE | Reachable only through the fixture-preview `runtimeMode: 'legacy-compatibility'` branch |
-| `apps/web/src/canonical-game-runtime.ts` | `apps/web/src` | DEAD / SAFE TO REMOVE (deferred) | Zero importers; recorded as an observation, removal is not authorized yet |
+| `apps/web/src/canonical-game-runtime.ts` | `apps/web/src` | UNKNOWN — PRESERVE | Zero importers and not part of the active authoritative runtime path. Removal is not authorized until ownership, historical product purpose, and migration/replacement status are proven. |
 | Card-system migration tooling and mapping audits | `docs/card-system-*`, `docs/cleanup-manifest.*` | COMPATIBILITY REFERENCE | Historical migration evidence |
 | Old Bible / flyers / approved V4 template / old UI assets | `reference/approved-v4-template.html`, product history | COMPATIBILITY REFERENCE | Product-history evidence only, never gameplay authority |
 | Audio comments / sound effects | not implemented | UNMIGRATED | Product priority: only after gameplay events are stable |

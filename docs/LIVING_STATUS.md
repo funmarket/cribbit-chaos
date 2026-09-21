@@ -83,7 +83,7 @@ Implementation owners: `packages/game-engine/src/validation.ts`, `packages/game-
 | Admin Control Room | UNMIGRATED | `docs/ADMIN_CONTROL_ROOM.md` |
 | Browser Telegram OIDC login | UNMIGRATED | Fails closed (`503`/`501`) |
 | `packages/legacy-runtime` board | COMPATIBILITY REFERENCE | Reachable only via the fixture-preview `legacy-compatibility` branch |
-| `apps/web/src/canonical-game-runtime.ts` | DEAD / SAFE TO REMOVE (deferred) | Zero importers |
+| `apps/web/src/canonical-game-runtime.ts` | UNKNOWN — PRESERVE | Zero importers and not part of the active authoritative runtime path; removal is not authorized until ownership, historical product purpose and migration/replacement status are proven |
 | Old Bible / flyers / V4 template / old UI assets | COMPATIBILITY REFERENCE | Product-history evidence (`docs/HISTORICAL_PRODUCT_EVIDENCE.md`) |
 
 ## Current phase

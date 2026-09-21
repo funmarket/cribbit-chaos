@@ -408,7 +408,7 @@ PR #9 removed the extra direct `canonical-game-runtime.ts` bootstrap from `apps/
 
 Current runtime classification after PR #9:
 
-- `apps/web/src/canonical-game-runtime.ts` is reference/dead for Web boot and must not be imported by `apps/web/index.html`.
+- `apps/web/src/canonical-game-runtime.ts` is reference/dead for Web boot and must not be imported by `apps/web/index.html`. Preservation classification: `UNKNOWN — PRESERVE` (see `docs/LIVING_STATUS.md`) — removal is not authorized until ownership, historical product purpose and migration/replacement status are proven.
 - `packages/legacy-runtime/src/runtime.ts` remains the active transitional board runtime through `bootstrap(... runtimeMode: 'legacy-compatibility')`.
 - `apps/web/src/live-entry.ts` and `apps/web/src/live-session.ts` remain active auth/live-room command bridges.
 

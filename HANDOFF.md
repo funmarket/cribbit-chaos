@@ -44,7 +44,7 @@ git ls-remote origin refs/heads/recovery/single-engine-authority
 
 - Real Telegram Mini App runtime is NOT VERIFIED in this environment (no genuine Telegram-generated `initData`); server-side validation is proven only with locally minted spec-correct signed `initData`.
 - Whole-product verticals are UNMIGRATED: prompt library/create/save, room prompt pool, notifications, moderation advancement answer and recap persistence (see `docs/LIVING_STATUS.md`).
-- Deferred implementation observations (recorded, NOT authorized work): `apps/web/src/canonical-game-runtime.ts` has zero importers; the Live client emits a `game-command` socket event with no server handler; the Truth-or-Chaos flow can deadlock; local Simulation can stall on a special-card interaction expecting human input.
+- Deferred implementation observations (recorded, NOT authorized work): `apps/web/src/canonical-game-runtime.ts` has zero importers and is not part of the active authoritative runtime path — preservation classification `UNKNOWN — PRESERVE`, removal not authorized until ownership, historical product purpose and migration/replacement status are proven; the Live client emits a `game-command` socket event with no server handler; the Truth-or-Chaos flow can deadlock; local Simulation can stall on a special-card interaction expecting human input.
 - Local Simulation safety controls (Pass / Rewind / Nope / Flag) are live-path only.
 
 ## Publication / deployment state

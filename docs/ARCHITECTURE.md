@@ -62,7 +62,7 @@ Hard rules:
 | `apps/web` | Browser presentation: auth/account UI, Live rooms, local QA Simulation entry, safety rail, card/board presentation | ACTIVE |
 | `apps/telegram` | Mini App presentation: onboarding, room setup, Live game view, contextual rule UI, card renderer | ACTIVE (Live path NOT VERIFIED here) |
 | `packages/legacy-runtime` | Old canonical Web board runtime | COMPATIBILITY REFERENCE — reachable only through the fixture-preview `runtimeMode: 'legacy-compatibility'` branch in `packages/ui/src/bootstrap.ts` |
-| `apps/web/src/canonical-game-runtime.ts` | Nothing (zero importers) | DEAD / SAFE TO REMOVE (recorded observation; removal not yet authorized) |
+| `apps/web/src/canonical-game-runtime.ts` | Nothing in the active authoritative runtime path (zero importers) | UNKNOWN — PRESERVE |
 
 ## Client composition (verified)
 
@@ -108,7 +108,7 @@ Current unverified areas: real Telegram Mini App runtime (`initData` cannot be m
 - CHAOS Pulse adaptive draw is implemented in the shared engine; the legacy board is not yet consuming it.
 - Prompt library/pool, answers, recaps, notifications and moderation are unimplemented API verticals with persisted tables already reserved.
 - The Live client emits a `game-command` socket event that the server does not handle; the authoritative path is `POST /v1/games/:sessionId/commands`.
-- `apps/web/src/canonical-game-runtime.ts` has zero importers.
+- `apps/web/src/canonical-game-runtime.ts` — `UNKNOWN — PRESERVE`: Zero importers and not part of the active authoritative runtime path. Removal is not authorized until ownership, historical product purpose, and migration/replacement status are proven.
 - Local Simulation can stall on a special-card interaction that expects human-style input.
 - The Truth-or-Chaos flow can deadlock in `ANSWER_RESOLVE` (`packages/game-engine/src/capabilities.ts`, `reducer.ts`).
 
