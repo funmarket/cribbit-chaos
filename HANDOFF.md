@@ -11,66 +11,79 @@ Recover `funmarket/cribbit-chaos` as ONE Cribbit CHAOS application with TWO fron
 
 Before any task, apply the **Whole-Project Scope and Preservation Rule** in `AGENTS.md`. Cribbit CHAOS is a full application, not a board-only project. A narrow task limits what may be changed; it does **not** limit dependency investigation or whole-product impact analysis. “Not currently wired,” “zero importers,” or “not used by the board” is never sufficient evidence that code or a feature is irrelevant. When ownership, purpose, dependency, or migration/replacement status is not proven, classify it **`UNKNOWN — PRESERVE`** and stop before removal.
 
-## Exact verified local state
+## Verified shared repository state
+
+Fresh shared-state verification before this reconciliation:
 
 ```text
-repository   funmarket/cribbit-chaos
-worktree     C:\Users\GrowB\cribbit-chaos-recovery
-branch       recovery/single-engine-authority
-HEAD         e56936cb1d98344f87f3ca9ee6202cf018e58c27   (published preservation baseline)
-worktree     clean            (verified by `git status --short` and `git diff --check`)
-pushed       YES              (recovery/single-engine-authority published on origin for preservation)
-deployed     no
+repository                                  funmarket/cribbit-chaos
+branch                                      recovery/single-engine-authority
+published tip before this reconciliation    187d0c25b971d00f474a7ffea4ef8a230e7bf793
+RECOVERY-HARDEN-1                           95e4d846d99ad55a6b7181c3b23ebf626a54109b   (published / accepted)
+main                                        964a9162d7d9e1a12acfccc61f0fb88430a8f4ff   (unchanged)
+recovery/single-engine-authority-ci         f384c824a0553d1adceb05ef55612e177967bb1a   (unchanged)
+deployed from recovery branch               NO
 ```
 
-`e56936c` is the published baseline this document was reconciled against (DOC-REBASELINE-1 plus its preservation-classification correction). The RECOVERY-HARDEN-1 commit (live room concurrency) is the local commit after it and is deliberately **not** pushed. Always re-confirm with:
+Published recovery ancestry immediately before this reconciliation:
 
-```sh
-git rev-parse HEAD
-git status --short
-git ls-remote origin refs/heads/recovery/single-engine-authority
+```text
+e56936cb1d98344f87f3ca9ee6202cf018e58c27
+-> 95e4d846d99ad55a6b7181c3b23ebf626a54109b   RECOVERY-HARDEN-1
+-> 187d0c25b971d00f474a7ffea4ef8a230e7bf793   whole-project preservation rule
 ```
+
+GitHub CI evidence: run `35636741098` succeeded on `95e4d846`; run `35640701568` succeeded on `187d0c25` (typecheck, test, build-web, build-telegram, build-api). The Windows Hermes worktree is not shared-state authority and must be freshly inspected before local mutation; do not infer its HEAD or cleanliness from this document.
 
 ## Last completed task
 
-**RECOVERY-HARDEN-1 — live room concurrency hardening.** Two PostgreSQL races found by review of the published branch are fixed with database-level serialization (a room-row lock taken inside the transaction): concurrent joins can no longer push a waiting room past its configured `playerCount`, and concurrent host Start requests can no longer create two ACTIVE sessions (the loser fails with `SESSION_ALREADY_CREATED`). New real-PostgreSQL coverage: `apps/api/test/live-room-concurrency.test.ts`. This commit is local only and unpushed. Before it: the documentation rebaseline (DOC-REBASELINE-1 `2f23997` plus its correction `e56936c`), and before that:
+**RECOVERY-HARDEN-1 — live room concurrency hardening — ACCEPTED / PUBLISHED.** Commit `95e4d846d99ad55a6b7181c3b23ebf626a54109b` fixes the two verified PostgreSQL races with room-row serialization: concurrent joins cannot push a waiting room beyond `playerCount`, and concurrent host Start requests cannot create two ACTIVE sessions (losers return `SESSION_ALREADY_CREATED`). Real-PostgreSQL coverage is in `apps/api/test/live-room-concurrency.test.ts`. Exact GitHub CI run `35636741098` succeeded.
 
-**Special-card play from hand + Voluntary Draw (canonical gameplay-rule reconciliation).**
-`Game_rules.md` sections 51 and 52 (`RULE-SPECIAL-PLAY-001`..`008`, `RULE-VOLUNTARY-DRAW-001`..`007`) with supersession/clarification register entries; implemented in `packages/game-engine/src/validation.ts` (hand legality decided by the actual top Play Pile card), `packages/game-engine/src/reducer.ts` (retired voluntary-draw gate removed, Ghost-turn exception kept), and the retired `allowVoluntaryDraw` production knob removed from `GameConfig`, engine defaults, Live config and Simulation config. Local commit `cb1b1b9289458ddde9709498caf25d4073f60cd3`.
+The latest published documentation/governance change before this reconciliation is `187d0c25b971d00f474a7ffea4ef8a230e7bf793` (**whole-project preservation rule**), with exact GitHub CI run `35640701568` successful. It makes the full application — not only the game board — the mandatory scope for dependency and preservation analysis.
+
+Before RECOVERY-HARDEN-1: DOC-REBASELINE-1 `2f23997` plus preservation correction `e56936c`, and the canonical Special-card play / Voluntary Draw slice `cb1b1b9289458ddde9709498caf25d4073f60cd3`.
 
 ## Current task
 
-None in flight. The branch tip (RECOVERY-HARDEN-1, live room concurrency) is the verified state awaiting owner review; read the exact SHA with `git rev-parse HEAD`. The published baseline is `e56936c`.
+**None in flight after this publication-state reconciliation.** The owner must authorize the next implementation slice.
 
-## Next authorized task
+## Next task / authorization state
 
-**AUTHORITY-GUARD-1** — a machine-enforced rule-ID / change-governance gate (direction recorded in `docs/CHANGE_GOVERNANCE.md`). Then the whole-product ownership/dependency audit. Do not start either from this handoff; they require explicit owner authorization. Pushing the RECOVERY-HARDEN-1 commit also requires explicit authorization.
+**No implementation task is currently authorized.**
+
+Recommended next hardening candidate: **RECOVERY-HARDEN-2 — remove Live client-side gameplay decision authority by moving legality/capability projection to the authoritative server/API boundary.** This is a recommendation only and is **not authorization to implement it**.
+
+**AUTHORITY-GUARD-1 is deferred.** Do not machine-enforce the authority model while known authority contradictions remain. The whole-product ownership/dependency audit remains mandatory before broad deletion or migration decisions.
 
 ## Blockers and known unknowns
 
-- Real Telegram Mini App runtime is NOT VERIFIED in this environment (no genuine Telegram-generated `initData`); server-side validation is proven only with locally minted spec-correct signed `initData`.
-- Whole-product verticals are UNMIGRATED: prompt library/create/save, room prompt pool, notifications, moderation advancement answer and recap persistence (see `docs/LIVING_STATUS.md`).
-- Deferred implementation observations (recorded, NOT authorized work): `apps/web/src/canonical-game-runtime.ts` has zero importers and is not part of the active authoritative runtime path — preservation classification `UNKNOWN — PRESERVE`, removal not authorized until ownership, historical product purpose and migration/replacement status are proven; the Live client emits a `game-command` socket event with no server handler; the Truth-or-Chaos flow can deadlock; local Simulation can stall on a special-card interaction expecting human input.
-- Local Simulation safety controls (Pass / Rewind / Nope / Flag) are live-path only.
+- **Live client-side gameplay decision authority:** Web and Telegram Live paths still import game-engine decision/legal-play helpers. Mutation remains server-owned, but legality/capability projection must be moved to the authoritative server/API boundary before an Authority Guard encodes this architecture.
+- **Truth or Chaos:** the current flow can reach `groupPunishmentPending` without a proven completion path. Whether the instigator also answers and the exact refusal/Pass rule remain unresolved owner decisions; do not invent them.
+- **Command-ID persistence contract:** persistent idempotency and engine collision semantics are not fully reconciled for reused command IDs/different fingerprints/session scope.
+- **Gameplay transport metadata:** active gameplay commands use REST, while stale realtime/action-registry metadata still describes a socket `game-command` path. Caller/ownership archaeology is required before removal or rewriting.
+- **Whole-product recovery:** prompt library/create/save, room prompt pool, notifications, moderation, answers, recap/history and other retained verticals remain UNMIGRATED. Not wired does not mean dead.
+- Real Telegram Mini App runtime remains NOT VERIFIED in this environment (no genuine Telegram-generated `initData`); server validation is proven only with locally minted spec-correct signed data.
+- `apps/web/src/canonical-game-runtime.ts` remains `UNKNOWN — PRESERVE`; zero importers is not removal proof.
+- Local Simulation can stall on a special-card interaction expecting human input; Pass / Rewind / Nope / Flag remain Live-path-only observations.
 
 ## Publication / deployment state
 
-The recovery branch is published on origin for preservation at `e56936c` (authorized non-force push; GitHub Actions run 35627085061 green 5/5). The RECOVERY-HARDEN-1 commit above is **not** pushed and no push of it is authorized yet. No merge and no deployment happened. Remote state:
+The recovery branch is published through the whole-project preservation commit `187d0c25b971d00f474a7ffea4ef8a230e7bf793` before this reconciliation. RECOVERY-HARDEN-1 `95e4d846...` is already published and accepted; it is **not** local-only or awaiting push.
 
 ```text
-origin/main                                   964a9162d7d9e1a12acfccc61f0fb88430a8f4ff
+origin/main                                   964a9162d7d9e1a12acfccc61f0fb88430a8f4ff   (unchanged)
 origin/feature/visual-integration-checkpoint  95febd07e4d739c96843fcc4a02f070eb3c623c0   (deployed production source)
 origin/recovery/single-engine-authority-ci    f384c824a0553d1adceb05ef55612e177967bb1a   (CI anchor)
-origin/recovery/single-engine-authority       e56936cb1d98344f87f3ca9ee6202cf018e58c27   (published for preservation)
+origin/recovery/single-engine-authority       this reconciliation commit; parent 187d0c25b971d00f474a7ffea4ef8a230e7bf793
 ```
 
-Deployment targets remain Cloudflare Pages (Web, Telegram) and Railway (API, PostgreSQL). Production must not be mutated without an explicit owner gate.
+No recovery-branch merge or deployment has occurred. Deployment targets remain Cloudflare Pages (Web, Telegram) and Railway (API, PostgreSQL). Production must not be mutated without an explicit owner gate.
 
 ## Resume instructions
 
-1. `git status --short` and `git diff --check` must both be clean; confirm the branch and `git rev-parse HEAD`.
-2. Read `docs/LIVING_STATUS.md` for the single `CURRENT TASK`, current blocker and next authorized task.
-3. Read the `PLAN.md` roadmap section for the authorized sequence; do not start a later phase early.
-4. Follow `AGENTS.md` mandatory workflow (inspect -> change -> verify -> remove superseded artifacts -> update living docs -> publish -> verify runtime).
-5. Use the deterministic NoDrift / Literal Command Executor discipline for consequential mutations: fresh state -> preflight -> one-time token -> begin -> exactly one logical mutation -> immediate postcheck.
-6. Never push, deploy, merge or mutate remote resources without explicit authorization.
+1. Freshly verify the branch, HEAD, worktree and remote before any local mutation.
+2. Read `docs/LIVING_STATUS.md`, `PLAN.md`, the whole-product preservation rule in `AGENTS.md`, and relevant rule/domain docs.
+3. Treat the earlier `PLAN.md` wording that places `AUTHORITY-GUARD-1` immediately next as stale sequencing, not implementation authorization; owner authorization is required and the guard is deferred pending known hardening contradictions.
+4. Follow `AGENTS.md` mandatory workflow (inspect -> change -> verify -> remove only proven-superseded artifacts -> update living docs -> publish -> verify runtime).
+5. Use deterministic NoDrift / Literal Command Executor discipline for consequential mutations.
+6. Never push, deploy, merge or mutate production resources without explicit authorization.
