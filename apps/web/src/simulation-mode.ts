@@ -7,7 +7,6 @@
  * Explicitly out of scope: persistence, Live semantics, and the known special-card stall.
  */
 import type { CardColor } from '../../../packages/contracts/src/index.ts';
-import { projectDecisionCapabilities } from '../../../packages/game-engine/src/index.ts';
 import { cribbitAuth } from '../../../packages/ui/src/auth-controller.ts';
 import { readRoomCreatePayload, renderLiveSession, toast, type LiveSessionView } from './live-session.ts';
 import {
@@ -30,6 +29,7 @@ export function startLocalSimulationMode(): () => void {
     ? {
       room: { joinCode: SIMULATION_JOIN_CODE },
       state: simulation.getState(),
+      capabilities: simulation.getCapabilities(),
       players: simulation.players.map(player => ({ id: player.id, name: player.name, isHuman: player.isHuman })),
     }
     : null);
@@ -114,7 +114,7 @@ export function startLocalSimulationMode(): () => void {
     if (liveOption?.dataset.liveOptionId) {
       event.preventDefault();
       event.stopImmediatePropagation();
-      const selected = projectDecisionCapabilities(simulation.getState(), simulation.humanPlayerId)
+      const selected = simulation.getCapabilities()
         .options.find(option => option.optionId === liveOption.dataset.liveOptionId);
       if (selected) report(simulation.send(selected.command as SimulationCommand));
       return;

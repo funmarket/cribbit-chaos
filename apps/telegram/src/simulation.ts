@@ -40,6 +40,7 @@ export function createTelegramSimulationGame(draft: TelegramRoomDraft): Telegram
     sessionId,
     joinCode: 'SIMULATION',
     getState: simulation.getState,
+    getCapabilities: simulation.getCapabilities,
     refresh: async () => undefined,
     playCard: async cardId => transitionResult(simulation.playCard(cardId)),
     drawCard: async () => transitionResult(simulation.drawCard()),

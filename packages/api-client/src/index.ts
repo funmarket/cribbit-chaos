@@ -5,6 +5,7 @@ import type {
   ClientConfig,
   CommandResponse,
   GameCommand,
+  PlayerDecisionCapabilities,
   ProfileUpdateRequest,
   SessionSnapshot,
   WaitingRoomResult,
@@ -38,6 +39,7 @@ export interface RoomCreateRequest {
 
 export interface GameSessionSnapshot<TState = unknown> extends SessionSnapshot<TState> {
   players: Array<{ id:string; name:string; isHuman:boolean }>;
+  capabilities: PlayerDecisionCapabilities;
 }
 
 export interface CurrentAuthSession {
@@ -161,7 +163,7 @@ export class CribbitApiClient {
   getSnapshot<TState>(sessionId: string): Promise<GameSessionSnapshot<TState>> {
     return this.request(`/v1/games/${encodeURIComponent(sessionId)}/snapshot`);
   }
-  sendCommand<TState>(command: GameCommand): Promise<CommandResponse<TState>> {
+  sendCommand<TState>(command: GameCommand): Promise<CommandResponse<TState> & { capabilities?: PlayerDecisionCapabilities }> {
     return this.request(`/v1/games/${encodeURIComponent(command.sessionId)}/commands`, { method:'POST', body:JSON.stringify(command) });
   }
 }

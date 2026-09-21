@@ -1,5 +1,4 @@
-import type { CardColor, GameCommand, GameState } from '../../../packages/contracts/src/index.ts';
-import { isLegalPlay, projectDecisionCapabilities } from '../../../packages/game-engine/src/index.ts';
+import type { CardColor, GameCommand, GameState, LegalCommandOption } from '../../../packages/contracts/src/index.ts';
 import type { PlatformAdapter } from '../../../packages/platform/src/types.ts';
 import { renderCribbitCard, renderCribbitCardBack } from './cardRenderer.ts';
 import { hasContextualAction, openContextualRuleUI } from './contextualRuleUI.ts';
@@ -105,7 +104,14 @@ function gameTemplate(
   const human = state.players.find(player => player.id === game.humanPlayerId);
   const current = state.players.find(player => player.id === state.currentPlayerId);
   const discard = state.discardPile[state.discardPile.length - 1];
-  const humanTurn = state.currentPlayerId === game.humanPlayerId;
+  const capabilities = game.getCapabilities();
+  const playableCardIds = new Set(
+    capabilities.options
+      .filter(option => option.presentation.category === 'PLAY_CARD')
+      .map(option => option.presentation.cardInstanceId)
+      .filter((cardId): cardId is string => Boolean(cardId)),
+  );
+  const canDraw = capabilities.options.some(option => option.presentation.category === 'DRAW_CARD');
   const activeState = describeActiveState(state, game);
   const truthDareForHuman = Boolean(
     state.social &&
@@ -169,7 +175,7 @@ function gameTemplate(
           </article>
           <article class="tg-board-zone tg-board-zone--draw">
             <span class="tg-board-zone__label">DRAW PILE<br><small>${state.drawPile.length} cards left</small></span>
-            <button class="tg-deck" type="button" data-action="draw-card" aria-label="Draw a card" aria-disabled="${String(!humanTurn || Boolean(state.social) || Boolean(state.pendingEffect))}">
+            <button class="tg-deck" type="button" data-action="draw-card" aria-label="Draw a card" aria-disabled="${String(!canDraw)}">
               ${renderCribbitCardBack('board')}
             </button>
           </article>
@@ -197,13 +203,13 @@ function gameTemplate(
       ` : ''}
 
       ${state.pendingEffect?.type === 'WILD_COLOR' && state.pendingEffect.playerId === game.humanPlayerId ? wildColorPicker() : ''}
-      ${decisionControls(state, game)}
+      ${decisionControls(game)}
 
       <section class="tg-hand" aria-label="Your hand">
         <div class="tg-section-label"><span>Your Hand</span><strong>${human?.hand.length ?? 0}</strong></div>
         <div class="tg-hand-rail">
           ${(human?.hand ?? []).map(card => renderCribbitCard(card, 'hand', {
-            legal: humanTurn && !state.social && !state.pendingEffect && isLegalPlay(state, game.humanPlayerId, card.id),
+            legal: playableCardIds.has(card.id),
             interactive:true,
           })).join('') || '<p class="tg-hand-empty">Your hand is empty.</p>'}
         </div>
@@ -212,7 +218,7 @@ function gameTemplate(
       <nav class="tg-safety-bar" aria-label="Game actions">
         <button type="button" data-action="safety-pass" aria-disabled="${String(!passEligible)}"><span>↪</span><b>Pass</b></button>
         <button type="button" data-action="safety-rewind" aria-disabled="${String(!rewindEligible)}"><span>↶</span><b>Rewind</b></button>
-        <button type="button" data-action="draw-card" aria-disabled="${String(!humanTurn || Boolean(state.social) || Boolean(state.pendingEffect))}"><span>▱</span><b>Draw</b></button>
+        <button type="button" data-action="draw-card" aria-disabled="${String(!canDraw)}"><span>▱</span><b>Draw</b></button>
       </nav>
 
       <div class="tg-action-status" data-game-status data-tone="${statusTone}" role="status" aria-live="polite">${escapeHTML(statusMessage)}</div>
@@ -284,7 +290,7 @@ function bindGame(
     button.addEventListener('click', async () => {
       const optionId = button.dataset.decisionOptionId;
       if (!optionId) return;
-      const selected = projectDecisionCapabilities(game.getState(), game.humanPlayerId).options.find(option => option.optionId === optionId);
+      const selected = game.getCapabilities().options.find(option => option.optionId === optionId);
       if (!selected) return;
       const result = await game.send(selected.command as GameCommand);
       platform.haptic(result.ok ? 'medium' : 'light');
@@ -334,7 +340,7 @@ function bindPlayActions(
 }
 
 
-function decisionLabel(game: TelegramBackendGame, option: ReturnType<typeof projectDecisionCapabilities>['options'][number]): string {
+function decisionLabel(game: TelegramBackendGame, option: LegalCommandOption): string {
   const presentation = option.presentation;
   const command = option.command;
   if (presentation.category === 'TARGET' && presentation.targetPlayerId) return `Target ${playerName(game, presentation.targetPlayerId)}`;
@@ -351,8 +357,8 @@ function decisionLabel(game: TelegramBackendGame, option: ReturnType<typeof proj
   return command.type.replaceAll('_',' ');
 }
 
-function decisionControls(state: GameState, game: TelegramBackendGame): string {
-  const capabilities = projectDecisionCapabilities(state, game.humanPlayerId);
+function decisionControls(game: TelegramBackendGame): string {
+  const capabilities = game.getCapabilities();
   if (!capabilities.options.length) return '';
   return `
     <section class="tg-wild-picker" aria-label="Required game decision">

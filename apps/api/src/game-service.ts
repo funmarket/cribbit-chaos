@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import type { AuthUser, CommandResponse, GameCommand, GameEvent, GameState, SessionSnapshot, WaitingRoomResult } from '../../../packages/contracts/src/index.ts';
+import type { AuthUser, CommandResponse, GameCommand, GameEvent, GameState, PlayerDecisionCapabilities, SessionSnapshot, WaitingRoomResult } from '../../../packages/contracts/src/index.ts';
 import { applyCommand, chooseBotOption, createGame, projectDecisionCapabilities, projectRoulettePresentation } from '../../../packages/game-engine/src/index.ts';
 import { promptPoolForSources } from '../../../packages/prompts/src/index.ts';
 import { pool, withTransaction } from './db.ts';
@@ -32,6 +32,7 @@ export interface RoomSessionResult {
 
 export interface ProjectedSessionSnapshot extends SessionSnapshot<GameState> {
   players: SessionPlayerView[];
+  capabilities: PlayerDecisionCapabilities;
 }
 
 type StoredRoomConfig = RoomCreateInput & {
@@ -406,6 +407,7 @@ export async function getSessionSnapshot(user: AuthUser, sessionId: string): Pro
     revision: Number(row.revision),
     state: projectStateForPlayer(row.state, user.id),
     players: playerViewsFromState(row.state, row.config ?? {}, user.id),
+    capabilities: projectDecisionCapabilities(row.state, user.id),
     serverTime: new Date().toISOString(),
   };
 }
@@ -428,7 +430,7 @@ function assertLiveCommandId(commandId: unknown): asserts commandId is string {
   }
 }
 
-export async function processSessionCommand(user: AuthUser, sessionId: string, command: GameCommand): Promise<CommandResponse<GameState>> {
+export async function processSessionCommand(user: AuthUser, sessionId: string, command: GameCommand): Promise<CommandResponse<GameState> & { capabilities?: PlayerDecisionCapabilities }> {
   if (command.sessionId !== sessionId) throw Object.assign(new Error('Command session does not match route.'), { code: 'SESSION_MISMATCH', statusCode: 400 });
   if (command.playerId !== user.id) throw Object.assign(new Error('Command player does not match authenticated user.'), { code: 'PLAYER_MISMATCH', statusCode: 403 });
   // Authorized for this session and seat, so the payload identity format is checked here --
@@ -460,11 +462,12 @@ export async function processSessionCommand(user: AuthUser, sessionId: string, c
       await persistEvents(client, sessionId, allEvents);
     }
 
-    const response: CommandResponse<GameState> = {
+    const response: CommandResponse<GameState> & { capabilities: PlayerDecisionCapabilities } = {
       ok: transition.ok,
       commandId: command.commandId,
       revision: finalState.revision,
       state: projectStateForPlayer(finalState, user.id),
+      capabilities: projectDecisionCapabilities(finalState, user.id),
       events: visibleEvents(allEvents, user.id),
       ...(transition.error ? { error: { code: transition.error.code, message: transition.error.message } } : {}),
       ...(transition.idempotentReplay ? { idempotentReplay: true } : {}),

@@ -1,6 +1,5 @@
-import type { Card, CardColor, GameCommand, GameState } from '../../../packages/contracts/src/index.ts';
+import type { Card, CardColor, GameCommand, GameState, LegalCommandOption, PlayerDecisionCapabilities } from '../../../packages/contracts/src/index.ts';
 import { ApiError, CribbitApiClient, CribbitRealtimeClient, type RoomSessionResult, type WaitingRoomResult } from '../../../packages/api-client/src/index.ts';
-import { isLegalPlay, projectDecisionCapabilities } from '../../../packages/game-engine/src/index.ts';
 import { cribbitAuth } from '../../../packages/ui/src/auth-controller.ts';
 import { activateSharedView, type SharedNavigationRoot } from '../../../packages/ui/src/navigation-controller.ts';
 import { openWebAuthDialog } from './web-auth.ts';
@@ -12,6 +11,7 @@ type CommandBody<T = GameCommand> = T extends GameCommand ? Omit<T,'commandId'|'
 type LiveSession = {
   room: RoomSessionResult;
   state: GameState;
+  capabilities: PlayerDecisionCapabilities;
   players: LivePlayer[];
   realtime: CribbitRealtimeClient;
   unsubscribe?: () => void;
@@ -22,6 +22,7 @@ type LiveSession = {
 export type LiveSessionView = {
   room: Pick<RoomSessionResult, 'joinCode'>;
   state: GameState;
+  capabilities: PlayerDecisionCapabilities;
   players: LivePlayer[];
 };
 
@@ -85,7 +86,7 @@ function button(label:string, action:string, extra=''): string {
   return `<button class="button button--sm" type="button" data-live-action="${action}" ${extra}>${escapeHTML(label)}</button>`;
 }
 
-function decisionLabel(session:LiveSessionView, option: ReturnType<typeof projectDecisionCapabilities>['options'][number]): string {
+function decisionLabel(session:LiveSessionView, option: LegalCommandOption): string {
   const presentation = option.presentation;
   const command = option.command;
   if (presentation.category === 'TARGET' && presentation.targetPlayerId) return `Target ${playerName(session,presentation.targetPlayerId)}`;
@@ -103,7 +104,7 @@ function decisionLabel(session:LiveSessionView, option: ReturnType<typeof projec
 }
 
 function decisionControls(session:LiveSessionView, userId:string): string {
-  const capabilities = projectDecisionCapabilities(session.state,userId);
+  const capabilities = session.capabilities;
   if (!capabilities.options.length) return '';
   return `<div class="filter-row">${capabilities.options.map(option => `<button class="button button--sm" type="button" data-live-option-id="${escapeHTML(option.optionId)}">${escapeHTML(decisionLabel(session,option))}</button>`).join('')}</div>`;
 }
@@ -131,7 +132,13 @@ export function renderLiveSession(session:LiveSessionView, userId:string, mode:'
   const current = state.players.find(player => player.id === state.currentPlayerId);
   const top = state.discardPile.at(-1);
   const active = activeStateCopy(session);
-  const humanTurn = state.currentPlayerId === userId && !state.social && !state.pendingEffect;
+  const playableCardIds = new Set(
+    session.capabilities.options
+      .filter(option => option.presentation.category === 'PLAY_CARD')
+      .map(option => option.presentation.cardInstanceId)
+      .filter((cardId): cardId is string => Boolean(cardId)),
+  );
+  const canDraw = session.capabilities.options.some(option => option.presentation.category === 'DRAW_CARD');
 
   const roomName = document.querySelector<HTMLElement>('#gameRoomName');
   if (roomName) roomName.textContent = local ? `Local ${session.room.joinCode}` : `Room ${session.room.joinCode}`;
@@ -161,7 +168,7 @@ export function renderLiveSession(session:LiveSessionView, userId:string, mode:'
   }).join('');
 
   const hand = document.querySelector<HTMLElement>('#handScroll');
-  if (hand) hand.innerHTML = human?.hand.map(card => renderCard(card,true,isLegalPlay(state,userId,card.id), boardCopy)).join('') || '<div class="empty-state"><h3>Empty hand</h3><p>Awaiting authoritative win check.</p></div>';
+  if (hand) hand.innerHTML = human?.hand.map(card => renderCard(card,true,playableCardIds.has(card.id), boardCopy)).join('') || '<div class="empty-state"><h3>Empty hand</h3><p>Awaiting authoritative win check.</p></div>';
   const handCount = document.querySelector<HTMLElement>('#handCount');
   if (handCount) handCount.textContent = `${human?.hand.length ?? 0} cards`;
   const discard = document.querySelector<HTMLElement>('#discardSlot');
@@ -170,7 +177,7 @@ export function renderLiveSession(session:LiveSessionView, userId:string, mode:'
   const drawCount = document.querySelector<HTMLElement>('#drawPileCount');
   if (drawCount) drawCount.textContent = `${state.drawPile.length} left`;
   const drawButton = document.querySelector<HTMLButtonElement>('#drawButton');
-  if (drawButton) drawButton.setAttribute('aria-disabled',String(!humanTurn));
+  if (drawButton) drawButton.setAttribute('aria-disabled',String(!canDraw));
 
   const pass = document.querySelector<HTMLButtonElement>('[data-action="safety-pass"]');
   if (pass) pass.setAttribute('aria-disabled',String(!(state.social && state.social.actorId === userId && ['truth','dare'].includes(state.social.cardKind))));
@@ -316,13 +323,14 @@ export function startWebLiveRooms(api:CribbitApiClient): () => void {
     live?.realtime.disconnect();
     const snapshot = await api.getSnapshot<GameState>(room.sessionId);
     const realtime = new CribbitRealtimeClient(api.config);
-    live = { room, state:snapshot.state, players:snapshot.players, realtime };
+    live = { room, state:snapshot.state, capabilities:snapshot.capabilities, players:snapshot.players, realtime };
     const socket = realtime.connect();
     const refresh = async (payload:{sessionId?:string}) => {
       if (!live || payload.sessionId !== live.room.sessionId) return;
       try {
         const next = await api.getSnapshot<GameState>(live.room.sessionId);
         live.state = next.state;
+        live.capabilities = next.capabilities;
         live.players = next.players;
         renderLiveSession(live,auth.user.id);
       } catch (error) { console.warn('[Cribbit] Web live snapshot refresh failed.',error); }
@@ -346,8 +354,15 @@ export function startWebLiveRooms(api:CribbitApiClient): () => void {
     } as GameCommand;
     try {
       const response = await api.sendCommand<GameState>(command);
-      if (response.state) live.state = response.state;
-      else live.state = (await api.getSnapshot<GameState>(live.room.sessionId)).state;
+      if (response.state && response.capabilities) {
+        live.state = response.state;
+        live.capabilities = response.capabilities;
+      } else {
+        const snapshot = await api.getSnapshot<GameState>(live.room.sessionId);
+        live.state = snapshot.state;
+        live.capabilities = snapshot.capabilities;
+        live.players = snapshot.players;
+      }
       renderLiveSession(live,auth.user.id);
       if (!response.ok) toast('Action rejected',response.error?.message || 'The shared game rejected that action.');
     } catch (error) {
@@ -355,6 +370,7 @@ export function startWebLiveRooms(api:CribbitApiClient): () => void {
       try {
         const snapshot = await api.getSnapshot<GameState>(live.room.sessionId);
         live.state = snapshot.state;
+        live.capabilities = snapshot.capabilities;
         live.players = snapshot.players;
         renderLiveSession(live,auth.user.id);
       } catch { /* preserve last known state */ }
@@ -411,7 +427,7 @@ export function startWebLiveRooms(api:CribbitApiClient): () => void {
     if (liveOption?.dataset.liveOptionId) {
       const auth = cribbitAuth.current;
       const userId = auth.status === 'AUTHENTICATED' ? auth.user.id : '';
-      const selected = projectDecisionCapabilities(live.state,userId).options.find(option => option.optionId === liveOption.dataset.liveOptionId);
+      const selected = live.capabilities.options.find(option => option.optionId === liveOption.dataset.liveOptionId);
       if (selected) return void send(selected.command as CommandBody);
       return;
     }

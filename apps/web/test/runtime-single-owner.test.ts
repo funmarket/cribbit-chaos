@@ -75,14 +75,27 @@ test('Web live room controls never invent stale social-card actions outside shar
   assert.doesNotMatch(liveSource, /otherPlayers\.map\(player => button\(`Target/);
 });
 
-test('Web live room controls render and submit shared capability buttons', () => {
+test('Live clients consume server-projected capabilities instead of importing gameplay decision logic', () => {
   const liveSource = read('apps/web/src/live-session.ts');
+  const simulationSource = read('apps/web/src/simulation-mode.ts');
+  const telegramViewSource = read('apps/telegram/src/gameView.ts');
+  const telegramBackendSource = read('apps/telegram/src/backendGame.ts');
+  const gameServiceSource = read('apps/api/src/game-service.ts');
 
-  assert.match(liveSource, /function decisionControls\(session:LiveSessionView, userId:string\): string \{\n  const capabilities = projectDecisionCapabilities\(session\.state,userId\);/);
-  assert.match(liveSource, /capabilities\.options\.map\(option => `<button class="button button--sm" type="button" data-live-option-id="\$\{escapeHTML\(option\.optionId\)\}">/);
-  assert.match(liveSource, /const liveOption = target\.closest<HTMLElement>\('\[data-live-option-id\]'\);/);
-  assert.match(liveSource, /const selected = projectDecisionCapabilities\(live\.state,userId\)\.options\.find\(option => option\.optionId === liveOption\.dataset\.liveOptionId\);\n      if \(selected\) return void send\(selected\.command as CommandBody\);/);
-  assert.doesNotMatch(liveSource, /return '<span class="tag" data-tone="cyan">Shared special-card flow in progress<\/span>';/);
+  assert.match(liveSource, /const capabilities = session\.capabilities;/);
+  assert.match(liveSource, /const selected = live\.capabilities\.options\.find/);
+  assert.doesNotMatch(liveSource, /packages\/game-engine|\bisLegalPlay\b|\bprojectDecisionCapabilities\b/);
+
+  assert.match(simulationSource, /capabilities: simulation\.getCapabilities\(\)/);
+  assert.doesNotMatch(simulationSource, /packages\/game-engine|\bprojectDecisionCapabilities\b/);
+
+  assert.match(telegramBackendSource, /let capabilities = snapshot\.capabilities;/);
+  assert.match(telegramViewSource, /const capabilities = game\.getCapabilities\(\);/);
+  assert.match(telegramViewSource, /const selected = game\.getCapabilities\(\)\.options\.find/);
+  assert.doesNotMatch(telegramViewSource, /packages\/game-engine|\bisLegalPlay\b|\bprojectDecisionCapabilities\b/);
+
+  assert.match(gameServiceSource, /capabilities: projectDecisionCapabilities\(row\.state, user\.id\)/);
+  assert.match(gameServiceSource, /capabilities: projectDecisionCapabilities\(finalState, user\.id\)/);
 });
 
 test('production Web cannot re-acquire client gameplay authority', () => {

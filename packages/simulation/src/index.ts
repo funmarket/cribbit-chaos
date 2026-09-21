@@ -15,8 +15,9 @@ import type {
   GameCommand,
   GameState,
   GameTransition,
+  PlayerDecisionCapabilities,
 } from '../../../packages/contracts/src/index.ts';
-import { applyCommand, chooseBotOption, createGame } from '../../../packages/game-engine/src/index.ts';
+import { applyCommand, chooseBotOption, createGame, projectDecisionCapabilities } from '../../../packages/game-engine/src/index.ts';
 import { promptPoolForSources } from '../../../packages/prompts/src/index.ts';
 
 export type SimulationCommand<T = GameCommand> = T extends GameCommand
@@ -47,6 +48,7 @@ export interface SimulationSession {
   readonly humanPlayerId: string;
   readonly players: readonly SimulationPlayer[];
   getState(): GameState;
+  getCapabilities(): PlayerDecisionCapabilities;
   playCard(cardId: string): GameTransition<GameState>;
   drawCard(): GameTransition<GameState>;
   selectWildColor(color: CardColor): GameTransition<GameState>;
@@ -235,6 +237,7 @@ export function createSimulation(config: SimulationConfig): SimulationSession {
     humanPlayerId: SIMULATION_HUMAN_PLAYER_ID,
     players,
     getState: () => state,
+    getCapabilities: () => projectDecisionCapabilities(state, SIMULATION_HUMAN_PLAYER_ID),
     playCard: cardId => send({ type: 'PLAY_CARD', cardId } as SimulationCommand),
     drawCard: () => send({ type: 'DRAW_CARD' } as SimulationCommand),
     selectWildColor: color => send({ type: 'SELECT_WILD_COLOR', color } as SimulationCommand),

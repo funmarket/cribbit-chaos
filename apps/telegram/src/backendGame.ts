@@ -1,4 +1,4 @@
-import type { CardColor, GameCommand, GameState } from '../../../packages/contracts/src/index.ts';
+import type { CardColor, GameCommand, GameState, PlayerDecisionCapabilities } from '../../../packages/contracts/src/index.ts';
 import { CribbitApiClient, CribbitRealtimeClient, type RoomSessionResult } from '../../../packages/api-client/src/index.ts';
 
 type CommandMetaKeys = 'commandId' | 'playerId' | 'expectedRevision' | 'sessionId';
@@ -18,6 +18,7 @@ export interface TelegramBackendGame {
   readonly sessionId: string;
   readonly joinCode: string;
   getState(): GameState;
+  getCapabilities(): PlayerDecisionCapabilities;
   refresh(): Promise<void>;
   playCard(cardId: string): Promise<TelegramGameResult>;
   drawCard(): Promise<TelegramGameResult>;
@@ -40,12 +41,14 @@ export async function createTelegramBackendGame(
 ): Promise<TelegramBackendGame> {
   let snapshot = await api.getSnapshot<GameState>(room.sessionId);
   let state = snapshot.state;
+  let capabilities = snapshot.capabilities;
   let players: TelegramBackendPlayer[] = snapshot.players.length ? snapshot.players : room.players;
   const realtime = new CribbitRealtimeClient(api.config);
 
   const refresh = async (): Promise<void> => {
     snapshot = await api.getSnapshot<GameState>(room.sessionId);
     state = snapshot.state;
+    capabilities = snapshot.capabilities;
     players = snapshot.players.length ? snapshot.players : players;
   };
 
@@ -59,8 +62,12 @@ export async function createTelegramBackendGame(
     } as GameCommand;
 
     const response = await api.sendCommand<GameState>(command);
-    if (response.state) state = response.state;
-    else await refresh();
+    if (response.state && response.capabilities) {
+      state = response.state;
+      capabilities = response.capabilities;
+    } else {
+      await refresh();
+    }
     return { ok:response.ok, ...(response.error ? { error:{ message:response.error.message } } : {}) };
   };
 
@@ -89,6 +96,7 @@ export async function createTelegramBackendGame(
     sessionId:room.sessionId,
     joinCode:room.joinCode,
     getState:() => state,
+    getCapabilities:() => capabilities,
     refresh,
     playCard:cardId => send({ type:'PLAY_CARD', cardId }),
     drawCard:() => send({ type:'DRAW_CARD' }),
