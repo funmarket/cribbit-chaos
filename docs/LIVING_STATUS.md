@@ -18,6 +18,10 @@ Web client / Telegram client
 
 The original damage was split gameplay authority (duplicate client runtimes). The recovery removes duplicate authority, restores real multiplayer, and keeps one canonical identity model (`users.id`). Whole-product scope (accounts, rooms, prompts, answers, recaps, moderation, control room) is preserved even where unmigrated — see `docs/PRODUCT_SCOPE.md`.
 
+## Mandatory whole-project preservation gate
+
+All work is governed by the **Whole-Project Scope and Preservation Rule** in `AGENTS.md`. Cribbit CHAOS must be evaluated as the complete product — Identity/Accounts, Rooms, Gameplay, Prompts, Libraries, Creation/Moderation, Call/Answers, Recap/History, Search/Notifications/Profile, Admin/Control Room, QA/Simulation, Web, Telegram, API, Realtime, and Database. A narrow task limits mutation scope, never investigation or dependency awareness. Unwired/unimported/unmigrated code is not dead by default; uncertainty means **`UNKNOWN — PRESERVE`** until whole-project ownership, purpose, dependencies, and migration/replacement state are proven.
+
 ## Verified local state
 
 ```text

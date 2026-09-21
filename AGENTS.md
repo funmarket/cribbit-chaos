@@ -2,6 +2,158 @@
 
 This file is the mandatory operating contract and the entry point for any agent resuming the repository.
 
+**CRITICAL: Read the Whole-Project Scope and Preservation Rule below before touching any file. Cribbit CHAOS is a full product, not a board-only project. A narrow task limits mutation scope, never investigation or dependency awareness.**
+
+## CRITICAL — whole-project scope and preservation rule
+
+**Cribbit CHAOS is a complete application. It is NOT merely a card-game board or gameplay engine.**
+
+The board is one subsystem inside a larger product that includes, at minimum: **Web, Telegram Mini App, Identity/Accounts, Profiles, Lobby, Rooms, Multiplayer Sessions, Gameplay, Prompts/Content, Libraries, Saved Content, Creation, Moderation, Call Mode, Answers, Recaps/History, Search, Notifications, Admin/Control Room, QA/Simulation, API services, Realtime, PostgreSQL persistence, shared contracts, navigation, UI/UX, and deployment/runtime wiring.**
+
+**A narrow task limits mutation scope. It never limits investigation, dependency awareness, or whole-product impact analysis.**
+
+### Never judge code in isolation
+
+Before modifying, replacing, moving, refactoring, classifying, or deleting any code, file, route, table, component, package, test, configuration, asset, or document, the agent MUST determine its role in the **whole application**.
+
+Inspect, as applicable:
+
+- the actual source implementation;
+- imports and exports;
+- callers and consumers;
+- runtime entrypoints;
+- Web usage;
+- Telegram usage;
+- API routes and domain services;
+- shared contracts;
+- game-engine dependencies;
+- PostgreSQL persistence;
+- realtime/event usage;
+- UI controls and navigation;
+- tests and fixtures;
+- related documentation;
+- historical product purpose;
+- replacement/migration status;
+- upstream and downstream dependencies.
+
+**Do not make a removal or ownership decision from a filename, one grep result, one import search, one test, one page, or one current runtime path.**
+
+### “Not currently used” does not mean “irrelevant”
+
+None of the following proves that something is dead or safe to remove:
+
+- zero current importers;
+- not currently wired;
+- not visible in the current UI;
+- not used by the game board;
+- not used by Web;
+- not used by Telegram;
+- no current test coverage;
+- an old or legacy-looking filename;
+- a disabled route;
+- a feature returning `501`;
+- an incomplete migration;
+- another implementation appearing to replace it;
+- the feature not being needed for the current narrow task.
+
+A surface may belong to another product domain, an unfinished migration, a compatibility path, a future approved phase, or preserved historical product behavior.
+
+**Absence from the active game-board path is never proof that something is dead.**
+
+### Preserve when uncertain
+
+Every questionable surface must be classified using the approved preservation model:
+
+- `ACTIVE`
+- `REPLACED / MIGRATING`
+- `UNMIGRATED`
+- `COMPATIBILITY REFERENCE`
+- `DEAD — PROVEN`
+- `UNKNOWN — PRESERVE`
+
+If ownership, purpose, dependency, migration status, or replacement status cannot be proven:
+
+**CLASSIFY IT AS `UNKNOWN — PRESERVE`.**
+
+Do not delete it. Do not rewrite it as cleanup. Do not silently exclude it from the product.
+
+### Deletion requires whole-project proof
+
+Nothing may be classified as dead or safe to remove merely because it is unused by the current task.
+
+Before removal, establish evidence that the item:
+
+1. has no active runtime owner;
+2. has no Web consumer;
+3. has no Telegram consumer;
+4. has no API/database/realtime dependency;
+5. has no product feature depending on it;
+6. has no unfinished migration depending on it;
+7. has no compatibility/reference purpose;
+8. has no relevant test or build dependency;
+9. has a proven replacement where applicable;
+10. is not part of preserved historical product behavior; and
+11. is explicitly authorized for removal.
+
+If any required point is unknown:
+
+**STOP — PRESERVE — REPORT.**
+
+### Every narrow fix requires a whole-app impact check
+
+Before approving any meaningful change, inspect whether it can affect:
+
+**Identity → Rooms → Gameplay → Prompts → Libraries → Creation/Moderation → Call/Answers → Recap/History → Search/Notifications/Profile → Admin/Control Room → QA/Simulation → Web → Telegram → API → Realtime → Database.**
+
+Only domains genuinely affected by the task may be changed, but relevant dependency boundaries MUST be checked before deciding that neighboring domains are unaffected.
+
+**Never fix the game board by breaking another part of Cribbit.**
+
+**Never fix Web by creating Telegram drift.**
+
+**Never fix a client by duplicating backend authority.**
+
+**Never fix the API by breaking persistence assumptions.**
+
+**Never fix one feature by silently removing another feature.**
+
+### Trace behavior to its authority
+
+Before changing behavior, determine which source owns it:
+
+- gameplay meaning → `Game_rules.md`;
+- product scope → approved product/living documentation;
+- architecture → architecture authority documents;
+- persistence → verified database/schema implementation;
+- UI behavior → verified product UI/source;
+- runtime behavior → current source and authoritative backend.
+
+Historical material may provide product evidence but must not silently override current authority.
+
+If authorities materially conflict and there is no explicit precedence rule:
+
+**STOP AND REPORT THE CONFLICT. DO NOT GUESS.**
+
+### Do not confuse migration status with product scope
+
+`UNMIGRATED` means the feature belongs to Cribbit but has not yet been cleanly migrated.
+
+It does **not** mean obsolete, unnecessary, optional, dead, or safe to delete.
+
+The purpose of recovery is to rebuild the **whole product cleanly**, not to shrink Cribbit into whatever subset currently happens to work.
+
+### Required pre-change question
+
+Before every consequential change, the agent must be able to answer:
+
+> **What owns this behavior, who consumes it, what depends on it, what does it depend on, what other product domains could this change affect, and what evidence proves the proposed change will not remove or corrupt another Cribbit feature?**
+
+If that answer is incomplete:
+
+**DO NOT MUTATE YET. INSPECT FIRST.**
+
+The project goal is **one clean, scalable, complete Cribbit CHAOS application preserving the full approved product — not merely a functioning card table.**
+
 ## Resume order — mandatory
 
 Read in this order before touching anything:
