@@ -1,11 +1,82 @@
 # Button Map
 
-The shared UI audit found 103 static buttons, 56 literal actions, and 57 registry assignments. There are no missing assignments, unclassified buttons, buttons without an explicit type, duplicate IDs, or inline event handlers.
+Ownership of every UI control: which controls mutate gameplay, which call the API, which are client-local, and which are QA/dev-only. This file records wiring that has actually been verified in source; it must not describe wiring nobody has implemented.
 
-Mapping policy:
+## Machine-readable source
 
-- gameplay mutations map to `SERVER_COMMAND` or `REALTIME`
-- navigation, tabs, dialogs, filters, and display-only controls map to `CLIENT_UI`
-- backend-reserved actions remain registered and are not treated as local gameplay authority
+- `docs/button-audit.json` — output of `npm run audit:ui`.
+- `packages/action-registry/src/index.ts` — the action -> backend-class assignment table.
 
-`button-audit.json` is the machine-readable audit output. Re-run `npm run audit:ui` after changing the shared UI.
+Current audit result:
+
+```text
+source                     packages/ui/src/template.html + packages/legacy-runtime/src/runtime.ts
+static buttons             103
+actions discovered         56
+actions assigned           57
+missing assignments        0
+unclassified buttons       0
+buttons without type       0
+duplicate ids              0
+inline handlers            0
+```
+
+Re-run `npm run audit:ui` after any shared-UI change; the audit is a gate, not decoration.
+
+## Backend classes (`packages/action-registry`)
+
+| Class | Meaning |
+|---|---|
+| `game-command` | Mutates gameplay. Must reach the authoritative engine through the API command path (`POST /v1/games/:sessionId/commands`). |
+| `rest` | Mutates or reads domain data through a REST route (rooms, prompts, moderation, identity). |
+| `realtime` | Uses the realtime channel. In Cribbit CHAOS realtime is a change-intent channel; authoritative state is refetched. |
+| `client-only` | Presentation only: tabs, dialogs, layout, local drafts, display of already-authorized state. Never gameplay authority. |
+| `dev-only` | QA/dev surfaces: fixture cycling, local QA log reset. Never part of product behaviour. |
+
+Mapping policy (also recorded in `docs/button-audit.json`):
+
+- gameplay mutations map to `SERVER_COMMAND`/`game-command` or `realtime`;
+- navigation, tabs, dialogs, filters and display-only controls map to `client-only`;
+- backend-reserved actions stay registered so no control is mistaken for a missing route.
+
+## Surface classification
+
+### ACTIVE product surfaces (Web Live and account flows)
+
+| Surface | Control | Backend class | Notes |
+|---|---|---|---|
+| Room lifecycle | create room, join by code, host start | `rest` | `POST /v1/rooms`, `POST /v1/rooms/join`, `POST /v1/rooms/:roomId/start` |
+| Gameplay | play card, draw, choose Wild colour, answer-mode, complete flow, Nope reaction, Ghost activation, social targets/votes | `game-command` | Authoritative engine path only |
+| Live safety controls | Pass / Rewind / Nope / Flag | `game-command` | Live only; not wired into local Simulation |
+| Account | register, login, logout, profile update, Telegram onboarding, link code, Web credential attach | `rest` | One canonical `users.id`; linking is explicit |
+| Navigation and layout | page navigation, dialogs, drawers, filters | `client-only` | `packages/ui/src/navigation-controller.ts` |
+
+### QA/local surfaces (not product behaviour)
+
+| Surface | Control | Class | Notes |
+|---|---|---|---|
+| Web local QA Simulation | `#startGameButton` | `client-only` | Locked product decision: local QA Simulation, **not** Live host Start; runs `packages/simulation` in memory |
+| Visual fixture preview | fixture cycling, QA log reset | `dev-only` | `?compat=1&fixture=1` on Telegram boots the fixture preview through `runtimeMode: 'legacy-compatibility'` |
+
+### UNMIGRATED surfaces (registered, backend answers 501 or is absent)
+
+| Surface | Expected route | Current state |
+|---|---|---|
+| Prompt library create/read | `POST /v1/prompts`, `GET /v1/prompts/:promptId` | `501 PROMPTS_NOT_MIGRATED` |
+| Save prompt | `POST /v1/prompts/:promptId/save` | `501 SAVED_PROMPTS_NOT_MIGRATED` |
+| Room prompt pool add/remove | `POST`/`DELETE /v1/rooms/:roomId/prompt-pool/:promptId` | `501 PROMPT_POOL_NOT_MIGRATED` |
+| Moderation advance | `POST /v1/moderation/submissions/:submissionId/advance` | `501 MODERATION_NOT_MIGRATED` |
+| Notifications | `GET /v1/me/notifications` | `501 NOTIFICATIONS_NOT_MIGRATED` |
+| Admin Control Room | not implemented | See `docs/ADMIN_CONTROL_ROOM.md` |
+
+### UNKNOWN — PRESERVE
+
+- Controls that exist only inside `packages/legacy-runtime/src/runtime.ts` and are reachable only through the fixture-preview branch have not been individually re-verified against current product intent. Preserve; do not delete; do not document them as product behaviour.
+- The Live client emits a `game-command` socket event that the server does not handle. It is a dead client channel: the authoritative path is `POST /v1/games/:sessionId/commands`. Recorded as an observation; changing it is not authorized.
+
+## Rules for UI work
+
+1. Every visible gameplay control must map to one implemented, authoritative command; never implement gameplay locally in a client.
+2. Disabled/enabled state must derive from the authoritative projection, not from client-side rule reimplementation.
+3. New controls require an action-registry entry and a re-run of `npm run audit:ui`.
+4. Do not invent wiring in this document: if a surface has not been verified in source or runtime, list it as `UNKNOWN — PRESERVE`.

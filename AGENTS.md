@@ -1,5 +1,40 @@
 # Cribbit CHAOS Agent Rules
 
+This file is the mandatory operating contract and the entry point for any agent resuming the repository.
+
+## Resume order — mandatory
+
+Read in this order before touching anything:
+
+```text
+AGENTS.md                     (this operating contract)
+HANDOFF.md                    (concise operational resume point: branch, SHA, task, blockers)
+docs/LIVING_STATUS.md         (the single execution ledger: CURRENT TASK, blockers, next task)
+PLAN.md                       (detailed roadmap; the authorized phase/task)
+relevant rule/domain docs     (Game_rules.md and the docs/ rule-decision records)
+source                        (the code that actually implements the claim)
+```
+
+Documentation set and ownership:
+
+| Document | Owns |
+|---|---|
+| `AGENTS.md` | Operating contract, reading order, engineering rules |
+| `HANDOFF.md` | Concise operational handoff (branch/SHA, last task, current task, next task, blockers, publication state, resume steps) |
+| `docs/LIVING_STATUS.md` | Central execution ledger: verified state, completed slices, whole-product status, one CURRENT TASK, checks, unknowns, publication state |
+| `PLAN.md` | Detailed roadmap truth, phase sequence, blockers |
+| `README.md` | What the repository is, architecture/runtime model, layout, how to run/build/test |
+| `Game_rules.md` | Canonical gameplay meaning and permanent rule IDs |
+| `docs/PRODUCT_SCOPE.md` | Whole-product scope and preservation classifications |
+| `docs/CHANGE_GOVERNANCE.md` | Authority chain, rule-ID governance, preservation classes, future Authority Guard direction |
+| `docs/ARCHITECTURE.md` | Verified ownership and dependency direction |
+| `docs/DATABASE.md` | Canonical persistence model and its prohibitions |
+| `docs/BUTTON_MAP.md` | UI/action ownership and surface classification |
+| `docs/ADMIN_CONTROL_ROOM.md` | Operator control-plane scope and boundary |
+| `docs/HISTORICAL_PRODUCT_EVIDENCE.md` | Preservation/product-history evidence that is never rule authority |
+
+Gameplay meaning is owned by `Game_rules.md` alone. Other documents may cite rule IDs and explain ownership; they must never restate gameplay semantics as competing rule truth.
+
 ## Mandatory operating workflow
 
 Every implementation slice must follow this sequence, in order:
@@ -24,14 +59,15 @@ Changes intended for the product must be committed to GitHub before they are con
 
 ## Living-document synchronization rule
 
-The following four files are mandatory synchronized project-control documents:
+The mandatory synchronized project-control documents are:
 
 - `README.md` — what the repository is and the current architecture/runtime model
 - `PLAN.md` — implementation sequence, blockers, completed slices, and the single current next task
 - `AGENTS.md` — mandatory engineering/workflow rules
-- `docs/LIVING_STATUS.md` — concise verified current state, active branch/head, runtime status, known blockers, and immediate focus
+- `HANDOFF.md` — concise operational resume point for the next agent
+- `docs/LIVING_STATUS.md` — the single execution ledger with exactly one CURRENT TASK
 
-Whenever a completed slice changes architecture, current status, runtime ownership, blockers, next task, or engineering rules, update all affected members of this set in the same work.
+Whenever a completed slice changes architecture, current status, runtime ownership, blockers, next task, or engineering rules, update all affected members of this set in the same work, plus every affected technical/operational document (`docs/PRODUCT_SCOPE.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE.md`, `docs/BUTTON_MAP.md`, `docs/CHANGE_GOVERNANCE.md`).
 
 Do not allow one of these documents to describe a different project state from the others.
 
@@ -115,21 +151,11 @@ Do not preserve inferior Telegram-only card artwork merely because it exists. Re
 
 Playable hand inventory and gameplay behavior must come from shared canonical code, not client-local deck builders.
 
-The intended playable families are:
+Canonical playable inventory and composition are owned by `Game_rules.md` (deck `CHAOS-133-V1`) and implemented by `packages/cards` + `packages/game-engine`. Do not restate the deck or its gameplay meaning in this file, in the clients, or in client-local deck builders.
 
-- number/color cards
-- Skip
-- Reverse
-- Draw
-- Wild
-- Truth
-- Dare
-- Paranoia
-- Chaos
-- Duel
-- Nope
+Pass, Rewind, Flag, Spice Dial, Speak, Type, Choose, and Answered Live are controls/systems, not hand-card inventory (see `docs/BUTTON_MAP.md`).
 
-Pass, Rewind, Flag, Spice Dial, Speak, Type, Choose, and Answered Live are controls/systems, not hand-card inventory.
+Rule-ID governance, supersession rules and preservation classifications are defined in `docs/CHANGE_GOVERNANCE.md`.
 
 Never duplicate deck composition, legal-play rules, card behavior, `GameCommand`, `GameEvent`, prompt rules, or win logic between Web and Telegram.
 
@@ -243,7 +269,8 @@ A task is complete only when all applicable items are true:
 - source change is complete
 - required tests/builds pass
 - duplicate/stale artifacts introduced or superseded by the change are removed or explicitly justified
-- `README.md`, `PLAN.md`, `AGENTS.md`, and `docs/LIVING_STATUS.md` agree with verified reality
+- `README.md`, `PLAN.md`, `AGENTS.md`, `HANDOFF.md`, and `docs/LIVING_STATUS.md` agree with verified reality, with exactly one `CURRENT TASK` and no competing current-state narrative
+- gameplay meaning is not restated as competing truth outside `Game_rules.md`
 - affected technical docs are current
 - the change is committed/published through GitHub
 - actual runtime/deployment behavior is verified when the slice affects runtime

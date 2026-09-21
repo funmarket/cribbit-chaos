@@ -1,77 +1,115 @@
 # Architecture
 
-This is a living architecture document. Update it whenever the verified deployment model, authority boundary, auth flow, or shared-data model changes.
+Verified ownership and dependency direction. Update this file whenever the deployment model, ownership boundary, auth flow, or shared-data boundary changes.
 
-Cribbit CHAOS is one multiplayer platform with two clients: `apps/web` and `apps/telegram`. Both clients are presentation layers over the same Railway backend, realtime transport, and Railway PostgreSQL data model.
+Gameplay meaning is owned by `Game_rules.md`; this file explains who may implement or render it, not what it means.
 
-GitHub is the canonical source of truth for deployable source and project documentation.
-
-## Current deployment architecture
+## Deployment architecture
 
 ```text
-GitHub
+GitHub (canonical source)
   |
-  +--> Cloudflare Pages Web
+  +--> Cloudflare Pages: Web client
   |
-  +--> Cloudflare Pages Telegram
-              \
-               Railway API
-                   |
-            Railway PostgreSQL
+  +--> Cloudflare Pages: Telegram Mini App
+                 \
+                  Railway API (Node, Fastify + Socket.IO)
+                       |
+                  Railway PostgreSQL (one database)
 ```
 
-Primary live frontend hosts:
+- Web host: `https://cribbit-chaos-web.pages.dev`
+- Telegram host: `https://cribbit-chaos-telegram.pages.dev`
+- API: `https://api-production-2556.up.railway.app`
+- Railway project `Cribbit Chaos` (`e2b0a674-43d9-4aac-ad8d-3e72b3ff486f`), PostgreSQL service `951b9c62-7cd3-404b-b9f0-c93e2c2a51d7`
+- The separate Railway project `Cribbit` (`1440dc2c-e7fd-4bee-8ef7-57e663b8c735`) belongs to another product and must never be used for Cribbit CHAOS.
 
-- Web: `https://cribbit-chaos-web.pages.dev`
-- Telegram: `https://cribbit-chaos-telegram.pages.dev`
+Recovery work is LOCAL ONLY: nothing from `recovery/single-engine-authority` is pushed or deployed. Deployment state lives in `docs/LIVING_STATUS.md`.
 
-Backend:
+## Authoritative runtime direction
 
-- Railway API: `https://api-production-2556.up.railway.app`
-- Railway project: `Cribbit Chaos` (`e2b0a674-43d9-4aac-ad8d-3e72b3ff486f`)
-- Railway PostgreSQL service: `951b9c62-7cd3-404b-b9f0-c93e2c2a51d7`
+```text
+apps/web  ----\
+                -> packages/api-client -> apps/api routes -> domain services (game-service, identity-linking, db)
+apps/telegram -/                                   |
+                                                   +-> packages/game-engine (+ packages/contracts, packages/cards, packages/prompts)
+                                                        when the operation changes gameplay
+                                                   |
+                                                   +-> Railway PostgreSQL (one database, one schema)
+```
 
-There is no secondary frontend source of truth for the active Cribbit CHAOS staging app; Cloudflare Pages is the only current frontend hosting target documented for this project.
+Hard rules:
 
-The separate Railway project `Cribbit` (`1440dc2c-e7fd-4bee-8ef7-57e663b8c735`) belongs to another product and must never be used for Cribbit CHAOS.
+- No client-side gameplay engine is authoritative. `packages/game-engine` + `apps/api/src/game-service.ts` own legality, effects, timers and winner state; clients submit commands and render the authoritative projection.
+- Realtime is a change-intent channel, not state: the server emits `room-updated`, `room-started` and `session-updated {sessionId, revision}`; clients refetch the authoritative snapshot.
+- Clients never connect to PostgreSQL. Only `apps/api/src/db.ts` (plus `db/migrations/`) touches persistence.
+- Baseline deployment chain is GitHub source -> Cloudflare Pages clients -> Railway API -> Railway PostgreSQL.
 
-## Source boundaries
+## Ownership map
 
-The production source of truth lives in:
+| Owner | Owns | Classification |
+|---|---|---|
+| `packages/contracts` | Shared API/realtime/game types, `GameCommand`/`GameEvent` definitions, config type | ACTIVE |
+| `packages/game-engine` | Authoritative reducer, play/draw legality, command routing, setup/deal, social/prompt flow, win check, timer model | ACTIVE |
+| `packages/cards` | Canonical `CHAOS-133-V1` physical card registry and assets | ACTIVE |
+| `packages/prompts` | Prompt domain model and prompt pool/profile types | ACTIVE |
+| `packages/simulation` | Client-independent local QA Simulation orchestration (fixtures, bot loop, command envelopes); no persistence, no DOM, no network | ACTIVE (QA) |
+| `packages/api-client` | Typed HTTP/Socket client boundary used by both clients (`credentials` for Web, bearer for Telegram) | ACTIVE |
+| `packages/platform` | Browser/Telegram capability adapters (viewport, safe area, theme, native lifecycle) | ACTIVE |
+| `packages/ui` | Approved shared visual system, template, navigation controller, bootstrap entry | ACTIVE |
+| `packages/action-registry` | Action -> backend-class mapping used by the shared UI | ACTIVE |
+| `apps/api` | HTTP routes, auth, Telegram `initData` validation, room/session service, projection boundary, Socket.IO, persistence access | ACTIVE |
+| `apps/web` | Browser presentation: auth/account UI, Live rooms, local QA Simulation entry, safety rail, card/board presentation | ACTIVE |
+| `apps/telegram` | Mini App presentation: onboarding, room setup, Live game view, contextual rule UI, card renderer | ACTIVE (Live path NOT VERIFIED here) |
+| `packages/legacy-runtime` | Old canonical Web board runtime | COMPATIBILITY REFERENCE — reachable only through the fixture-preview `runtimeMode: 'legacy-compatibility'` branch in `packages/ui/src/bootstrap.ts` |
+| `apps/web/src/canonical-game-runtime.ts` | Nothing (zero importers) | DEAD / SAFE TO REMOVE (recorded observation; removal not yet authorized) |
 
-- `apps/web`
-- `apps/telegram`
-- `apps/api`
-- `packages/contracts`
-- `packages/game-engine`
-- `packages/cards`
-- `packages/prompts`
-- `packages/platform`
-- `packages/ui`
-- `db/`
+## Client composition (verified)
 
-`apps/api` owns authentication, Telegram `initData` validation, room/session boundaries, database access, and Socket.IO transport.
+```text
+apps/web/src/main.ts
+  -> packages/ui/src/bootstrap.ts        (runtimeMode 'none' -> navigation controller; 'legacy-compatibility' -> packages/legacy-runtime)
+  -> apps/web/src/live-entry.ts
+       -> web-auth.ts            (account/login UI)
+       -> live-session.ts        (Live rooms, realtime, authoritative snapshots, commands)
+       -> simulation-mode.ts     (local QA Simulation via packages/simulation)
+       -> identity-link-ui.ts    (account linking panel)
 
-`packages/game-engine` owns the authoritative game reducer, command validation, deterministic setup, and transition rules already implemented through Phase 3.
+apps/telegram/src/main.ts
+  -> bootstrapTelegram.ts   (onboarding, room setup, Live game binding)
+  -> backendGame.ts         (API + realtime client for Live sessions)
+  -> simulation.ts          (thin presentation adapter over packages/simulation)
+  -> main.ts also boots packages/ui with runtimeMode 'legacy-compatibility'
+     only for the explicit fixture preview (`?compat=1&fixture=1`)
+```
 
-The clients are never authoritative for multiplayer gameplay.
+Local QA Simulation never persists and never creates a Live room: it runs the shared engine in memory through `packages/simulation`.
 
-## Shared identity/data boundary
+## Rule and prompt authority
 
-Web and Telegram must converge on:
+- Gameplay meaning: `Game_rules.md` with permanent rule IDs (current gameplay slice: `RULE-SPECIAL-PLAY-001`..`008`, `RULE-VOLUNTARY-DRAW-001`..`007`).
+- Change governance and preservation classes: `docs/CHANGE_GOVERNANCE.md`.
+- Prompt content lives in the prompt domain (`packages/prompts`) and is selected server-side; clients never choose prompts.
 
-- the same Railway API
-- the same Railway PostgreSQL database
-- the same canonical internal `users.id` UUID
+## Verification levels used in this repository
 
-Telegram IDs are provider identities in `user_identities`; they are not Cribbit primary keys.
+```text
+VERIFIED LOCALLY      run against a local API + local disposable PostgreSQL
+BROWSER-VERIFIED      exercised through a real browser session
+NOT VERIFIED          not exercised in this environment (state the reason)
+SOURCE-VERIFIED       proven by reading current source and/or tests only
+```
 
-Clients never connect directly to PostgreSQL.
+Current unverified areas: real Telegram Mini App runtime (`initData` cannot be minted here), browser Telegram OIDC login (endpoints fail closed), and all unmigrated product verticals listed in `docs/LIVING_STATUS.md`.
 
-## Current phase boundary
+## Architecture debt recorded (not authorized work)
 
-Phase 3.5 is active. Primary Cloudflare staging and the dedicated Railway foundation are live. Remaining Phase 3.5 work is live visual proof, Telegram Mini App authentication, browser Telegram OIDC, same-UUID proof, and shared-profile proof.
+- `packages/legacy-runtime` still contains the old board runtime; it is retained only for the fixture preview and its tests.
+- CHAOS Pulse adaptive draw is implemented in the shared engine; the legacy board is not yet consuming it.
+- Prompt library/pool, answers, recaps, notifications and moderation are unimplemented API verticals with persisted tables already reserved.
+- The Live client emits a `game-command` socket event that the server does not handle; the authoritative path is `POST /v1/games/:sessionId/commands`.
+- `apps/web/src/canonical-game-runtime.ts` has zero importers.
+- Local Simulation can stall on a special-card interaction that expects human-style input.
+- The Truth-or-Chaos flow can deadlock in `ANSWER_RESOLVE` (`packages/game-engine/src/capabilities.ts`, `reducer.ts`).
 
-Phase 4 multiplayer transport must not start until Phase 3.5 completes.
-
-After each architecture-affecting implementation slice, synchronize this file, `PLAN.md`, related operational docs, and the active PR description.
+Do not fix these outside an explicitly authorized slice.

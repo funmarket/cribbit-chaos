@@ -1,82 +1,79 @@
 # Database
 
-This is a living database-control document. Update it whenever schema ownership, identity mapping, persistence boundaries, migrations, or verified database deployment state changes.
+Canonical persistence model for Cribbit CHAOS. Update this file whenever schema ownership, identity mapping, persistence boundaries, migrations, or verified database deployment state changes.
 
-Cribbit CHAOS uses exactly one shared Railway PostgreSQL database for Web and Telegram.
+## One database, one schema
 
-Current Railway project:
-
-- project: `Cribbit Chaos`
-- project ID: `e2b0a674-43d9-4aac-ad8d-3e72b3ff486f`
-- PostgreSQL service ID: `951b9c62-7cd3-404b-b9f0-c93e2c2a51d7`
-- persistent storage: active
-
-Never use the separate Railway project `Cribbit` (`1440dc2c-e7fd-4bee-8ef7-57e663b8c735`) for Cribbit CHAOS.
-
-## Access boundary
-
-Clients do not connect directly to PostgreSQL.
+Cribbit CHAOS uses exactly one Railway PostgreSQL database for both clients. Never create a Web database, a Telegram database, a per-client table, or a parallel persistence model because an API vertical is still incomplete.
 
 ```text
-Cloudflare Web --------\
-                        Railway API -> Railway PostgreSQL
-Cloudflare Telegram ---/
+Web client ------\
+                  -> Railway API -> Railway PostgreSQL (single database)
+Telegram client --/
 ```
 
-`DATABASE_URL` is Railway-only and must never appear in Cloudflare Pages public variables or Vite client bundles.
+- Railway project: `Cribbit Chaos` (`e2b0a674-43d9-4aac-ad8d-3e72b3ff486f`)
+- PostgreSQL service: `951b9c62-7cd3-404b-b9f0-c93e2c2a51d7`
+- The separate Railway project `Cribbit` (`1440dc2c-e7fd-4bee-8ef7-57e663b8c735`) is a different product and must never be used here.
+- `DATABASE_URL` is server-only: never in Cloudflare Pages variables, Vite bundles, or documentation.
+- Clients never connect directly to PostgreSQL. Only `apps/api/src/db.ts` and `db/migrations/` touch persistence.
+- No production database mutation without an explicit owner gate; recovery work uses a local disposable database.
+
+## Migrations
+
+```text
+db/migrations/001_initial.sql                   users, identities, sessions, rooms, game and prompt domains
+db/migrations/002_dual_web_auth.sql             Web credentials, throttling, prompt pool/flags, saved prompts
+db/migrations/003_identity_link_challenges.sql  identity_link_challenges (separate from auth_sessions)
+```
+
+Migrations are additive and idempotent. Keep the original table and column names: the schema is the contract with the live database.
+
+## Tables (17, as defined by the migrations)
+
+| Area | Tables |
+|---|---|
+| Identity and auth | `users`, `user_identities`, `auth_sessions`, `web_credentials`, `web_login_throttle`, `identity_link_challenges` |
+| Rooms | `rooms`, `room_members` |
+| Gameplay | `game_sessions`, `game_commands`, `game_events` |
+| Prompts and content | `prompts`, `saved_prompts`, `room_prompt_pool`, `prompt_flags` |
+| Social output | `answers`, `recaps` |
+
+There is no `game_players`, `session_snapshots`, `house_decks`, `moderation` or `audit` table in the canonical schema; older documentation listing them was inaccurate and has been corrected here.
+
+## Canonical persistence facts
+
+- `game_sessions.state` is `jsonb` and holds the authoritative `GameState`. **Its keys are part of the database contract**: renaming or removing a `GameState` key silently changes the meaning of already-persisted rows. Add keys, migrate deliberately, and never "clean up" a key name as a refactor.
+- `game_sessions.revision` is the authoritative monotonic revision used by clients for optimistic concurrency (`expectedRevision`).
+- `game_commands.command_id` is `uuid` and is the primary key of the command log: it is the idempotency/deduplication identity of a Live command. `command_type` is `text`, `payload`/`result` are `jsonb`, `expected_revision` is `bigint`, `session_id`/`actor_user_id` are `uuid`.
+- A Live command id must be an RFC 4122 UUID; the API rejects any other value with `400 INVALID_COMMAND_ENVELOPE` before persistence (COMMAND-ID-1). Simulation command ids are deterministic in-memory strings and are never persisted.
+- `game_events` is the event log for a session; clients render the authoritative projection, not the raw event log.
+- Reserved-but-unused tables (`answers`, `recaps`, `prompts`, `saved_prompts`, `room_prompt_pool`, `prompt_flags`) exist for product verticals that are still UNMIGRATED. Their presence is not proof of a feature: do not treat "table exists" as "feature implemented", and do not add a second store for the same concern.
 
 ## Identity model
 
-The schema uses internal UUIDs for users and maps provider identities through `user_identities`.
-
-Canonical identity:
-
 ```text
-users.id UUID
+canonical account      users.id (uuid)
+provider identity      user_identities(provider in ('telegram','web'), provider_user_id) -> users.id
+Web login              web_credentials -> users.id
+session                auth_sessions -> users.id
+link challenge         identity_link_challenges -> users.id   (purpose-scoped, short TTL, atomic single use)
 ```
 
-Telegram identity:
+- Provider IDs (Telegram numeric id, Web login username) are external identities, never primary keys.
+- `identity_link_challenges` is deliberately separate from `auth_sessions`: a challenge value must never authenticate a session, and session revocation must never consume a challenge.
+- Profile authority: `users.display_name` is written once at explicit account creation and afterwards only by an explicit profile action; provider re-authentication refreshes provider metadata only.
 
-```text
-Telegram numeric user ID
--> user_identities(provider='telegram', provider_user_id='<telegram id>')
--> users.id
-```
+## Verified state
 
-The same Telegram human using both Web and Telegram must resolve to the same internal `users.id`.
+- Local disposable PostgreSQL used for recovery proofs; the production Railway database is untouched by this work.
+- Schema migrations applied and verified locally; command-log idempotency and privacy projections verified by tests and runtime probes.
+- Cross-client same-`users.id` convergence is verified locally with spec-signed Telegram `initData`; a genuine Telegram Mini App runtime is NOT VERIFIED here.
 
-## Current schema foundation
+## Rules for future work
 
-The current foundation lives in `db/migrations/001_initial.sql` and subsequent migration support executed before Railway API deployment.
-
-Core domains include:
-
-- users
-- user_identities
-- auth_sessions
-- rooms
-- room_members
-- game_sessions
-- game_players
-- game_commands
-- game_events
-- session_snapshots
-- prompts
-- answers
-- saved decks
-- house decks
-- moderation
-- recaps
-
-## Current verification state
-
-- dedicated Railway PostgreSQL deployment: successful
-- persistent storage: active
-- Railway API connects to this database
-- migrations run before API deploy
-- shared same-UUID cross-client proof: still pending
-- shared-profile write/read proof across both clients: still pending
-
-The authoritative game engine is implemented in `packages/game-engine`, but Phase 4 multiplayer persistence/transport wiring has not started yet.
-
-After each database-affecting implementation slice, synchronize this file, `PLAN.md`, `docs/ARCHITECTURE.md`, `docs/shared-auth-staging.md`, and the active PR description.
+1. One database, one schema, one persistence owner (`apps/api`).
+2. Never add a client-side store for product data (no `localStorage`/IndexedDB persistence of game, account or room state).
+3. Never add a compatibility database, shadow table, or second write path to work around an incomplete API vertical.
+4. Keep migrations additive, idempotent and named in sequence.
+5. Document any new table here together with the vertical it serves and its classification (`ACTIVE` / `UNMIGRATED` / `COMPATIBILITY REFERENCE`).

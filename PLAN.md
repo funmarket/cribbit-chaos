@@ -8,7 +8,9 @@ Every implementation slice must follow:
 
 GitHub is the canonical source of truth for deployable source, game rules, documentation, and implementation status.
 
-`README.md`, `PLAN.md`, `AGENTS.md`, and `docs/LIVING_STATUS.md` must not contradict verified reality.
+`README.md`, `PLAN.md`, `AGENTS.md`, `HANDOFF.md`, and `docs/LIVING_STATUS.md` must not contradict verified reality, and gameplay meaning must not be restated as competing truth outside `Game_rules.md` (see `docs/CHANGE_GOVERNANCE.md`).
+
+Resume order: `AGENTS.md` -> `HANDOFF.md` -> `docs/LIVING_STATUS.md` -> this file's current phase/task -> relevant rule/domain docs -> source.
 
 Temporary planning/recovery artifacts such as `FIX.md`, scratch files, recovery notes, generated diffs, diagnostics, and debug logs must never be committed.
 
@@ -80,6 +82,22 @@ Machiavelli may create approved runtime card instances after game start. That ca
 - Known separate production QA issue: `cards/numbers/lime/number_lime_1_02.jpg` is zero-byte. This is an artwork/integrity issue, not a gameplay-rule change.
 
 ## Completed/accepted gameplay slices
+
+### Recovery slices (local only, in branch ancestry)
+
+| Slice | Commit | Established |
+|---|---|---|
+| R1 cutover — engine/API as the only Web gameplay owner | `f384c82` | Shared engine + API command path own Web gameplay (CI anchor) |
+| SIM-1 — Local QA Simulation on the shared engine | `b083784` | `#startGameButton` = local QA Simulation (locked decision) |
+| LINK-1 — explicit cross-transport identity linking | `a91ee8b` | Explicit linking attaches to an existing `users.id`; no merges |
+| IDENTITY-2 — canonical identity convergence | `beb2b2a`, `0730e64`, `5f2b4cfe` | Unknown Telegram auth is lookup-only; explicit creation makes exactly one user |
+| LOGIN-A — identity-link challenge boundary | `11eadf4` | Dedicated challenge storage, atomic single use, OIDC callback fails closed |
+| LOGIN-B / LOGIN-C / LOGIN docs | `6e99205`, `6970960`, `2c7f1f9` | Account lifecycle, minimum account UI, locked account model |
+| SIMSHARE-1 — one shared Simulation orchestrator | `7dae3e2` | `packages/simulation` owns client-independent QA orchestration |
+| ROULETTE-PRIVACY-1 — sealed selection boundary | `59829d6` | Sealed Roulette selection masked at the authoritative projection |
+| COMMAND-ID-1 — canonical Live command identity | `3a574ff` | Live `commandId` must be an RFC 4122 UUID; invalid ids fail before persistence |
+| Special-card play + Voluntary Draw | `cb1b1b9` | `Game_rules.md` sections 51/52 implemented in the shared engine; retired `allowVoluntaryDraw` knob removed |
+| DOC-REBASELINE-1 | local commit of this file | Documentation set reconciled to verified reality |
 
 ### Live multiplayer lifecycle (Create -> Join -> Start) — ACCEPTED (verified locally)
 
@@ -539,13 +557,21 @@ Do not silently mark these complete while working on gameplay:
 - same Telegram human -> same internal UUID across both clients
 - shared profile write/read proof through Railway PostgreSQL
 
+## Current roadmap
+
+Authorized order (do not start a later item early):
+
+1. **DOC-REBASELINE-1** — documentation rebaseline (current slice; documentation only).
+2. **AUTHORITY-GUARD-1** — machine-enforced rule-ID / change-governance gate. Direction only, recorded in `docs/CHANGE_GOVERNANCE.md`; not implemented.
+3. **Whole-product ownership/dependency audit** — verify ownership, callers and preservation classification across every package, app, document and unmigrated vertical before further feature work.
+4. **Subsequent owner-approved phases** — chosen by the owner from the audit result (unmigrated product verticals, Telegram Mini App runtime verification, mechanics/tuning, art finalization).
+
+Every phase must respect the existing contract: one application, two delivery surfaces, gameplay authority in `packages/game-engine` reached through the API, one PostgreSQL database, and `Game_rules.md` as the only gameplay meaning.
+
 ## Current Next Task
 
-**Phase 7 — full local verification is active.**
+**DOC-REBASELINE-1 is complete with this documentation commit.** The next authorized task is **AUTHORITY-GUARD-1** (item 2 above) and it must not be started until the owner reviews DOC-REBASELINE-1 and explicitly authorizes it.
 
-1. Keep `Game_rules.md` as the gameplay authority.
-2. Keep runtime fixes in the shared engine/capability projection, not duplicate Web/Telegram rule branches.
-3. Docs/rule traceability proof is source-updated in `docs/social-engine-rule-decisions.md`, `docs/LIVING_STATUS.md`, and `PLAN.md`.
-4. Run the full local verification gate before any live deployment.
-5. Phase 8 remains live Railway/client deployment and readback, only after explicit approval.
-6. Score each sub-step and revise before moving on if the score is below 8.5.
+## Historical note — superseded roadmap text
+
+The previous "Phase 7 — full local verification is active / Phase 8 — live Railway deployment after approval" wording described the state before the recovery slices above and is superseded. Deployment and readback still require explicit owner approval, and the current authorized sequence is the roadmap above, not Phase 7/8.

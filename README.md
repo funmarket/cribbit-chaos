@@ -15,7 +15,9 @@ Every implementation slice follows:
 
 **inspect living status → make change → test/verify → remove superseded/stale artifacts → update living docs → merge/publish → verify actual runtime state**
 
-See `AGENTS.md` for the mandatory no-stale-debt rule and `docs/LIVING_STATUS.md` for the concise verified project state.
+Resume order for any agent: `AGENTS.md` -> `HANDOFF.md` -> `docs/LIVING_STATUS.md` -> the `CURRENT TASK` in `PLAN.md` -> relevant rule/domain docs -> source.
+
+See `AGENTS.md` for the mandatory no-stale-debt rule and the documentation set, and `docs/LIVING_STATUS.md` for the single verified current state.
 
 ## Current architecture
 
@@ -73,11 +75,13 @@ Simulation remains a separate local/bot mode and does not use the Live session l
 │   ├── legacy-runtime/
 │   ├── platform/
 │   ├── prompts/
+│   ├── simulation/
 │   └── ui/
 ├── reference/
 │   └── approved-v4-template.html
 ├── scripts/
 ├── AGENTS.md
+├── HANDOFF.md
 ├── PLAN.md
 ├── README.md
 ├── REQUIREMENTS.md
@@ -142,8 +146,9 @@ Pass, Rewind, Flag, Spice Dial, Speak, Type, Choose, and Answered Live are contr
 ### Core shared packages
 
 - `packages/contracts` — shared API and realtime types
-- `packages/game-engine` — authoritative game engine and canonical playable deck boundary
-- `packages/cards` — transitional card asset/registry package pending cleanup after PNG migration verification
+- `packages/game-engine` — authoritative game engine, hand legality, effects, timers and win state
+- `packages/cards` — canonical `CHAOS-133-V1` card registry and assets
+- `packages/simulation` — client-independent local QA Simulation orchestration (in-memory only; no persistence, no DOM, no network)
 - `packages/prompts` — prompt domain model, including shared Duel question eligibility via `type='duel'`
 - `packages/platform` — browser and Telegram capability adapters
 - `packages/ui` — approved Web visual system and shared UI implementation
@@ -152,7 +157,7 @@ Pass, Rewind, Flag, Spice Dial, Speak, Type, Choose, and Answered Live are contr
 
 - `packages/api-client` — typed client helpers
 - `packages/action-registry` — action metadata used by the shared UI
-- `packages/legacy-runtime` — transitional Web runtime support retained only until its callers are migrated
+- `packages/legacy-runtime` — `COMPATIBILITY REFERENCE`: old Web board runtime reachable only through the fixture-preview `runtimeMode: 'legacy-compatibility'` branch
 
 ## Requirements
 
@@ -241,17 +246,27 @@ Update affected technical/operational docs at the same time. Remove resolved blo
 
 ## Current status
 
-Phases 0–3 remain complete.
+The verified current state is maintained in `docs/LIVING_STATUS.md`; the roadmap lives in `PLAN.md`. Summary:
 
-The active mechanics/card migration has `packages/cards` and `packages/game-engine` aligned on the canonical `CHAOS-133-V1` 133-card physical deck. The remaining work is to keep Web and Telegram on that shared deck/rule authority while removing legacy client-local deck seams.
+- Work happens locally on `recovery/single-engine-authority`; nothing from this branch is pushed or deployed.
+- One application, two delivery surfaces: Web and Telegram both go through `packages/api-client` to the same API, the same `packages/game-engine`, and the same Railway PostgreSQL database.
+- Verified locally: real Live multiplayer lifecycle (create -> join -> start) with no fabricated bots, authoritative command handling, private hands, sealed Roulette masking, canonical Live command-id contract, canonical identity/login model, shared Navigation, shared local QA Simulation.
+- Canonical gameplay rules are owned by `Game_rules.md` (current slices: `RULE-SPECIAL-PLAY-001`..`008` and `RULE-VOLUNTARY-DRAW-001`..`007`, implemented in the shared engine).
+- Whole-product capabilities that are still unmigrated (prompts, prompt pool, answers, recaps, notifications, moderation, Admin Control Room, real Telegram Mini App runtime) are tracked in `docs/PRODUCT_SCOPE.md` and `docs/LIVING_STATUS.md`; unmigrated is not dead.
 
-Current deck authority is covered by `packages/cards/test/card-registry.test.ts`, `packages/cards/test/card-assets.test.ts`, `packages/game-engine/test/deck-composition.test.ts`, and `packages/cards/test/deck-docs-consistency.test.ts`.
-
-See `PLAN.md` and `docs/LIVING_STATUS.md` for the exact active task and verified status.
+Canonical deck authority is covered by `packages/cards/test/card-registry.test.ts`, `packages/cards/test/card-assets.test.ts`, `packages/game-engine/test/deck-composition.test.ts`, `packages/cards/test/deck-docs-consistency.test.ts` and `packages/cards/test/game-rules-authority.test.ts`.
 
 ## Documentation
 
-- [docs/LIVING_STATUS.md](./docs/LIVING_STATUS.md)
+- [AGENTS.md](./AGENTS.md) — operating contract and reading order
+- [HANDOFF.md](./HANDOFF.md) — operational resume point
+- [PLAN.md](./PLAN.md) — roadmap and current phase
+- [Game_rules.md](./Game_rules.md) — canonical gameplay rules
+- [docs/LIVING_STATUS.md](./docs/LIVING_STATUS.md) — the single execution ledger
+- [docs/PRODUCT_SCOPE.md](./docs/PRODUCT_SCOPE.md) — whole-product scope and preservation classifications
+- [docs/CHANGE_GOVERNANCE.md](./docs/CHANGE_GOVERNANCE.md) — authority chain and rule-ID governance
+- [docs/HISTORICAL_PRODUCT_EVIDENCE.md](./docs/HISTORICAL_PRODUCT_EVIDENCE.md) — product-history evidence (not rule authority)
+- [docs/ADMIN_CONTROL_ROOM.md](./docs/ADMIN_CONTROL_ROOM.md) — operator control-plane scope
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
 - [docs/BUTTON_MAP.md](./docs/BUTTON_MAP.md)
 - [docs/DATABASE.md](./docs/DATABASE.md)

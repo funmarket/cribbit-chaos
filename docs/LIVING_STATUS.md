@@ -1,337 +1,148 @@
 # Cribbit CHAOS Living Status
 
-Last verified source branch: `main` (remote `36915e4`, which adds `docs/audio-media-plan.md`; reconciliation pending)
+Central execution ledger: verified current state, completed slices, whole-product status, exactly one current task, blockers, and publication state.
+This file mirrors status only; the detailed roadmap is owned by `PLAN.md`, and game rules are owned by `Game_rules.md`.
+Superseded narratives are not kept here: this file describes one current state only.
 
-Local recovery branch: `recovery/single-engine-authority`. The Live multiplayer slice is committed locally only; nothing pushed or deployed.
+## Project end goal
 
-This file is the concise operational status companion to `PLAN.md`. It records what is accepted, what is currently implemented, and what we do next.
-
-## Source of truth
-
-GitHub is canonical for deployable source, game rules, documentation, and implementation status.
-
-Current development mode: **Web-first**. Telegram remains contract/state compatible but is not the active UI priority until Web gameplay is stable.
-
-## Live multiplayer lifecycle — VERIFIED LOCALLY
-
-- Create -> waiting room with real owner membership only: no bots, no session, no deal.
-- Join -> real membership only; started games and full rooms are rejected.
-- Start -> owner only, configured capacity must be full, real players only, exactly one authoritative session, seven cards each.
-- Realtime `room:<roomId>` (`room-updated`, `room-started`) with PostgreSQL authoritative.
-- Realtime root cause: `CribbitRealtimeClient.connect()` built a second socket while the first was still connecting, so listeners and membership diverged. Fix: `if (this.socket) return this.socket`.
-- Web five-real-user lifecycle, five-client convergence after one ordinary command, and private hands: VERIFIED LOCALLY.
-- Telegram live runtime: NOT VERIFIED (Telegram Mini App `initData` cannot be minted here).
-- Production Web Simulation: CORE WORKING with a SPECIAL-FLOW BLOCKER (a bot reaches a special-card interaction expecting human-style input) — owner-verified on the deployed app; outside this slice.
-
-## Page navigation (NAV-1) — VERIFIED LOCALLY
-
-`packages/ui/src/navigation-controller.ts` restores presentation-only page switching for the shared template: `[data-nav]` activates the matching existing `[data-view]`, sets `aria-current`, closes the mobile navigation dialog, honours `data-room-anchor`, and opens `#mobileNavDialog` from its existing trigger. It is installed from `bootstrap()` only when `runtimeMode` is `'none'`, so no client has two navigation owners.
-
-Browser-verified: all seven destinations switch through their real controls, the mobile path uses the same handler, and the desktop Play popover reveals through real hover and keyboard focus with real clicks reaching Active Game and Recent Recap. The existing `:hover` / `:focus-within` CSS already worked, so no navigation source change was needed for the popover. Commit `efb72401ed23f007f8db4c95137a0769cca9ff63`.
-
-## Canonical identity and login (LOGIN) — VERIFIED LOCALLY
-
-> Cribbit has one canonical account identifier: `users.id`. Telegram and Web are optional authentication methods attached to that account. Telegram authenticates directly from server-verified Telegram numeric identity; Web authenticates with username/password. Telegram username is provider metadata and may be used only as a convenient suggested Web login username when available. Username equality never links accounts. Linking requires explicit proof and attaches the second authentication method to the existing `users.id`. Telegram-only and Web-only accounts are both valid.
-
-Telegram authentication is lookup-only: an unknown Telegram identity returns `409 TELEGRAM_IDENTITY_UNLINKED` and never provisions a user; `POST /v1/auth/telegram/register` is the explicit creation action that creates exactly one canonical user with no Web password required; `POST /v1/auth/telegram/link` (Web credential) and `POST /v1/auth/telegram/link-with-code` (single-use code from `POST /v1/me/identities/telegram/link-code`) link an existing account; `POST /v1/me/identities/web-credential` attaches a Web login to the current canonical user. `GET /v1/me/web-login-suggestion` offers the Telegram username as a suggested Web login only when it exists, passes canonical login validation and is not owned by another canonical user — it never claims a username and never links accounts.
-
-LINK-1 conflict semantics are preserved (`IDENTITY_ALREADY_LINKED`, `IDENTITY_PROVIDER_ALREADY_LINKED`) with no merges or data movement, and authentication refreshes provider metadata only — Telegram re-authentication never rewrites the canonical display name or the Web login.
-
-**Identity-link challenges are separate from login sessions (LOGIN-A, commit `11eadf4`).** They live in `identity_link_challenges` (additive `db/migrations/003_identity_link_challenges.sql`), are consumed by one atomic `UPDATE` bound to hash + purpose + unconsumed + unexpired, and can never authenticate a session: the previously proven exploit (the namespaced challenge string as the Web session cookie returning `200` on `/v1/me`) now returns `401`, while the intended link endpoint still consumes the code exactly once. The dormant Telegram Web Login/OIDC callback fails closed and cannot attach an identity from a browser cookie alone.
-
-**Minimum account UI (LOGIN-C, commit `6970960`).** Both clients reach identity only through `packages/api-client`; the Web profile panel states "Web login: Connected" / "Telegram: Not connected|Connected", issues the single-use link code with its expiry and never renders the canonical user id; the Telegram "Add Web login" form pre-fills the backend suggestion only when it is available.
-
-**Cross-client acceptance (LOGIN-D, runtime + database verified).** One authoritative game: the same human reading a session via the Web cookie and the Telegram bearer gets the identical session id, seat index, private hand, revision and current player, with exactly one membership per canonical user and no fabricated bots; an independent Web user and an independent Telegram user share one session, each seeing only its own hand, and each observed the other's authoritative revision (Web 0 -> 1, then Telegram 1 -> 2). `users` 24 -> 26 for exactly two intentional accounts, one credential and one Telegram identity per user, zero leftover challenge rows.
-
-A real Telegram Mini App runtime is still unavailable here, so the Mini App client path remains NOT VERIFIED.
-
-## Web Local QA Simulation (SIM-1) — VERIFIED LOCALLY
-
-`#startGameButton` is Local QA Simulation (locked product decision), not Live host Start. It is served by `apps/web/src/simulation-mode.ts` -> `apps/web/src/simulation-session.ts` -> the shared `packages/game-engine`, with ephemeral local state and no persistence.
-
-Browser-verified: a real click starts it (game view, five players, seven cards each, engine deal and discard), ordinary human play and draw update the board, bots complete ordinary turns, and the whole simulation produced zero `/v1` requests and zero database rows. Live Create still creates a waiting room with real membership and no session before host Start.
-
-`packages/action-registry` was corrected: `#startGameButton` now records `local game-engine simulation`, not the Live start endpoint.
-
-## Next task
-
-`SIMSHARE-1`: replace the two duplicated simulation harnesses with one shared engine-backed harness consumed by both clients. After that: Roulette privacy projection, approved SVG Roulette presentation, then persistent webpage verticals (Rooms -> CHAOS Board -> Library/Create -> Recap) through `UI -> packages/api-client -> API/domain -> PostgreSQL`.
-
-## Backlog (recorded, untouched)
-
-Truth-or-Chaos engine deadlock (evidence session `c2cb7b4c`) · malformed `commandId` -> raw 500 · origin rejection -> 500 instead of 403 · CRLF-sensitive source-shape tests · duplicate/fallback Wild renderer.
-
-## Canonical deck
-
-Physical game-start deck: **CHAOS-133-V1 = 133 playable physical card instances**.
-
-Family counts:
-
-- Number 76
-- Skip 6
-- Reverse 6
-- Draw 6
-- Wild 3
-- Truth 3
-- Dare 3
-- Paranoia 3
-- Chaos 3
-- Duel 3
-- Nope 3
-- TAG 3
-- Truth or Chaos 3
-- Hijack 3
-- Taboo 3
-- Machiavelli 1
-- Ghost 1
-- Reverse Confession 3
-- DIG ME 1
-
-Machiavelli may generate approved runtime card instances after game start, so active game card count can exceed 133 without changing the physical starting-deck authority.
-
-Known separate asset QA issue: `cards/numbers/lime/number_lime_1_02.jpg` is zero-byte. This is not a gameplay-rule change.
-
-## Accepted runtime behavior
-
-### Roulette — ACCEPTED
-
-- authoritative prompt selected before spin
-- Roulette is presentation only
-- prompt survives spin
-- stable SVG wheel removed old flicker
-
-### Fixture Preview close — ACCEPTED
-
-Visual-only preview can close and clears fixture-preview state.
-
-### Active gameplay close guard — ACCEPTED
-
-Unresolved gameplay effects cannot be dismissed. Close attempts keep the modal open and instruct the player to finish the action.
-
-### Hybrid Paranoia — ACCEPTED
-
-Classic and Stranger flows, target/answer-player identity, voting, penalties, Continue, and win boundaries were browser-verified.
-
-### Truth / Dare Manual + Roulette — ACCEPTED
-
-Manual/Roulette prompt flow and refusal behavior are accepted.
-
-`Pass / Not for Me` draws exactly 2 before resolution/win checking.
-
-### Duel — ACCEPTED
-
-Current subjective/manual/app text Duels use `GROUP_VOTE`; challenger/opponent cannot vote; unique top wins; tie/no voters means no Duel winner; two-player Duel does not hang. Duel cannot be Noped.
-
-## Visual fix — draw pile canonical card back
-
-Source renders the canonical `backs/card_back.jpg` on the Web draw pile while preserving the count overlay and stack silhouette.
-
-Status: **SOURCE FIXED — browser verification pending**.
-
-## Machiavelli locked rule
-
-Machiavelli uses exactly six server-enforced options and is one-use -> Exhausted. Canonical definitions remain in `Game_rules.md` and `PLAN.md`.
-
-## CHAOS Pulse adaptive distribution — SOURCE IMPLEMENTED / MANUAL TRIAL PENDING
-
-The adaptive probability architecture is now implemented in the shared game engine.
-
-Canonical order:
+Recover `funmarket/cribbit-chaos` as ONE Cribbit CHAOS application with TWO frontend delivery surfaces (Web browser client and Telegram Mini App) over one authoritative backend:
 
 ```text
-ADAPTIVE WEIGHTS
--> PRIMARY CHAOS VARIANCE
--> ADAPTIVE REBALANCER
--> SECONDARY CHAOS VARIANCE
--> HARD SAFETY GUARD
--> NORMALIZE
--> SELECT ONE REAL PHYSICAL CARD
+Web client / Telegram client
+-> packages/api-client
+-> apps/api (Node API, routes, domain services)
+-> packages/game-engine (gameplay authority)
+-> Railway PostgreSQL (one database, one schema)
 ```
 
-### Opening dealer
+The original damage was split gameplay authority (duplicate client runtimes). The recovery removes duplicate authority, restores real multiplayer, and keeps one canonical identity model (`users.id`). Whole-product scope (accounts, rooms, prompts, answers, recaps, moderation, control room) is preserved even where unmigrated — see `docs/PRODUCT_SCOPE.md`.
 
-The shared dealer now:
-
-- uses real `CHAOS-133-V1` physical instances;
-- deals exactly 7 cards per player;
-- guarantees **1–2 high-impact/special cards** in each starting hand;
-- avoids one fixed repeated hand template;
-- adapts one-vs-two special probability to remaining inventory/player count;
-- reserves the starter card before the adaptive deal;
-- keeps opening-hand interaction cards dormant until voluntarily played;
-- remains deterministic for a recorded seed while new production matches can use fresh seeds.
-
-### Post-start selection
-
-`packages/game-engine/src/deck.ts::drawCards()` now selects cards through the shared CHAOS Pulse adaptive selector.
-
-Current trial model includes:
-
-- base physical availability (`10 x remaining drawable copies`);
-- family freshness/memory;
-- global interaction pressure;
-- mild rare-tier trial weighting;
-- primary bounded variance;
-- category rebalancing;
-- smaller secondary within-category jitter;
-- real physical-instance removal after selection.
-
-Multi-card draws recalculate sequentially after each physical card.
-
-### Shared source files
-
-- `packages/contracts/src/index.ts`
-- `packages/game-engine/src/adaptive-distribution.ts`
-- `packages/game-engine/src/deck.ts`
-- `packages/game-engine/src/setup.ts`
-- `packages/game-engine/src/index.ts`
-- `packages/game-engine/test/adaptive-distribution.test.ts`
-
-### Validation
-
-CI run for source commit `c18b431e24d7bac53fba1c627d404fea770b59b4` completed **SUCCESS**.
-
-Passed in CI:
-
-- [x] typecheck
-- [x] Web build
-- [x] Telegram build
-- [x] API build
-- [x] tests
-
-Adaptive tests cover 2–10 players, 1–2 opening specials, 133-card conservation, deterministic replay, seed variety, freshness, interaction pressure, both variance layers, rebalancing, zero availability, real-card removal, and sequential multi-card draws.
-
-This is **source verification only**, not browser gameplay acceptance.
-
-## Web trial surface — removed before PR #8 merge
-
-The earlier separate **Try CHAOS Pulse** lobby panel is not present in current `main`. The removed files are:
-
-- `apps/web/src/chaos-pulse-lab.ts`
-- `apps/web/src/chaos-pulse-lab.css`
-
-Do not use that removed panel as the next checkpoint. The current app-facing verification target is the main Web board.
-
-Status: **REMOVED PANEL — MAIN BOARD MIGRATION PENDING**.
-
-## Important compatibility boundary
-
-On the recovery branch (`recovery/single-engine-authority`) the Web client boots as follows: `apps/web/src/main.ts` mounts the shared template and calls `bootstrap()` with `runtimeMode: 'none'`, so neither `packages/legacy-runtime` nor `canonical-game-runtime.ts` is loaded by Web.
-
-Current runtime classification on this branch:
-
-- `apps/web/src/canonical-game-runtime.ts` is dead for Web boot and must not be imported by Web entry points.
-- `packages/legacy-runtime/src/runtime.ts` is loaded only by the Telegram client (`runtimeMode: 'legacy-compatibility'`); it is not a Web board runtime.
-- `apps/web/src/live-entry.ts` is the active auth/Live entry; `apps/web/src/live-session.ts` owns the Live board, and `apps/web/src/simulation-mode.ts` + `apps/web/src/simulation-session.ts` own the local QA simulation board.
-
-That legacy runtime still contains its own old local deck/deal/draw implementation. Therefore:
-
-- the removed **Try CHAOS Pulse** panel is no longer an app-facing checkpoint;
-- the **main playable compatibility board is not yet using CHAOS Pulse for its actual deck**;
-- do not copy the adaptive algorithm into `legacy-runtime` as another rules engine;
-- next migration must bridge/remove the compatibility deck seam and consume the shared engine instead.
-
-## Locked draw rule — opening optional, post-start interaction immediate
-
-Opening-hand interaction cards stay in hand and can be played voluntarily later.
-
-Post-start physical draws of these families must resolve immediately:
-
-- Truth
-- Dare
-- Paranoia
-- Duel
-- Taboo
-- Reverse Confession
-- TAG
-- Truth or Chaos
-- Hijack
-- DIG ME
-- Chaos
-- Machiavelli
-
-Hand-resident on draw:
-
-- Number
-- Skip
-- Reverse
-- Draw
-- Wild
-- Nope
-- Ghost
-
-Generated/direct-to-hand cards follow their generating effect and are not silently reclassified as draws.
-
-## Chained draws
-
-Multiple physical draws are selected sequentially from the current adaptive state. Immediate interactions must then resolve FIFO in physical selection order, with no overlapping social flows.
-
-## Current corrected-rules implementation status
-
-The current local source has completed Phases 0–7 of the live GameRules execution plan recorded in `chaosfixplan.md`.
-
-Verified source behavior now includes:
-
-- shared-engine forced-on-draw FIFO through `pendingForcedInteractions`;
-- narrow Truth/Dare Nope, including selected-target Nope through `PLAY_NOPE`;
-- Machiavelli Paranoia Spreads generating only approved DIG ME / Paranoia cards;
-- Paranoia Classic voluntary Keep Secret applying Draw 1 to the answer player;
-- Hijack swapping authoritative player order, not only seat labels;
-- Chaos approved catalogue slices: Blind Swap and Reverse Order;
-- Truth or Chaos consensus match / group-punishment state;
-- Ghost arm, activate, and two-own-turn normal-draw suppression lifecycle;
-- Web and Telegram live clients submitting Ghost and Nope through shared `projectDecisionCapabilities()` options.
-
-Current verification snapshot (pre-slice; superseded by the newest verified slice below):
+## Verified local state
 
 ```text
-npm run typecheck -> exit 0
-npm test -> 155 tests, 149 passed, 6 skipped, 0 failed
-npm run build -> exit 0 for Web, Telegram, and API
+repository   funmarket/cribbit-chaos
+worktree     C:\Users\GrowB\cribbit-chaos-recovery
+branch       recovery/single-engine-authority
+HEAD         cb1b1b9289458ddde9709498caf25d4073f60cd3   (verified clean before this slice)
+worktree     clean    (`git status --short` empty, `git diff --check` clean)
+pushed       NO
+deployed     NO
 ```
 
-This remains **source/local verification only**. It is not a live Railway/Cloudflare deployment claim; Phase 8 requires explicit approval before live mutation/readback.
+The DOC-REBASELINE-1 documentation commit is the next local commit after `cb1b1b9`; always re-verify the tip with `git rev-parse HEAD` instead of trusting this line.
 
-## Active integration task
+## Completed recovery slices (all local, all in this branch's ancestry)
 
-**Phase 8 — live Railway/client verification after source proof.**
+| Slice | Commit | What it established |
+|---|---|---|
+| R1 cutover — engine/API as the only Web gameplay owner | `f384c82` | Shared engine + API command path own Web gameplay; the CI anchor commit |
+| Recovery scope contract | `9e2f2e3` | Pinned allowed paths, stop conditions, failure ownership |
+| CRLF reclassification | `7f934ad` | Two local test failures reclassified as CRLF fragility, not product failures |
+| Live multiplayer lifecycle (Create -> Join -> Start) | `88e7f881` | Real members only, no fabricated bots, one authoritative session per Start |
+| NAV-1 — shared page navigation | `efb7240` | Presentation-only navigation restored through the shared UI controller |
+| SIM-1 — Local QA Simulation on the shared engine | `b083784` | `#startGameButton` = local QA Simulation (locked decision), no Live room, no persistence |
+| LINK-1 — explicit cross-transport identity linking | `a91ee8b` | Explicit linking attaches a second method to an existing `users.id`; no merges |
+| IDENTITY-2 — canonical identity convergence (API, UI, docs) | `beb2b2a`, `0730e64`, `5f2b4cfe` | Unknown Telegram auth is lookup-only; explicit creation makes exactly one user; no profile rewrite by authentication |
+| LOGIN-A — identity-link challenge security boundary | `11eadf4` | Challenges moved to `identity_link_challenges`; atomic single use; the session-cookie alias exploit closed; the dormant OIDC callback fails closed |
+| LOGIN-B — account lifecycle | `6e99205` | Telegram-only, Web-only and linked accounts all valid; backend-owned Web-login suggestion |
+| LOGIN-C — minimum account UI | `6970960` | Account panel states both transports, issues one-time link codes, never renders the canonical user id |
+| LOGIN-D — cross-client acceptance (read-only) | — | One authoritative game observed from both transports |
+| LOGIN documentation | `2c7f1f9` | Locked account model recorded in the living documents |
+| SIMSHARE-1 — one shared Simulation orchestrator | `7dae3e2` | `packages/simulation` owns client-independent QA orchestration; both clients are thin adapters |
+| ROULETTE-PRIVACY-1 — sealed selection boundary | `59829d6` | Sealed Roulette selection is masked at the authoritative projection; viewers no longer receive it early |
+| COMMAND-ID-1 — canonical Live command identity | `3a574ff` | Live `commandId` must be an RFC 4122 UUID; malformed ids fail with `400 INVALID_COMMAND_ENVELOPE` before persistence; idempotency preserved |
+| Special-card play from hand + Voluntary Draw | `cb1b1b9` | `Game_rules.md` sections 51/52 implemented in the shared engine; the retired `allowVoluntaryDraw` production knob removed |
+| DOC-REBASELINE-1 — this slice | local commit of this file | Documentation set reconciled to verified reality |
 
-Verification checklist:
+## Current canonical gameplay rules (this slice's authority)
 
-- [x] Phase 1 contract guard proves live Web and Telegram both use the API session adapter.
-- [x] Phase 1 contract guard proves API command processing applies the shared reducer before backend bot advancement.
-- [x] Phase 2 shared-engine forced-on-draw FIFO has reducer and contract coverage.
-- [x] Phase 3 selected-target Truth/Dare Nope has reducer/router coverage.
-- [x] Phase 4 special-card gaps have reducer coverage for Chaos, Truth or Chaos, Ghost, Machiavelli, Paranoia, and Hijack.
-- [x] Phase 5 proves Web and Telegram use shared capability projection for Ghost activation and Nope reaction.
-- [x] Phase 6 updates traceability docs.
-- [x] Phase 7 full local verification after docs are updated.
-- [>] Phase 8 live Railway/client deployment and readback after explicit approval.
+`Game_rules.md` (canonical) records in sections 51/52:
 
-## Owner-approved Special-card play and voluntary draw — VERIFIED LOCALLY
+- `RULE-SPECIAL-PLAY-001`..`008` — Special = every non-Number family; a Special may be played from hand while the top Play Pile card is not a Special, regardless of colour/number/value/symbol; Specials never stack onto a Special top (the player must play a legal Number or Draw); opening-deal Specials stay dormant in hand; post-start forced-on-draw behaviour is unchanged; classification never overrides card-specific timing (Nope stays reaction-only; Ghost keeps its own timing); the test uses the actual top Play Pile card.
+- `RULE-VOLUNTARY-DRAW-001`..`007` — a player is never forced to play because a legal card exists; a voluntary draw is always available on a normal turn and ends that turn's hand-play opportunity; an ordinary drawn card is added and the turn advances; a drawn forced-on-draw card enters its flow immediately and restores no hand play; the Ghost-turn restriction (`RULE-GHOST-003`, `RULE-GHOST-009`) is the only approved normal-turn draw restriction.
 
-`Game_rules.md` now carries the two owner-approved canonical rules as permanent-ID clauses in new sections 51 and 52, with supersession/clarification register entries for `RULE-NUMBER-002`, `RULE-TURN-002` step 1, the retired `allowVoluntaryDraw = false` gameplay behavior, `RULE-GHOST-003`/`RULE-GHOST-009` (kept active) and `RULE-NOPE-011` (kept active):
+Implementation owners: `packages/game-engine/src/validation.ts`, `packages/game-engine/src/reducer.ts`, `packages/game-engine/src/setup.ts`, `packages/contracts/src/index.ts`, `apps/api/src/game-service.ts`, `packages/simulation/src/index.ts`. Gameplay meaning is not restated elsewhere; see `docs/CHANGE_GOVERNANCE.md`.
 
-- `RULE-SPECIAL-PLAY-001`..`RULE-SPECIAL-PLAY-008` — Special = every non-Number card family; on a normal turn, while the top Play Pile card is NOT a Special, the current player may play a Special from hand regardless of color, number, value or symbol; a Special may never be stacked from hand onto a Special top, where the player must instead play a legal Number under the normal Number matching rule or Draw one card; Specials dealt in the initial deal stay dormant in hand; post-start forced-on-draw behavior is unchanged; Special classification never overrides card-specific timing (Nope stays reaction-only, Ghost keeps its own arming/timing); the Number-or-Special test reads the actual top Play Pile card rather than carried-over active color/symbol state.
-- `RULE-VOLUNTARY-DRAW-001`..`RULE-VOLUNTARY-DRAW-007` — a player is never forced to play merely because a legal card exists in hand; a voluntary draw is always available on a normal turn and ends that turn's normal hand-play opportunity; an ordinary drawn card is added to hand and the turn advances; a voluntarily drawn forced-on-draw card enters its forced flow immediately and restores no hand play; no configuration may force a normal player to play; the Ghost-turn restriction (`RULE-GHOST-003`, `RULE-GHOST-009`) is the only approved normal-turn draw restriction.
+## Whole-product status
 
-Implementation is in the shared engine only, with no client-side legality: `packages/game-engine/src/validation.ts` (top-Play-Pile-aware Number/Special legality), `packages/game-engine/src/reducer.ts` (retired voluntary-draw gate removed, Ghost branch preserved), `packages/game-engine/src/setup.ts` and `packages/contracts/src/index.ts` (the retired `allowVoluntaryDraw` knob is gone so no configuration can contradict the rule), with the only two config sites updated: `apps/api/src/game-service.ts` (Live) and `packages/simulation/src/index.ts` (Simulation).
+| Capability | Classification | Verified state |
+|---|---|---|
+| Live multiplayer lifecycle + authoritative engine | ACTIVE | VERIFIED LOCALLY (real 5-user lifecycle; one authoritative session) |
+| Web Live commands, snapshots, privacy projection | ACTIVE | VERIFIED LOCALLY (private hands; sealed Roulette masked; command id contract enforced) |
+| Realtime transport (invalidations only) | ACTIVE | VERIFIED LOCALLY (`room-updated`, `room-started`, `session-updated`) |
+| Accounts, identity linking, Web login, Telegram auth | ACTIVE | VERIFIED LOCALLY (spec-signed `initData`); real Mini App runtime NOT VERIFIED |
+| Local QA Simulation (Web; Telegram adapter) | ACTIVE (QA) | VERIFIED LOCALLY; special-card human-input stall known |
+| Shared navigation + UI shell | ACTIVE | BROWSER-VERIFIED |
+| Card/deck canonical registry (`CHAOS-133-V1`) | ACTIVE | Deck-composition tests green |
+| Card art / board presentation | ACTIVE (provisional) | Final art deliberately deferred by product priority |
+| Prompt library, prompt pool, saved prompts | UNMIGRATED | Routes reply `501` |
+| Answers, recaps/history | UNMIGRATED | No persistence SQL in the API yet |
+| Notifications | UNMIGRATED | Route replies `501` |
+| Moderation | UNMIGRATED | Route replies `501`; no operator tables |
+| Admin Control Room | UNMIGRATED | `docs/ADMIN_CONTROL_ROOM.md` |
+| Browser Telegram OIDC login | UNMIGRATED | Fails closed (`503`/`501`) |
+| `packages/legacy-runtime` board | COMPATIBILITY REFERENCE | Reachable only via the fixture-preview `legacy-compatibility` branch |
+| `apps/web/src/canonical-game-runtime.ts` | DEAD / SAFE TO REMOVE (deferred) | Zero importers |
+| Old Bible / flyers / V4 template / old UI assets | COMPATIBILITY REFERENCE | Product-history evidence (`docs/HISTORICAL_PRODUCT_EVIDENCE.md`) |
 
-Tests: new `packages/game-engine/test/special-card-draw-rules.test.ts` (13 focused regressions covering all twelve required behaviors); `packages/game-engine/test/validation-matching.test.ts` now proves the new top-card rule instead of the superseded blanket Special matching; the superseded voluntary-draw gate test in `packages/game-engine/test/core-engine.test.ts` was replaced with the canonical voluntary-draw proof; the canonical `Game_rules.md` SHA pin and asserted rule IDs in `packages/cards/test/game-rules-authority.test.ts` were updated for the owner-approved revision; `docs/core-engine-rule-decisions.md` no longer describes the retired knob.
+## Current phase
 
-Checks run on the committed candidate (exact results):
+**Recovery consolidation.** Gameplay mechanics are converging on the shared engine; the documentation pack is being made self-sufficient so a future agent can resume from the repository alone. After this slice the authorized sequence is governance, then a whole-product ownership/dependency audit, then further owner-approved phases (`PLAN.md`).
+
+## CURRENT TASK
+
+**DOC-REBASELINE-1 — documentation rebaseline only.** Reconcile the twelve-document set (`README.md`, `PLAN.md`, `AGENTS.md`, `HANDOFF.md`, `docs/PRODUCT_SCOPE.md`, `docs/CHANGE_GOVERNANCE.md`, `docs/ADMIN_CONTROL_ROOM.md`, `docs/HISTORICAL_PRODUCT_EVIDENCE.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE.md`, `docs/LIVING_STATUS.md`, `docs/BUTTON_MAP.md`) against verified current source. No source, test, schema, dependency or `Game_rules.md` change is part of this task.
+
+## Current blocker
+
+None for the documentation slice. Delivery-wide blockers and unverified areas:
+
+- real Telegram Mini App runtime cannot be exercised here (no genuine `initData`) — server validation is proven with locally minted spec-correct signed data;
+- the unmigrated product verticals above are the main functional gap between "a working card table" and the whole product;
+- the Truth-or-Chaos flow can deadlock and local Simulation can stall on a special-card interaction (recorded observations, not authorized work).
+
+## Next authorized task
+
+**AUTHORITY-GUARD-1** — machine-enforced rule-ID / change-governance gate (direction recorded in `docs/CHANGE_GOVERNANCE.md`, not implemented). It must not be started until DOC-REBASELINE-1 is reviewed and the owner authorizes it.
+
+## Checks and evidence
+
+Last verified on the pre-slice tip `cb1b1b9289458ddde9709498caf25d4073f60cd3`:
 
 ```text
-npm run typecheck -> exit 0
-npm test -> 238 tests, 218 passed, 20 skipped, 0 failed
-npm run lint -> exit 0
-npm run audit:ui -> 0 unclassified buttons, 0 duplicate ids, 0 inline handlers
-npm run build:web / build:telegram / build:api -> exit 0
-git diff --check -> clean
+npm run typecheck                        exit 0
+npm test                                 238 tests, 218 passed, 20 skipped, 0 failed
+npm run lint                             exit 0
+npm run audit:ui                         0 unclassified buttons, 0 duplicate ids, 0 inline handlers
+npm run build:web / build:telegram / build:api   exit 0
+git diff --check                         clean
+git ls-remote origin refs/heads/recovery/single-engine-authority   no ref (not pushed)
 ```
 
-`npm run architecture:check` does not exist in this repository (not invented).
+`npm run architecture:check` does not exist in this repository (reported, not invented). Documentation-only slices additionally run the repository-provided rule/deck documentation checks: `packages/cards/test/game-rules-authority.test.ts` (canonical rule file SHA-256 + required rule IDs) and `packages/cards/test/deck-docs-consistency.test.ts`.
 
-Nothing was pushed, deployed or merged, and remote `main` was not touched. Separately observed gaps this slice did not address: `apps/web/src/canonical-game-runtime.ts` still carries its own `legal()` helper although it has zero importers, the Live client's `sendCommand` emits a `game-command` socket event that has no server handler, and the quarantined Truth-or-Chaos deadlock remains unresolved.
+## Known unknowns
 
-Next authorized task remains the documentation rebaseline / Authority Guard work; this slice authorized no room, prompt, recap or Roulette-presentation work.
+- Real Telegram Mini App runtime behaviour (identity, viewport, back button, native lifecycle).
+- Browser Telegram OIDC login behaviour (endpoints fail closed by design).
+- Behaviour of unmigrated verticals: prompts, prompt pool, answers, recaps, notifications, moderation, control room.
+- Which fixture-preview controls in `packages/legacy-runtime` still correspond to approved product intent (`UNKNOWN — PRESERVE`).
+- Long-run multi-hour session behaviour (timers, reconnect, timeouts) is only partially exercised.
+
+Documentation conflicts deferred to a future authorized slice (they are NOT in the DOC-REBASELINE-1 document set, so this slice recorded rather than rewrote them):
+
+- `docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md` still declares a `## Current Next Task` (T6 real-device card recheck) and a `Phase 3.5 / Active branch feature/visual-integration-checkpoint / Active PR #8` status. That describes the pre-recovery visual-integration line, not the current recovery state.
+- `chaosfixplan.md`, `docs/RECOVERY_SCOPE.md`, `docs/visual-integration-checkpoint.md`, `docs/DEPLOYMENT.md`, `docs/DEVELOPMENT.md`, `docs/ENVIRONMENT.md`, `docs/TELEGRAM.md`, `docs/browser-auth-handoff.md`, `docs/shared-auth-staging.md` and `REQUIREMENTS.md` contain phase/branch/"current" language from earlier lines of work. They are classified as `COMPATIBILITY REFERENCE` evidence in `docs/HISTORICAL_PRODUCT_EVIDENCE.md`.
+- Until those are reconciled, the single current-state authority is this file plus the `PLAN.md` roadmap; ignore any other document's claim about the active branch, phase or next task.
+
+## Remote / publication state
+
+```text
+origin/main                                   964a9162d7d9e1a12acfccc61f0fb88430a8f4ff
+origin/feature/visual-integration-checkpoint  95febd07e4d739c96843fcc4a02f070eb3c623c0   (deployed production source)
+origin/recovery/single-engine-authority-ci    f384c824a0553d1adceb05ef55612e177967bb1a   (CI anchor: 5/5 jobs green)
+origin/recovery/single-engine-authority       absent  -> this work is local only
+```
+
+No push, deploy, merge or remote mutation has occurred from this line of work. Deployment targets remain Cloudflare Pages (Web, Telegram) and Railway (API, PostgreSQL). Production remains on the previous source until the owner authorizes publication.
