@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import type { AuthUser, GameCommand, GameState } from '../../../packages/contracts/src/index.ts';
 import { createSimulation } from '../../../packages/simulation/src/index.ts';
-import { isLegalPlay } from '../../../packages/game-engine/src/index.ts';
+import { fingerprintGameCommand, isLegalPlay } from '../../../packages/game-engine/src/index.ts';
 import { createWaitingRoom, getSessionSnapshot, joinWaitingRoom, processSessionCommand, startRoom } from '../src/game-service.ts';
 import { pool, registerWebUser } from '../src/db.ts';
 
@@ -42,6 +42,27 @@ test('the shared local Simulation keeps its own in-memory command identity', () 
   const card = state.players.find(player => player.id === simulation.humanPlayerId)!.hand.find(item => isLegalPlay(state, simulation.humanPlayerId, item.id));
   assert.ok(card, 'expected a legal card');
   assert.equal(simulation.playCard(card.id).ok, true, 'Simulation must not be forced through the Live UUID contract');
+});
+
+
+test('shared command identity ignores retry-envelope revision but changes with semantic payload or session', () => {
+  const commandId = randomUUID();
+  const original = liveCommand('viewer-1', 'session-a', { type:'DRAW_CARD', commandId, expectedRevision:3 });
+  const retry = liveCommand('viewer-1', 'session-a', { type:'DRAW_CARD', commandId, expectedRevision:99 });
+  const differentPayload = liveCommand('viewer-1', 'session-a', { type:'PLAY_CARD', commandId, cardId:'card-x', expectedRevision:3 });
+  const differentSession = liveCommand('viewer-1', 'session-b', { type:'DRAW_CARD', commandId, expectedRevision:3 });
+
+  assert.equal(fingerprintGameCommand(original), fingerprintGameCommand(retry), 'expectedRevision is not part of semantic command identity');
+  assert.notEqual(fingerprintGameCommand(original), fingerprintGameCommand(differentPayload), 'command payload changes must collide');
+  assert.notEqual(fingerprintGameCommand(original), fingerprintGameCommand(differentSession), 'session changes must collide for a globally unique command id');
+});
+
+test('persistent duplicate handling delegates identity to the shared fingerprint and checks command ids globally', async () => {
+  const source = await import('node:fs').then(({ readFileSync }) => readFileSync(new URL('../src/game-service.ts', import.meta.url), 'utf8'));
+  assert.match(source, /fingerprintGameCommand\(persistedCommand\)/);
+  assert.match(source, /fingerprintGameCommand\(command\)/);
+  assert.match(source, /select\s+session_id,payload,result\s+from\s+game_commands\s+where\s+command_id=\$1/i);
+  assert.doesNotMatch(source, /where\s+command_id=\$1\s+and\s+session_id=\$2/i);
 });
 
 const dbTest = process.env.DATABASE_URL ? test : test.skip;
@@ -115,14 +136,46 @@ dbTest('a canonical UUID command executes exactly once and retries stay idempote
     assert.equal(afterRetry.revision, afterFirst.revision, 'a retry must not advance the revision again');
     assert.equal(afterRetry.processed, afterFirst.processed, 'a retry must not add another processed command row');
 
-    // The same identity with a different payload must not execute a second mutation either.
-    const conflicting = await processSessionCommand(owner, sessionId, liveCommand(owner.id, sessionId, { type: 'DRAW_CARD', commandId, expectedRevision: afterRetry.revision }));
+    // The same UUID with a different semantic command must fail as a controlled collision.
+    const conflicting = await processSessionCommand(owner, sessionId, liveCommand(owner.id, sessionId, { type: 'PLAY_CARD', cardId:'collision-card', commandId, expectedRevision: afterRetry.revision }));
     const afterConflict = await revisionAndRows(sessionId);
     assert.equal(afterConflict.revision, afterRetry.revision, 'a reused id must never execute twice');
     assert.equal(afterConflict.processed, afterRetry.processed, 'a reused id must not add a processed command row');
-    assert.equal(conflicting.ok, retry.ok, 'reused-id behaviour matches the first recorded outcome');
+    assert.equal(conflicting.ok, false);
+    assert.equal(conflicting.error?.code, 'COMMAND_ID_COLLISION');
   } finally {
     await cleanup(roomId, sessionId);
+  }
+});
+
+dbTest('a command UUID reused in another session returns COMMAND_ID_COLLISION instead of a PostgreSQL primary-key error', async () => {
+  const firstFixture = await liveFixture();
+  const secondFixture = await liveFixture();
+  try {
+    const commandId = randomUUID();
+    const firstStart = await revisionAndRows(firstFixture.sessionId);
+    const first = await processSessionCommand(firstFixture.owner, firstFixture.sessionId, liveCommand(firstFixture.owner.id, firstFixture.sessionId, {
+      type:'DRAW_CARD',
+      commandId,
+      expectedRevision:firstStart.revision,
+    }));
+    assert.equal(first.ok, true);
+
+    const secondStart = await revisionAndRows(secondFixture.sessionId);
+    const collision = await processSessionCommand(secondFixture.owner, secondFixture.sessionId, liveCommand(secondFixture.owner.id, secondFixture.sessionId, {
+      type:'DRAW_CARD',
+      commandId,
+      expectedRevision:secondStart.revision,
+    }));
+    assert.equal(collision.ok, false);
+    assert.equal(collision.error?.code, 'COMMAND_ID_COLLISION');
+
+    const secondAfter = await revisionAndRows(secondFixture.sessionId);
+    assert.equal(secondAfter.revision, secondStart.revision, 'cross-session collision must not mutate gameplay');
+    assert.equal(secondAfter.processed, secondStart.processed, 'cross-session collision must not insert another command row');
+  } finally {
+    await cleanup(firstFixture.roomId, firstFixture.sessionId);
+    await cleanup(secondFixture.roomId, secondFixture.sessionId);
   }
 });
 
