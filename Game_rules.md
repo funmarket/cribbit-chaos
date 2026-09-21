@@ -17,6 +17,11 @@ A CI traceability gate must require rule IDs for every claimed LOCKED behavior/t
 - `RULE-TAG-002` through `RULE-TAG-012` are superseded by `RULE-TAG-DRAW-001` through `RULE-TAG-DRAW-010`.
 - `RULE-REVERSE-CONFESSION-002` and `RULE-REVERSE-CONFESSION-003` are superseded by `RULE-REVERSE-CONFESSION-TARGET-001` through `RULE-REVERSE-CONFESSION-TARGET-006`.
 - `RULE-TRUTH-OR-CHAOS-003` through `RULE-TRUTH-OR-CHAOS-011` remain active but are clarified by `RULE-TRUTH-OR-CHAOS-CONSENSUS-001` through `RULE-TRUTH-OR-CHAOS-CONSENSUS-004`: matching answers are the success condition; no external answer key is required.
+- `RULE-NUMBER-002` remains active for Number matching and is clarified by `RULE-SPECIAL-PLAY-001` through `RULE-SPECIAL-PLAY-008`: on a normal turn the legal hand play depends on whether the actual top Play Pile card is a Number or a Special card.
+- `RULE-TURN-002` step 1 ("one legal play/draw decision") is clarified by `RULE-VOLUNTARY-DRAW-001` through `RULE-VOLUNTARY-DRAW-007`: the play/draw decision is always a real choice, and a player is never forced to play merely because a legal card exists in hand.
+- The former `GameConfig.allowVoluntaryDraw = false` gameplay behavior (rejecting a Draw when a legal play existed) is retired by `RULE-VOLUNTARY-DRAW-006`; no configuration may contradict the canonical voluntary-draw rule.
+- `RULE-GHOST-003` and `RULE-GHOST-009` remain fully active: the Ghost-turn restriction (no normal draw; may only play a legal card already in hand) is a Ghost-turn rule and is not superseded by `RULE-VOLUNTARY-DRAW-001` through `RULE-VOLUNTARY-DRAW-007`.
+- `RULE-NOPE-011` remains active and is reinforced by `RULE-SPECIAL-PLAY-007`: Nope is a Special card by classification and remains reaction-only; it is never a normal-turn hand play.
 
 <!-- BEGIN CANONICAL SOURCE WITH ID ANNOTATIONS -->
 # Cribbit CHAOS — GameRules.md
@@ -1853,3 +1858,84 @@ When future rule changes are approved:
 
 <!-- RULE-RULE-CHANGES-004 | supplied source lines 1438-1438 -->
 Do not silently reconcile this file against runtime behavior.
+
+---
+
+# 51. Special-Card Play From Hand — OWNER-APPROVED
+
+<!-- RULE-SPECIAL-PLAY-001 | owner-approved 2026-09-20 -->
+**Special** = every non-Number card family of `CHAOS-133-V1`.
+
+<!-- RULE-SPECIAL-PLAY-002 | owner-approved 2026-09-20 -->
+On a normal turn, if the top card of the Play Pile is NOT a Special card, the current player may play a Special card from their hand regardless of color, number, value or symbol.
+
+<!-- RULE-SPECIAL-PLAY-003 | owner-approved 2026-09-20 -->
+If the immediately previous player has left a Special card on top of the Play Pile, the next player may NOT stack another Special card from hand.
+
+<!-- RULE-SPECIAL-PLAY-004 | owner-approved 2026-09-20 -->
+```text
+top Play Pile = Special
+→ current player must choose one of:
+   - play a legal Number card under the normal Number matching rule, or
+   - Draw one card
+```
+
+<!-- RULE-SPECIAL-PLAY-005 | owner-approved 2026-09-20 -->
+Special cards received in the INITIAL DEAL remain dormant in hand. They do not auto-trigger merely because they were dealt, and when later played from hand they follow this rule.
+
+<!-- RULE-SPECIAL-PLAY-006 | owner-approved 2026-09-20 -->
+This rule does NOT change post-start forced-on-draw behavior (`RULE-ACQUISITION-003` through `RULE-ACQUISITION-005`): families physically drawn after setup still immediately enter their authoritative effect flow.
+
+<!-- RULE-SPECIAL-PLAY-007 | owner-approved 2026-09-20 -->
+Classification as Special does NOT override card-specific timing. Nope is a Special card by classification but remains reaction-only under `RULE-NOPE-001` through `RULE-NOPE-012`, and it never becomes a normal-turn hand play. Ghost is a Special card by classification and keeps its own arming/timing rules under `RULE-GHOST-001` through `RULE-GHOST-014`.
+
+<!-- RULE-SPECIAL-PLAY-008 | owner-approved 2026-09-20 -->
+The Number-or-Special test uses the **actual top card of the Play Pile**, not merely carried-over active color/symbol state.
+
+Illustrative examples (examples are not independent rule authority):
+
+```text
+top Play Pile = orange Number 6, player holds Truth        → Truth may be played
+top Play Pile = orange Number 6, player holds Reverse      → Reverse may be played
+top Play Pile = Truth, player holds Dare                   → Dare may NOT be stacked
+top Play Pile = Truth, player holds Reverse                → Reverse may NOT be stacked
+top Play Pile = Truth, player holds a legally matching Number → matching Number may be played
+top Play Pile = Truth, player cannot play a legal Number   → player may Draw
+```
+
+---
+
+# 52. Voluntary Draw — OWNER-APPROVED
+
+<!-- RULE-VOLUNTARY-DRAW-001 | owner-approved 2026-09-20 -->
+A player is NOT forced to play merely because a legal card exists in their hand.
+
+<!-- RULE-VOLUNTARY-DRAW-002 | owner-approved 2026-09-20 -->
+During a normal turn the player may choose Draw instead of playing from hand.
+
+<!-- RULE-VOLUNTARY-DRAW-003 | owner-approved 2026-09-20 -->
+AFTER THE VOLUNTARY DRAW IS COMMITTED, THAT PLAYER'S NORMAL HAND-PLAY OPPORTUNITY FOR THAT TURN IS OVER. They may not draw and then choose another card from hand during the same normal turn.
+
+<!-- RULE-VOLUNTARY-DRAW-004 | owner-approved 2026-09-20 -->
+```text
+voluntarily drawn card is an ordinary hand-resident card
+→ add card to hand
+→ end normal turn
+→ advance normally
+```
+
+<!-- RULE-VOLUNTARY-DRAW-005 | owner-approved 2026-09-20 -->
+```text
+voluntarily drawn card belongs to a forced-on-draw family
+→ immediately enter forced card flow
+→ resolve that interaction completely
+→ resolve any FIFO forced-on-draw chain
+→ do NOT restore another normal hand-play opportunity
+→ complete/advance the turn after required resolution
+```
+
+<!-- RULE-VOLUNTARY-DRAW-006 | owner-approved 2026-09-20 -->
+For normal gameplay, voluntary draw is always effectively enabled. A configuration such as `allowVoluntaryDraw = false` must NOT force normal players to play merely because a legal hand card exists, and no second competing implementation of this rule may exist.
+
+<!-- RULE-VOLUNTARY-DRAW-007 | owner-approved 2026-09-20 -->
+The only approved normal-turn draw restriction is the Ghost-turn rule (`RULE-GHOST-003`, `RULE-GHOST-009`).

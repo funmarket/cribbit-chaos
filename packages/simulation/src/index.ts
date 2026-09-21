@@ -130,7 +130,6 @@ export function createSimulation(config: SimulationConfig): SimulationSession {
       seed: simulationSeed(config, players),
       startingHandCount: SIMULATION_DEFAULT_HAND_SIZE,
       startingPlayerIndex: 0,
-      allowVoluntaryDraw: true,
       contentWorld: config.world === 'adult' ? '18+_ADULT' : 'UNDER_18_CLEAN',
     },
     players.map((player, seat) => ({ id: player.id, seat })),

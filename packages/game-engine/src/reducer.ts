@@ -475,14 +475,8 @@ function handleDrawCard<TState extends GameState>(state: TState, command: GameCo
     const nextState = cacheOutcome(state, command, { ok: false, error: validation.error, events: [] }, state.revision);
     return finalise(nextState, false, [], validation.error);
   }
-  if (!state.config.allowVoluntaryDraw) {
-    const legalCards = validation.player.hand.filter(card => isLegalPlay(state, validation.player!.id, card.id));
-    if (legalCards.length > 0) {
-      const error = createEngineError('ILLEGAL_PLAY', 'A legal play is available, so drawing is not allowed under the current configuration.');
-      const nextState = cacheOutcome(state, command, { ok: false, error, events: [] }, state.revision);
-      return finalise(nextState, false, [], error);
-    }
-  }
+  // RULE-VOLUNTARY-DRAW-001/002/006: a normal-turn draw is always available, even when the hand
+  // holds legal playable cards. The retired allowVoluntaryDraw gate was removed here.
 
   const nextState = cloneState(state);
   const player = nextState.players.find(item => item.id === command.playerId)!;

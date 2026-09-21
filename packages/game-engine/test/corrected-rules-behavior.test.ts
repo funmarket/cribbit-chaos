@@ -14,7 +14,7 @@ function unwrap<T>(transition: GameTransition<T>): T {
 }
 
 function baseState(seed: string): GameState {
-  return unwrap(createGame({ seed, startingHandCount: 0, startingPlayerIndex: 0, allowVoluntaryDraw: true }, [
+  return unwrap(createGame({ seed, startingHandCount: 0, startingPlayerIndex: 0 }, [
     { id: 'player-1', seat: 0 },
     { id: 'player-2', seat: 1 },
     { id: 'player-3', seat: 2 }
@@ -210,7 +210,7 @@ test('Paranoia Classic voluntary Keep Secret applies Draw 1 to the answer player
 });
 
 test('Chaos Blind Swap transfers up to three cards simultaneously and transferred forced cards do not trigger', () => {
-  let state = unwrap(createGame({ seed: 'chaos-blind-swap', startingHandCount: 0, startingPlayerIndex: 0, allowVoluntaryDraw: true }, [
+  let state = unwrap(createGame({ seed: 'chaos-blind-swap', startingHandCount: 0, startingPlayerIndex: 0 }, [
     { id: 'player-1', seat: 0 },
     { id: 'player-2', seat: 1 },
     { id: 'player-3', seat: 2 },
@@ -250,7 +250,7 @@ test('Chaos Blind Swap transfers up to three cards simultaneously and transferre
 });
 
 test('Chaos Reverse Order reverses direction and records persistent Chaos reverse state', () => {
-  let state = unwrap(createGame({ seed: 'chaos-a', startingHandCount: 0, startingPlayerIndex: 0, allowVoluntaryDraw: true }, [
+  let state = unwrap(createGame({ seed: 'chaos-a', startingHandCount: 0, startingPlayerIndex: 0 }, [
     { id: 'player-1', seat: 0 },
     { id: 'player-2', seat: 1 },
     { id: 'player-3', seat: 2 }
@@ -353,7 +353,7 @@ test('Ghost can be armed, activated, and suppresses two normal no-legal-card dra
 });
 
 test('Hijack swaps authoritative player order, not just seat labels', () => {
-  let state = unwrap(createGame({ seed: 'hijack-turn-order', startingHandCount: 0, startingPlayerIndex: 0, allowVoluntaryDraw: true }, [
+  let state = unwrap(createGame({ seed: 'hijack-turn-order', startingHandCount: 0, startingPlayerIndex: 0 }, [
     { id: 'player-1', seat: 0 },
     { id: 'player-2', seat: 1 },
     { id: 'player-3', seat: 2 },

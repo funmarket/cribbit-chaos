@@ -701,7 +701,6 @@ test('wrong actor cannot submit DRAW_CARD', () => {
   const state = baseState(2);
 
   state.currentPlayerId = 'player-1';
-  state.config.allowVoluntaryDraw = true;
   setTopDiscard(state, makeCard('starter', 'number', { color: 'orange', value: 1, symbol: '1' }));
   setHands(state, {
     'player-1': [makeCard('current', 'number', { color: 'purple', value: 9, symbol: '9' })],
@@ -733,21 +732,22 @@ test('wrong actor cannot select a pending Wild color', () => {
   assert.equal(wrongActor.error?.code, 'NOT_YOUR_TURN');
 });
 
-test('drawing is blocked while a legal play exists when voluntary draws are disabled', () => {
+test('RULE-VOLUNTARY-DRAW-001/002: a player may draw even while holding a legal play', () => {
   const state = baseState(2);
   const playableCard = makeCard('playable', 'number', { color: 'orange', value: 3, symbol: '3' });
 
   state.currentPlayerId = 'player-1';
-  state.config.allowVoluntaryDraw = false;
+  state.drawPile = [makeCard('drawn', 'number', { color: 'purple', value: 4, symbol: '4' })];
   setTopDiscard(state, makeCard('starter', 'number', { color: 'orange', value: 1, symbol: '1' }));
   setHands(state, {
     'player-1': [playableCard],
     'player-2': []
   });
 
-  const result = applyCommand(state, drawCommand(state, 'draw-blocked'));
-  assert.equal(result.ok, false);
-  assert.equal(result.error?.code, 'ILLEGAL_PLAY');
+  const result = applyCommand(state, drawCommand(state, 'draw-with-legal-play'));
+  assert.equal(result.ok, true);
+  assert.equal(result.state.players[0].hand.length, 2);
+  assert.equal(result.state.currentPlayerId, 'player-2');
 });
 
 test('drawing a card advances play to the next player when no legal play exists', () => {
@@ -755,7 +755,6 @@ test('drawing a card advances play to the next player when no legal play exists'
   const drawnCard = makeCard('drawn-1', 'number', { color: 'purple', value: 2, symbol: '2' });
 
   state.currentPlayerId = 'player-1';
-  state.config.allowVoluntaryDraw = false;
   state.drawPile = [drawnCard];
   setTopDiscard(state, makeCard('starter', 'number', { color: 'orange', value: 1, symbol: '1' }));
   setHands(state, {
@@ -777,7 +776,6 @@ test('drawing a card advances play to the next player when no legal play exists'
 test('normal DRAW_CARD advances exactly one player regardless of drawPenaltySkipsTurn', () => {
   const keepTurnState = baseState(3);
   keepTurnState.currentPlayerId = 'player-1';
-  keepTurnState.config.allowVoluntaryDraw = true;
   keepTurnState.config.drawPenaltySkipsTurn = false;
   keepTurnState.drawPile = [makeCard('keep-turn-drawn', 'number', { color: 'purple', value: 2, symbol: '2' })];
   setTopDiscard(keepTurnState, makeCard('starter', 'number', { color: 'orange', value: 1, symbol: '1' }));
@@ -794,7 +792,6 @@ test('normal DRAW_CARD advances exactly one player regardless of drawPenaltySkip
 
   const skipTurnState = baseState(3);
   skipTurnState.currentPlayerId = 'player-1';
-  skipTurnState.config.allowVoluntaryDraw = true;
   skipTurnState.config.drawPenaltySkipsTurn = true;
   skipTurnState.drawPile = [makeCard('skip-turn-drawn', 'number', { color: 'purple', value: 2, symbol: '2' })];
   setTopDiscard(skipTurnState, makeCard('starter', 'number', { color: 'orange', value: 1, symbol: '1' }));
@@ -947,7 +944,6 @@ test('wild cards defer turn advancement until a color is selected, and the final
 test('duplicate DRAW_CARD replays do not mutate state or emit old events', () => {
   const state = baseState(2);
   state.currentPlayerId = 'player-1';
-  state.config.allowVoluntaryDraw = true;
   state.drawPile = [makeCard('drawn-once', 'number', { color: 'lime', value: 4, symbol: '4' })];
   setTopDiscard(state, makeCard('starter', 'number', { color: 'cyan', value: 9, symbol: '9' }));
   setHands(state, {

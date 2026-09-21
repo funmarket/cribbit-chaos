@@ -14,7 +14,7 @@ The Bible v5 PDF has now been reviewed externally to the repository. The relevan
 | --- | --- | --- | --- | --- | --- | --- |
 | Starting hand count | `Canonical Master Bible v5` | `Balancing Knobs` | `GameConfig.startingHandCount` remains configurable. Default `7` is an implementation default only. | Yes | CANONICAL that it is configurable | Default remains provisional |
 | Draw penalty | `Canonical Master Bible v5` | `Balancing Knobs` | `GameConfig.drawPenalty` remains configurable. Default `2` is an implementation default only. | Yes | CANONICAL that it is configurable | Default remains provisional |
-| Voluntary draw | `reference/approved-v4-template.html` | `commandDrawCard` flow | `GameConfig.allowVoluntaryDraw` defaults to `false`; when false, draw is rejected if a legal play exists | Yes | Medium | Bible v5 did not lock this detail as canonical behavior |
+| Voluntary draw | `Game_rules.md` `RULE-VOLUNTARY-DRAW-001`..`RULE-VOLUNTARY-DRAW-007` | `handleDrawCard` | Voluntary draw is always legal on a normal turn (the retired `allowVoluntaryDraw` knob no longer exists) | Yes | Locked |
 | Initial discard choice | `reference/approved-v4-template.html` | `starterCardFromDeck` / game-start sequence | `GameConfig.initialDiscardStrategy` is a provisional implementation strategy. Current supported values: `FIRST_NUMBER_CARD` and `TOP_SHUFFLED_CARD`. | Yes | Medium | Bible v5 did not establish the starter-discard rule as final canon |
 | Turn advancement after Draw | `Canonical Master Bible v5` and approved V4 flow | Authoritative loop / draw effect behavior | Draw resolves an effect, then turn resolution follows the configured `drawPenaltySkipsTurn` rule. | Yes | CANONICAL that the effect exists; provisional on whether the penalized player keeps the turn | Bible v5 does not lock the turn-return detail |
 | Draw target behavior | `Canonical Master Bible v5` and approved V4 flow | Authoritative loop / draw effect behavior | The next player receives the draw penalty. Whether that player becomes active is controlled by `GameConfig.drawPenaltySkipsTurn`. | Yes | CANONICAL that the next player draws; provisional on the turn outcome | Bible v5 does not lock the turn-return detail |
@@ -31,6 +31,6 @@ The Bible v5 PDF has now been reviewed externally to the repository. The relevan
 
 ## Notes
 
-- `startingHandCount`, `drawPenalty`, `drawPenaltySkipsTurn`, and `allowVoluntaryDraw` remain configuration knobs.
+- `startingHandCount`, `drawPenalty` and `drawPenaltySkipsTurn` remain configuration knobs.
 - `CARD_DEALT`, `CARD_DRAWN`, and `DRAW_EFFECT_APPLIED` are the current private-reveal event classes.
 - This slice intentionally does not implement the social-card families, safety cards, or multiplayer transport.

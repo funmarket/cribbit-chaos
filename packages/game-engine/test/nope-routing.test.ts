@@ -23,7 +23,7 @@ function command(
 
 test('Truth can be cancelled by an owned Nope through the public shared command path', () => {
   const created = createGame(
-    { seed:'nope-routing', startingHandCount:0, startingPlayerIndex:0, allowVoluntaryDraw:true, contentWorld:'UNDER_18_CLEAN' },
+    { seed:'nope-routing', startingHandCount:0, startingPlayerIndex:0, contentWorld:'UNDER_18_CLEAN' },
     [{ id:'p1', seat:0 }, { id:'p2', seat:1 }],
     undefined,
     { now:1000 },
@@ -61,7 +61,7 @@ test('Truth can be cancelled by an owned Nope through the public shared command 
 
 test('selected Truth target can cancel with their owned Nope', () => {
   const created = createGame(
-    { seed:'target-nope-routing', startingHandCount:0, startingPlayerIndex:0, allowVoluntaryDraw:true, contentWorld:'UNDER_18_CLEAN' },
+    { seed:'target-nope-routing', startingHandCount:0, startingPlayerIndex:0, contentWorld:'UNDER_18_CLEAN' },
     [{ id:'p1', seat:0 }, { id:'p2', seat:1 }, { id:'p3', seat:2 }],
     undefined,
     { now:1000 },

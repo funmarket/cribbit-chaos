@@ -331,7 +331,6 @@ export async function startRoom(user: AuthUser, roomId: string): Promise<RoomSes
       seed: sessionId,
       startingHandCount: 7,
       startingPlayerIndex: 0,
-      allowVoluntaryDraw: true,
       contentWorld: config.world === 'adult' ? '18+_ADULT' : 'UNDER_18_CLEAN',
     },
     seats,

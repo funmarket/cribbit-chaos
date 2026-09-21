@@ -9,33 +9,32 @@ export interface ValidationResult {
   card?: Card;
 }
 
+// RULE-SPECIAL-PLAY-001: Special = every non-Number card family.
+function isSpecialCard(card: Card): boolean {
+  return card.kind !== 'number';
+}
+
+// RULE-SPECIAL-PLAY-008: the Number-or-Special test uses the actual top Play Pile card.
+function topPlayPileCard(state: GameState): Card | null {
+  return state.discardPile.length > 0 ? state.discardPile[state.discardPile.length - 1] : null;
+}
+
 function activeCardMatches(state: GameState, card: Card): boolean {
-  // Cribbit rule: normal turn-playable specials may be played on your own turn
-  // without matching the current color or symbol. Nope remains reaction-only.
-  switch (card.kind) {
-    case 'skip':
-    case 'reverse':
-    case 'draw':
-    case 'wild':
-    case 'truth':
-    case 'dare':
-    case 'paranoia':
-    case 'chaos':
-    case 'duel':
-    case 'tag':
-    case 'truth_or_chaos':
-    case 'hijack':
-    case 'taboo':
-    case 'machiavelli':
-    case 'reverse_confession':
-    case 'dig_me':
-    case 'ghost':
-      return true;
-    case 'number':
-      return Boolean(card.color && card.color === state.activeColor) || String(card.value) === state.activeSymbol;
-    case 'nope':
-      return false;
+  // RULE-SPECIAL-PLAY-007: Special classification never overrides card-specific timing.
+  // Nope stays reaction-only under RULE-NOPE-001..012 and is never a normal-turn hand play.
+  if (card.kind === 'nope') {
+    return false;
   }
+  if (card.kind === 'number') {
+    // RULE-NUMBER-002: a Number matches the active play condition by color or number/value
+    // (the Wild-chosen color is authoritative per RULE-WILD-002).
+    return Boolean(card.color && card.color === state.activeColor) || String(card.value) === state.activeSymbol;
+  }
+  // Every other family is a Special. RULE-SPECIAL-PLAY-002: playable from hand while the top
+  // Play Pile card is not Special, regardless of color, number, value or symbol.
+  // RULE-SPECIAL-PLAY-003: never stacked from hand onto a Special top.
+  const top = topPlayPileCard(state);
+  return top === null ? true : !isSpecialCard(top);
 }
 
 export function isLegalPlay(state: GameState, playerId: string, cardId: string): boolean {

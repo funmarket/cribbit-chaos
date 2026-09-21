@@ -16,7 +16,7 @@ function makeCard(id: string, kind: Card['kind'], fields: Partial<Card> = {}): C
 
 function baseState(seed = 'bot-policy-test', players = [{ id: 'human-1', seat: 0 }, { id: 'bot:test:1', seat: 1 }, { id: 'human-2', seat: 2 }, { id: 'bot:test:2', seat: 3 }]): GameState {
   return unwrap(createGame(
-    { seed, startingHandCount: 0, startingPlayerIndex: 1, allowVoluntaryDraw: true, contentWorld: 'UNDER_18_CLEAN' },
+    { seed, startingHandCount: 0, startingPlayerIndex: 1, contentWorld: 'UNDER_18_CLEAN' },
     players,
     undefined,
     { now: 1000 }

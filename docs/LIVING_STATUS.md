@@ -282,7 +282,7 @@ Verified source behavior now includes:
 - Ghost arm, activate, and two-own-turn normal-draw suppression lifecycle;
 - Web and Telegram live clients submitting Ghost and Nope through shared `projectDecisionCapabilities()` options.
 
-Current verification snapshot:
+Current verification snapshot (pre-slice; superseded by the newest verified slice below):
 
 ```text
 npm run typecheck -> exit 0
@@ -307,3 +307,31 @@ Verification checklist:
 - [x] Phase 6 updates traceability docs.
 - [x] Phase 7 full local verification after docs are updated.
 - [>] Phase 8 live Railway/client deployment and readback after explicit approval.
+
+## Owner-approved Special-card play and voluntary draw — VERIFIED LOCALLY
+
+`Game_rules.md` now carries the two owner-approved canonical rules as permanent-ID clauses in new sections 51 and 52, with supersession/clarification register entries for `RULE-NUMBER-002`, `RULE-TURN-002` step 1, the retired `allowVoluntaryDraw = false` gameplay behavior, `RULE-GHOST-003`/`RULE-GHOST-009` (kept active) and `RULE-NOPE-011` (kept active):
+
+- `RULE-SPECIAL-PLAY-001`..`RULE-SPECIAL-PLAY-008` — Special = every non-Number card family; on a normal turn, while the top Play Pile card is NOT a Special, the current player may play a Special from hand regardless of color, number, value or symbol; a Special may never be stacked from hand onto a Special top, where the player must instead play a legal Number under the normal Number matching rule or Draw one card; Specials dealt in the initial deal stay dormant in hand; post-start forced-on-draw behavior is unchanged; Special classification never overrides card-specific timing (Nope stays reaction-only, Ghost keeps its own arming/timing); the Number-or-Special test reads the actual top Play Pile card rather than carried-over active color/symbol state.
+- `RULE-VOLUNTARY-DRAW-001`..`RULE-VOLUNTARY-DRAW-007` — a player is never forced to play merely because a legal card exists in hand; a voluntary draw is always available on a normal turn and ends that turn's normal hand-play opportunity; an ordinary drawn card is added to hand and the turn advances; a voluntarily drawn forced-on-draw card enters its forced flow immediately and restores no hand play; no configuration may force a normal player to play; the Ghost-turn restriction (`RULE-GHOST-003`, `RULE-GHOST-009`) is the only approved normal-turn draw restriction.
+
+Implementation is in the shared engine only, with no client-side legality: `packages/game-engine/src/validation.ts` (top-Play-Pile-aware Number/Special legality), `packages/game-engine/src/reducer.ts` (retired voluntary-draw gate removed, Ghost branch preserved), `packages/game-engine/src/setup.ts` and `packages/contracts/src/index.ts` (the retired `allowVoluntaryDraw` knob is gone so no configuration can contradict the rule), with the only two config sites updated: `apps/api/src/game-service.ts` (Live) and `packages/simulation/src/index.ts` (Simulation).
+
+Tests: new `packages/game-engine/test/special-card-draw-rules.test.ts` (13 focused regressions covering all twelve required behaviors); `packages/game-engine/test/validation-matching.test.ts` now proves the new top-card rule instead of the superseded blanket Special matching; the superseded voluntary-draw gate test in `packages/game-engine/test/core-engine.test.ts` was replaced with the canonical voluntary-draw proof; the canonical `Game_rules.md` SHA pin and asserted rule IDs in `packages/cards/test/game-rules-authority.test.ts` were updated for the owner-approved revision; `docs/core-engine-rule-decisions.md` no longer describes the retired knob.
+
+Checks run on the committed candidate (exact results):
+
+```text
+npm run typecheck -> exit 0
+npm test -> 238 tests, 218 passed, 20 skipped, 0 failed
+npm run lint -> exit 0
+npm run audit:ui -> 0 unclassified buttons, 0 duplicate ids, 0 inline handlers
+npm run build:web / build:telegram / build:api -> exit 0
+git diff --check -> clean
+```
+
+`npm run architecture:check` does not exist in this repository (not invented).
+
+Nothing was pushed, deployed or merged, and remote `main` was not touched. Separately observed gaps this slice did not address: `apps/web/src/canonical-game-runtime.ts` still carries its own `legal()` helper although it has zero importers, the Live client's `sendCommand` emits a `game-command` socket event that has no server handler, and the quarantined Truth-or-Chaos deadlock remains unresolved.
+
+Next authorized task remains the documentation rebaseline / Authority Guard work; this slice authorized no room, prompt, recap or Roulette-presentation work.
