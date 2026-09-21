@@ -107,17 +107,16 @@ Implementation owners: `packages/game-engine/src/validation.ts`, `packages/game-
 
 ## Current phase
 
-**Recovery consolidation / authority hardening.** RECOVERY-HARDEN-1, RECOVERY-HARDEN-2 and RECOVERY-HARDEN-3 are implemented and published. Live clients consume authoritative server-projected gameplay capabilities, and persisted command-ID replay/collision semantics now use one shared semantic fingerprint. Whole-product scope remains preserved.
+**Recovery consolidation / authority hardening.** RECOVERY-HARDEN-1, RECOVERY-HARDEN-2 and RECOVERY-HARDEN-3/3B are implemented and published. Live clients consume authoritative server-projected gameplay capabilities. Persisted command-ID replay/collision semantics now have exhaustive semantic identity, global concurrency serialization and real PostgreSQL 16 CI coverage. Whole-product scope remains preserved.
 
 ## CURRENT TASK
 
-**None in flight after RECOVERY-HARDEN-3 documentation reconciliation.** The next implementation slice requires explicit owner authorization.
+**None in flight after RECOVERY-HARDEN-3B documentation reconciliation.** The next implementation slice requires explicit owner authorization.
 
 ## Current blockers / hardening queue
 
 - Active gameplay mutation is REST, while stale realtime/action-registry metadata still describes socket `game-command` behavior.
 - Truth-or-Chaos can enter `groupPunishmentPending` without a proven completion path; instigator participation and refusal behavior remain unresolved owner decisions.
-- RECOVERY-HARDEN-3's DB-backed cross-session command-ID regression test has not been rerun against disposable PostgreSQL here because GitHub CI has no `DATABASE_URL`.
 - Real Telegram Mini App runtime is not verified with genuine Telegram-generated `initData`.
 - Whole-product verticals listed above remain UNMIGRATED and must be preserved.
 
@@ -131,31 +130,57 @@ Owner-selectable hardening candidates are REST-vs-WS/action-registry reconciliat
 
 ## Checks and evidence
 
-RECOVERY-HARDEN-3:
+RECOVERY-HARDEN-3/3B:
 
 ```text
-RED test commit cbe8c6fd0fee710e2f0e892d201168798a8bde0b
-  changed only apps/api/test/command-id-boundary.test.ts
-  CI 35663801731 FAILED as intended:
-    fingerprintGameCommand missing
-    persisted duplicate path not yet using shared fingerprint/global command_id lookup
+initial RED contract commit
+cbe8c6fd0fee710e2f0e892d201168798a8bde0b
+  established persisted replay/collision expectations
 
-GREEN implementation 67dbff10ee60e38957d0d969ee4a20669d74e0bf
-  packages/game-engine/src/command-identity.ts  one semantic fingerprint owner
-  reducer.ts / command-router.ts                consume shared fingerprint
-  game-service.ts                              global command_id lookup + semantic replay/collision
-  packages/game-engine/src/index.ts             exports fingerprintGameCommand
+initial GREEN implementation
+67dbff10ee60e38957d0d969ee4a20669d74e0bf
+  one shared fingerprint owner
+  global persisted command lookup
+  exact CI 35663953597 SUCCESS
 
-GitHub CI 35663953597 on 67dbff10   SUCCESS
-  typecheck, test, build-web, build-telegram, build-api
+second-review RED hardening
+d24264e40e33bcfa2f8f66087301df460a449c3f
+  CI 35667283036 FAILED as intended:
+    ACTIVATE_GHOST semantic payload omission
+    missing global UUID serialization
+    no PostgreSQL CI service
 
-Evidence limitation
-  GitHub CI does not provide DATABASE_URL.
-  DB-backed command-ID tests, including the new cross-session collision row,
-  are therefore skipped there and have not been rerun against disposable PostgreSQL in this environment.
+final GREEN hardening
+3fd53f7748f28ddc10883278ce1f1b57fdb60434
+  exhaustive type-checked GameCommand semantic fingerprint
+  pg_advisory_xact_lock(hashtextextended(commandId, 0)) before duplicate lookup
+  PostgreSQL 16 CI service + canonical migrations + DB-backed tests
+
+GitHub CI 35667385029 on 3fd53f77   SUCCESS
+  typecheck       PASS
+  test            PASS
+  build-web       PASS
+  build-telegram  PASS
+  build-api       PASS
+
+PostgreSQL 16 migration proof
+  001_initial.sql                    applied
+  002_dual_web_auth.sql              applied
+  003_identity_link_challenges.sql   applied
+
+test summary
+  252 tests
+  246 pass
+  0 fail
+  6 skipped
+
+command-ID DB regressions explicitly PASS:
+  cross-session UUID reuse -> controlled COMMAND_ID_COLLISION
+  concurrent identical retry -> one transition / one command row
+  concurrent cross-session UUID race -> one success / one controlled collision / one global row
 ```
 
-Current GitHub CI runs typecheck, test, build-web, build-telegram and build-api. `npm run architecture:check` does not exist in this repository. No RECOVERY-HARDEN-3 schema, migration, `Game_rules.md`, deployment or production mutation occurred.
+Current GitHub CI now runs the normal suite against PostgreSQL 16 after canonical migrations, in addition to typecheck and all three builds. `npm run architecture:check` does not exist in this repository. No schema, migration, `Game_rules.md`, deployment or production mutation occurred in RECOVERY-HARDEN-3B.
 
 ## Known unknowns
 

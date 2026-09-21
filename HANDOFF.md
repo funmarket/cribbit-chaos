@@ -37,29 +37,58 @@ GitHub CI evidence: run `35636741098` succeeded on `95e4d846`; run `35640701568`
 
 ## Last completed task
 
-**RECOVERY-HARDEN-3 — persisted command-ID replay/collision reconciliation — IMPLEMENTED / PUBLISHED.**
+**RECOVERY-HARDEN-3B — command identity completeness, concurrency and PostgreSQL CI proof — COMPLETE / PUBLISHED.**
 
-The slice used test-first recovery:
+This follow-up closed the remaining quality gaps found in the second review of RECOVERY-HARDEN-3.
 
-- RED test commit `cbe8c6fd0fee710e2f0e892d201168798a8bde0b` changed only `apps/api/test/command-id-boundary.test.ts`. Exact CI run `35663801731` failed for the intended missing contract: no shared `fingerprintGameCommand` export and no persisted fingerprint/global-command-id reconciliation in `game-service.ts`.
-- GREEN implementation commit `67dbff10ee60e38957d0d969ee4a20669d74e0bf` introduced one shared semantic fingerprint owner at `packages/game-engine/src/command-identity.ts`, reused it in the reducer and PLAY_NOPE router, and reconciled PostgreSQL duplicate handling in `apps/api/src/game-service.ts`.
-- Exact CI run `35663953597` succeeded on `67dbff10...` (typecheck, test, build-web, build-telegram, build-api).
+TDD evidence:
 
-The persisted command contract is now:
+- RED test commit `d24264e40e33bcfa2f8f66087301df460a449c3f` added regressions for payload completeness, global command-id serialization, PostgreSQL 16 CI, and concurrent duplicate UUID behavior. Exact CI run `35667283036` failed for the intended missing behavior:
+  - `ACTIVATE_GHOST.cardId` was not part of semantic identity;
+  - no global command-id advisory lock existed before duplicate lookup;
+  - CI had no PostgreSQL service/database-backed test execution.
+- GREEN implementation commit `3fd53f7748f28ddc10883278ce1f1b57fdb60434` fixed all three gaps.
+- Exact CI run `35667385029` succeeded with PostgreSQL 16, migrations applied, and DB-backed tests enabled.
 
-1. `game_commands.command_id` remains the global UUID idempotency key; no schema/migration change was required.
-2. `expectedRevision` is an execution precondition, not semantic command identity.
-3. Same command UUID + same session/player/type/payload fingerprint replays the stored result without a second transition.
-4. Same command UUID reused with a different session, player, type or semantic payload returns controlled `COMMAND_ID_COLLISION` and does not insert another command row or mutate gameplay state.
-5. The shared engine and persisted API path use the same fingerprint function rather than maintaining divergent identity rules.
+The final command-ID contract is:
 
-Important evidence boundary: GitHub CI has no `DATABASE_URL`, so its DB-backed command-ID integration rows are skipped. This slice is source-verified and exact-SHA CI green, but the new cross-session PostgreSQL assertion has **not** been rerun against a disposable PostgreSQL instance in this environment. Do not describe that unrun database integration as verified runtime evidence.
+1. `game_commands.command_id` is the global UUID idempotency key.
+2. `expectedRevision` and `commandId` are envelope metadata, not semantic command identity.
+3. Every current `GameCommand` variant is handled explicitly by `fingerprintGameCommand`; payload-bearing commands cannot silently fall through because the switch is exhaustively type-checked.
+4. `ACTIVATE_GHOST.cardId`, `NOPE_REACTION.useNope`, timeout revision identity and all other current semantic payload fields are included.
+5. Same UUID + same semantic command replays one stored result.
+6. Same UUID + different semantic command returns controlled `COMMAND_ID_COLLISION`.
+7. A transaction-scoped PostgreSQL advisory lock keyed by command UUID is acquired before duplicate lookup, so simultaneous identical retries and cross-session collisions cannot race into a raw primary-key failure.
+8. GitHub CI now starts PostgreSQL 16, runs `npm run migrate:db`, and executes the database-backed tests.
 
-Before RECOVERY-HARDEN-3: RECOVERY-HARDEN-2 removed Live client-side gameplay decision authority; RECOVERY-HARDEN-1 serialized Live room joins/starts; the whole-project preservation rule remains mandatory.
+Exact CI evidence on `3fd53f...`:
+
+```text
+run 35667385029  SUCCESS
+typecheck        PASS
+test             PASS
+build-web        PASS
+build-telegram   PASS
+build-api        PASS
+
+PostgreSQL migrations:
+001_initial.sql                   applied
+002_dual_web_auth.sql             applied
+003_identity_link_challenges.sql  applied
+
+tests     252
+passed    246
+failed    0
+skipped   6
+```
+
+The command-ID DB evidence gap is therefore CLOSED for the tested PostgreSQL 16 CI environment.
+
+Before this follow-up: RECOVERY-HARDEN-3 established one shared command fingerprint owner; RECOVERY-HARDEN-2 removed Live client-side gameplay decision authority; RECOVERY-HARDEN-1 serialized Live room joins/starts.
 
 ## Current task
 
-**None in flight after RECOVERY-HARDEN-3 documentation reconciliation.** The owner must authorize the next implementation slice.
+**None in flight after RECOVERY-HARDEN-3B documentation reconciliation.** The owner must authorize the next implementation slice.
 
 ## Next task / authorization state
 
@@ -67,7 +96,7 @@ Before RECOVERY-HARDEN-3: RECOVERY-HARDEN-2 removed Live client-side gameplay de
 
 Remaining hardening candidates:
 
-1. reconcile authoritative REST gameplay commands with the stale socket `game-command` client/action-registry metadata;
+1. reconcile authoritative REST gameplay commands with stale socket `game-command` client/action-registry metadata;
 2. resolve the Truth-or-Chaos owner decisions, then repair its pending group-punishment completion path;
 3. complete the whole-product ownership/dependency audit before broad deletion or migration work.
 
@@ -77,7 +106,6 @@ Remaining hardening candidates:
 
 - **Gameplay transport metadata:** active gameplay mutation is REST, while stale realtime/action-registry metadata still describes a socket `game-command` path. Caller/ownership archaeology is required before removal or rewriting.
 - **Truth or Chaos:** the current flow can reach `groupPunishmentPending` without a proven completion path. Whether the instigator also answers and the exact refusal/Pass rule remain unresolved owner decisions; do not invent them.
-- **Command-ID database evidence boundary:** the source contract is reconciled and exact-SHA CI is green, but GitHub CI skips `DATABASE_URL` tests. The new cross-session collision behavior still needs a disposable-PostgreSQL run before calling that integration path runtime-verified.
 - **Whole-product recovery:** prompt library/create/save, room prompt pool, notifications, moderation, answers, recap/history and other retained verticals remain UNMIGRATED. Not wired does not mean dead.
 - Real Telegram Mini App runtime remains NOT VERIFIED in this environment (no genuine Telegram-generated `initData`).
 - `apps/web/src/canonical-game-runtime.ts` remains `UNKNOWN — PRESERVE`; zero importers is not removal proof.
@@ -85,13 +113,13 @@ Remaining hardening candidates:
 
 ## Publication / deployment state
 
-The recovery branch is published through RECOVERY-HARDEN-3. The implementation candidate `67dbff10ee60e38957d0d969ee4a20669d74e0bf` is green in GitHub Actions run `35663953597`; this documentation reconciliation is the next documentation-only commit.
+The recovery branch is published through RECOVERY-HARDEN-3B. Implementation candidate `3fd53f7748f28ddc10883278ce1f1b57fdb60434` is green in GitHub Actions run `35667385029`; this documentation reconciliation is the next documentation-only commit.
 
 ```text
 origin/main                                   964a9162d7d9e1a12acfccc61f0fb88430a8f4ff   (unchanged)
 origin/feature/visual-integration-checkpoint  95febd07e4d739c96843fcc4a02f070eb3c623c0   (deployed production source)
 origin/recovery/single-engine-authority-ci    f384c824a0553d1adceb05ef55612e177967bb1a   (CI anchor)
-origin/recovery/single-engine-authority       this documentation reconciliation; parent 67dbff10ee60e38957d0d969ee4a20669d74e0bf
+origin/recovery/single-engine-authority       this documentation reconciliation; parent 3fd53f7748f28ddc10883278ce1f1b57fdb60434
 ```
 
 No recovery-branch merge or deployment has occurred. Production must not be mutated without an explicit owner gate.
