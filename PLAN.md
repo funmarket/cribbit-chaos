@@ -559,18 +559,25 @@ Do not silently mark these complete while working on gameplay:
 
 ## Current roadmap
 
-Authorized order (do not start a later item early):
+Current recovery order after the completed documentation and authority-hardening slices:
 
-1. **DOC-REBASELINE-1** — documentation rebaseline (current slice; documentation only).
-2. **AUTHORITY-GUARD-1** — machine-enforced rule-ID / change-governance gate. Direction only, recorded in `docs/CHANGE_GOVERNANCE.md`; not implemented.
-3. **Whole-product ownership/dependency audit** — verify ownership, callers and preservation classification across every package, app, document and unmigrated vertical before further feature work.
-4. **Subsequent owner-approved phases** — chosen by the owner from the audit result (unmigrated product verticals, Telegram Mini App runtime verification, mechanics/tuning, art finalization).
+1. **DOC-REBASELINE-1 + preservation correction** — COMPLETE.
+2. **RECOVERY-HARDEN-1 — Live room concurrency** — COMPLETE / PUBLISHED.
+3. **Whole-project preservation rule + publication-state reconciliation** — COMPLETE / PUBLISHED.
+4. **RECOVERY-HARDEN-2 — authoritative server-projected Live gameplay capabilities** — COMPLETE / PUBLISHED; exact implementation/test candidate `812acce7356c22336bb41e0e77f02893a3d4c771` is green in CI run `35661725013`.
+5. **Next hardening slice — OWNER SELECTION REQUIRED.** Remaining candidates are:
+   - command-ID persistence replay/collision reconciliation;
+   - REST gameplay-command authority vs stale socket/action-registry metadata;
+   - Truth-or-Chaos completion hardening, but only after the unresolved owner rule decisions are explicitly settled.
+6. **Whole-product ownership/dependency audit** — mandatory before broad deletion/migration decisions across apps/packages/unmigrated verticals.
+7. **AUTHORITY-GUARD-1** — deferred until the currently known authority contradictions are reconciled; direction remains recorded in `docs/CHANGE_GOVERNANCE.md`.
+8. **Subsequent owner-approved product phases** — restore/migrate the complete product verticals, verify real Telegram Mini App runtime, tune mechanics/pacing, then finalize art and deployment/release work.
 
-Every phase must respect the existing contract: one application, two delivery surfaces, gameplay authority in `packages/game-engine` reached through the API, one PostgreSQL database, and `Game_rules.md` as the only gameplay meaning.
+Every phase must preserve the existing contract: one complete application, two delivery surfaces, gameplay authority in the server/shared engine boundary, one PostgreSQL database, and `Game_rules.md` as the only gameplay meaning.
 
 ## Current Next Task
 
-**DOC-REBASELINE-1 is complete with this documentation commit.** The next authorized task is **AUTHORITY-GUARD-1** (item 2 above) and it must not be started until the owner reviews DOC-REBASELINE-1 and explicitly authorizes it.
+**No implementation task is currently authorized after RECOVERY-HARDEN-2.** The owner must choose the next hardening slice. Do not start `AUTHORITY-GUARD-1` automatically.
 
 ## Historical note — superseded roadmap text
 

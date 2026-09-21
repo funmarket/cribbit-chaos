@@ -71,6 +71,8 @@ Exact GitHub CI: `95e4d846` -> run `35636741098` SUCCESS; `187d0c25` -> run `356
 | DOC-REBASELINE-1 correction — preservation classification | `e56936c` | `apps/web/src/canonical-game-runtime.ts` reclassified `DEAD / SAFE TO REMOVE` -> `UNKNOWN — PRESERVE` (published baseline) |
 | RECOVERY-HARDEN-1 — live room concurrency | `95e4d84` | Published/accepted room-row-lock serialization: a waiting room can never exceed `playerCount` and one room can never hold two ACTIVE sessions |
 | Whole-project preservation rule | `187d0c25` | Makes full-app dependency/preservation analysis mandatory; uncertain code is `UNKNOWN — PRESERVE` |
+| Publication-state reconciliation | `2e621715` | Corrected the recovery branch/publication ledger and deferred Authority Guard until known hardening contradictions are reconciled |
+| RECOVERY-HARDEN-2 — server-projected Live capabilities | `3b1da012`, `812acce` | Server/API projects each viewer's gameplay capabilities; Web/Telegram Live consume them without direct game-engine decision imports; stale architecture assertions were updated and exact candidate CI is green |
 
 ## Current canonical gameplay rules (this slice's authority)
 
@@ -105,57 +107,56 @@ Implementation owners: `packages/game-engine/src/validation.ts`, `packages/game-
 
 ## Current phase
 
-**Recovery consolidation / authority hardening.** RECOVERY-HARDEN-1 is accepted and published. Known authority contradictions must be reconciled before `AUTHORITY-GUARD-1`. Whole-product scope remains preserved while hardening proceeds.
+**Recovery consolidation / authority hardening.** RECOVERY-HARDEN-1 and RECOVERY-HARDEN-2 are accepted and published. Live clients now consume authoritative server-projected gameplay capabilities. Whole-product scope remains preserved while the remaining authority/persistence contradictions are resolved.
 
 ## CURRENT TASK
 
-**None in flight after this publication-state reconciliation.** The next implementation slice requires explicit owner authorization.
+**None in flight after RECOVERY-HARDEN-2 documentation reconciliation.** The next implementation slice requires explicit owner authorization.
 
 ## Current blockers / hardening queue
 
-- Live Web/Telegram clients still calculate gameplay legality/capabilities from game-engine helpers instead of receiving the complete authoritative capability projection from the server/API.
-- Truth-or-Chaos can enter `groupPunishmentPending` without a proven completion path; instigator participation and refusal behavior remain unresolved owner decisions.
 - Persistent command-ID replay/collision behavior is not fully aligned with engine collision semantics.
 - Active gameplay mutation is REST, while stale realtime/action-registry metadata still describes socket `game-command` behavior.
+- Truth-or-Chaos can enter `groupPunishmentPending` without a proven completion path; instigator participation and refusal behavior remain unresolved owner decisions.
 - Real Telegram Mini App runtime is not verified with genuine Telegram-generated `initData`.
 - Whole-product verticals listed above remain UNMIGRATED and must be preserved.
 
 ## Next task / authorization state
 
-**No implementation task is currently authorized.**
+**No implementation task is currently authorized after this slice.**
 
-Recommended candidate: **RECOVERY-HARDEN-2 — move Live legality/action-capability projection to the authoritative server/API boundary and remove Live client gameplay-decision authority.** This recommendation does not authorize implementation.
+Owner-selectable hardening candidates are: command-ID persistence reconciliation; REST-vs-WS/action-registry reconciliation; or, after resolving the missing owner rule decisions, Truth-or-Chaos completion hardening. The whole-product ownership/dependency audit remains mandatory before broad deletion/migration decisions.
 
-**AUTHORITY-GUARD-1 is deferred** until known authority contradictions are reconciled. The whole-product ownership/dependency audit remains mandatory before broad deletion/migration decisions. `PLAN.md` still contains earlier sequencing text naming Authority Guard next; that wording must not be interpreted as current authorization.
+**AUTHORITY-GUARD-1 remains deferred** until the known authority contradictions are reconciled.
 
 ## Checks and evidence
 
-RECOVERY-HARDEN-1 evidence:
+RECOVERY-HARDEN-1 evidence remains recorded in its accepted slice.
+
+RECOVERY-HARDEN-2:
 
 ```text
-apps/api/test/live-room-concurrency.test.ts (DATABASE_URL set)   5/5 pass, 3 consecutive runs
-  - RED before fix: 6 members in a playerCount=2 room; 5 ACTIVE sessions for one room
-  - GREEN after fix: 2 members; exactly 1 ACTIVE session; 4x SESSION_ALREADY_CREATED
-npm test (DATABASE_URL set)              243 tests, 237 passed, 6 skipped, 0 failed  (run twice)
-npm test (no DATABASE_URL)               243 tests, 218 passed, 25 skipped, 0 failed
-npm run typecheck                        exit 0
-npm run lint                             exit 0
-npm run audit:ui                         0 unclassified buttons, 0 duplicate ids, 0 inline handlers
-npm run build:web / build:telegram / build:api   exit 0
-git diff --check                         clean
-GitHub CI 95e4d846                       run 35636741098 SUCCESS
+source commit 3b1da012792ba2a21682cdb3d3b70f781cc58a05
+  server snapshot/command responses project PlayerDecisionCapabilities
+  Web Live direct game-engine decision imports removed
+  Telegram Live direct game-engine decision imports removed
+  Local QA Simulation keeps engine decisions inside packages/simulation
+
+CI run 35661546655 on 3b1da012
+  typecheck       PASS
+  build-web       PASS
+  build-telegram  PASS
+  build-api       PASS
+  test            FAIL — three stale architecture assertions still expected client-side projectDecisionCapabilities calls
+
+test-only follow-up 812acce7356c22336bb41e0e77f02893a3d4c771
+  changed only apps/api/test/bot-authority-contract.test.ts
+  assertions now require server-projected capabilities and forbid Live client engine-decision imports
+
+GitHub CI 35661725013 on 812acce   SUCCESS
 ```
 
-Whole-project preservation-rule evidence:
-
-```text
-GitHub CI 187d0c25                       run 35640701568 SUCCESS
-changed paths                            AGENTS.md, HANDOFF.md, docs/LIVING_STATUS.md only
-```
-
-Current GitHub CI runs typecheck, test, build-web, build-telegram and build-api. The real-PostgreSQL evidence above is separate local integration evidence and must not be attributed to GitHub CI.
-
-`npm run architecture:check` does not exist in this repository (reported, not invented).
+Current GitHub CI runs typecheck, test, build-web, build-telegram and build-api. `npm run architecture:check` does not exist in this repository (reported, not invented). No RECOVERY-HARDEN-2 schema, migration, `Game_rules.md`, deployment or production mutation occurred.
 
 ## Known unknowns
 
@@ -173,13 +174,13 @@ Documentation conflicts deferred to a future authorized slice (they are NOT in t
 
 ## Remote / publication state
 
-Shared state immediately before this reconciliation:
+Shared state immediately before this documentation reconciliation:
 
 ```text
 origin/main                                   964a9162d7d9e1a12acfccc61f0fb88430a8f4ff
 origin/feature/visual-integration-checkpoint  95febd07e4d739c96843fcc4a02f070eb3c623c0   (deployed production source)
 origin/recovery/single-engine-authority-ci    f384c824a0553d1adceb05ef55612e177967bb1a   (CI anchor)
-origin/recovery/single-engine-authority       187d0c25b971d00f474a7ffea4ef8a230e7bf793   (published whole-project preservation rule)
+origin/recovery/single-engine-authority       812acce7356c22336bb41e0e77f02893a3d4c771   (green RECOVERY-HARDEN-2 implementation/test candidate)
 ```
 
-RECOVERY-HARDEN-1 `95e4d846...` is already published and accepted. This reconciliation commit advances only the recovery branch documentation; it does not merge, deploy, mutate `main`, change the CI anchor, or modify production. Deployment targets remain Cloudflare Pages (Web, Telegram) and Railway (API, PostgreSQL). Production remains on the previous source until explicitly authorized.
+This documentation-only commit advances only the recovery branch ledger. It does not merge, deploy, mutate `main`, change the CI anchor or modify production. Production remains on the previous deployed source until explicitly authorized.

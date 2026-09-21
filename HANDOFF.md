@@ -37,30 +37,43 @@ GitHub CI evidence: run `35636741098` succeeded on `95e4d846`; run `35640701568`
 
 ## Last completed task
 
-**RECOVERY-HARDEN-1 — live room concurrency hardening — ACCEPTED / PUBLISHED.** Commit `95e4d846d99ad55a6b7181c3b23ebf626a54109b` fixes the two verified PostgreSQL races with room-row serialization: concurrent joins cannot push a waiting room beyond `playerCount`, and concurrent host Start requests cannot create two ACTIVE sessions (losers return `SESSION_ALREADY_CREATED`). Real-PostgreSQL coverage is in `apps/api/test/live-room-concurrency.test.ts`. Exact GitHub CI run `35636741098` succeeded.
+**RECOVERY-HARDEN-2 — server-projected Live gameplay capabilities — COMPLETE / PUBLISHED.**
 
-The latest published documentation/governance change before this reconciliation is `187d0c25b971d00f474a7ffea4ef8a230e7bf793` (**whole-project preservation rule**), with exact GitHub CI run `35640701568` successful. It makes the full application — not only the game board — the mandatory scope for dependency and preservation analysis.
+Source commit `3b1da012792ba2a21682cdb3d3b70f781cc58a05` moved Live legality/action-capability projection to the authoritative server/API boundary:
 
-Before RECOVERY-HARDEN-1: DOC-REBASELINE-1 `2f23997` plus preservation correction `e56936c`, and the canonical Special-card play / Voluntary Draw slice `cb1b1b9289458ddde9709498caf25d4073f60cd3`.
+- `apps/api/src/game-service.ts` now projects `PlayerDecisionCapabilities` with each viewer snapshot and successful command response;
+- `packages/api-client` carries those typed capabilities to both clients;
+- Web Live no longer imports `isLegalPlay` or `projectDecisionCapabilities` from `packages/game-engine`;
+- Telegram Live no longer imports those gameplay decision helpers either;
+- playability, Draw availability and capability buttons are rendered from the server-projected capability set;
+- Local QA Simulation keeps its legitimate in-memory engine ownership through `packages/simulation`, whose adapters expose `getCapabilities()` without giving Live presentation direct engine authority.
+
+The first exact-SHA CI run on `3b1da012...` failed only because `apps/api/test/bot-authority-contract.test.ts` still asserted the superseded client-side helper calls. The narrow test-only follow-up `812acce7356c22336bb41e0e77f02893a3d4c771` replaced those stale assertions with the stronger server-projection invariant. Exact GitHub CI run `35661725013` succeeded on `812acce...` (typecheck, test, build-web, build-telegram, build-api).
+
+Before RECOVERY-HARDEN-2: RECOVERY-HARDEN-1 `95e4d846...` fixed Live room concurrency; `187d0c25...` added the whole-project preservation rule; `2e621715...` reconciled publication state.
 
 ## Current task
 
-**None in flight after this publication-state reconciliation.** The owner must authorize the next implementation slice.
+**None in flight after RECOVERY-HARDEN-2 documentation reconciliation.** The owner must authorize the next implementation slice.
 
 ## Next task / authorization state
 
-**No implementation task is currently authorized.**
+**No implementation task is currently authorized after this slice.**
 
-Recommended next hardening candidate: **RECOVERY-HARDEN-2 — remove Live client-side gameplay decision authority by moving legality/capability projection to the authoritative server/API boundary.** This is a recommendation only and is **not authorization to implement it**.
+Remaining hardening candidates, to be selected by the owner:
 
-**AUTHORITY-GUARD-1 is deferred.** Do not machine-enforce the authority model while known authority contradictions remain. The whole-product ownership/dependency audit remains mandatory before broad deletion or migration decisions.
+1. reconcile the persistent command-ID replay/collision contract;
+2. reconcile REST gameplay-command authority with stale socket/action-registry metadata;
+3. resolve the Truth-or-Chaos owner decisions, then repair its pending group-punishment completion path;
+4. complete the whole-product ownership/dependency audit before broad deletion or migration work.
+
+**AUTHORITY-GUARD-1 remains deferred** until the known authority contradictions above are reconciled.
 
 ## Blockers and known unknowns
 
-- **Live client-side gameplay decision authority:** Web and Telegram Live paths still import game-engine decision/legal-play helpers. Mutation remains server-owned, but legality/capability projection must be moved to the authoritative server/API boundary before an Authority Guard encodes this architecture.
+- **Command-ID persistence contract:** persistent idempotency and engine collision semantics remain to be reconciled for reused command IDs, differing fingerprints and session scope.
+- **Gameplay transport metadata:** active gameplay mutation is REST, while stale realtime/action-registry metadata still describes a socket `game-command` path. Caller/ownership archaeology is required before removal or rewriting.
 - **Truth or Chaos:** the current flow can reach `groupPunishmentPending` without a proven completion path. Whether the instigator also answers and the exact refusal/Pass rule remain unresolved owner decisions; do not invent them.
-- **Command-ID persistence contract:** persistent idempotency and engine collision semantics are not fully reconciled for reused command IDs/different fingerprints/session scope.
-- **Gameplay transport metadata:** active gameplay commands use REST, while stale realtime/action-registry metadata still describes a socket `game-command` path. Caller/ownership archaeology is required before removal or rewriting.
 - **Whole-product recovery:** prompt library/create/save, room prompt pool, notifications, moderation, answers, recap/history and other retained verticals remain UNMIGRATED. Not wired does not mean dead.
 - Real Telegram Mini App runtime remains NOT VERIFIED in this environment (no genuine Telegram-generated `initData`); server validation is proven only with locally minted spec-correct signed data.
 - `apps/web/src/canonical-game-runtime.ts` remains `UNKNOWN — PRESERVE`; zero importers is not removal proof.
@@ -68,13 +81,13 @@ Recommended next hardening candidate: **RECOVERY-HARDEN-2 — remove Live client
 
 ## Publication / deployment state
 
-The recovery branch is published through the whole-project preservation commit `187d0c25b971d00f474a7ffea4ef8a230e7bf793` before this reconciliation. RECOVERY-HARDEN-1 `95e4d846...` is already published and accepted; it is **not** local-only or awaiting push.
+The recovery branch is published through RECOVERY-HARDEN-2. The implementation/test candidate `812acce7356c22336bb41e0e77f02893a3d4c771` is green in GitHub Actions run `35661725013`; this documentation reconciliation is the next documentation-only commit on top of that candidate.
 
 ```text
 origin/main                                   964a9162d7d9e1a12acfccc61f0fb88430a8f4ff   (unchanged)
 origin/feature/visual-integration-checkpoint  95febd07e4d739c96843fcc4a02f070eb3c623c0   (deployed production source)
 origin/recovery/single-engine-authority-ci    f384c824a0553d1adceb05ef55612e177967bb1a   (CI anchor)
-origin/recovery/single-engine-authority       this reconciliation commit; parent 187d0c25b971d00f474a7ffea4ef8a230e7bf793
+origin/recovery/single-engine-authority       this documentation reconciliation; parent 812acce7356c22336bb41e0e77f02893a3d4c771
 ```
 
 No recovery-branch merge or deployment has occurred. Deployment targets remain Cloudflare Pages (Web, Telegram) and Railway (API, PostgreSQL). Production must not be mutated without an explicit owner gate.
