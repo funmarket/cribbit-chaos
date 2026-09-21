@@ -13,13 +13,13 @@ Recover `funmarket/cribbit-chaos` as ONE Cribbit CHAOS application with TWO fron
 repository   funmarket/cribbit-chaos
 worktree     C:\Users\GrowB\cribbit-chaos-recovery
 branch       recovery/single-engine-authority
-HEAD         cb1b1b9289458ddde9709498caf25d4073f60cd3
+HEAD         e56936cb1d98344f87f3ca9ee6202cf018e58c27   (published preservation baseline)
 worktree     clean            (verified by `git status --short` and `git diff --check`)
-pushed       no               (origin has no ref for this branch)
+pushed       YES              (recovery/single-engine-authority published on origin for preservation)
 deployed     no
 ```
 
-`cb1b1b9` is the tip this document was reconciled against (the canonical Special-card play and Voluntary Draw slice). The DOC-REBASELINE-1 commit is documentation-only and advances the tip by exactly one commit — always re-confirm with:
+`e56936c` is the published baseline this document was reconciled against (DOC-REBASELINE-1 plus its preservation-classification correction). The RECOVERY-HARDEN-1 commit (live room concurrency) is the local commit after it and is deliberately **not** pushed. Always re-confirm with:
 
 ```sh
 git rev-parse HEAD
@@ -29,16 +29,18 @@ git ls-remote origin refs/heads/recovery/single-engine-authority
 
 ## Last completed task
 
+**RECOVERY-HARDEN-1 — live room concurrency hardening.** Two PostgreSQL races found by review of the published branch are fixed with database-level serialization (a room-row lock taken inside the transaction): concurrent joins can no longer push a waiting room past its configured `playerCount`, and concurrent host Start requests can no longer create two ACTIVE sessions (the loser fails with `SESSION_ALREADY_CREATED`). New real-PostgreSQL coverage: `apps/api/test/live-room-concurrency.test.ts`. This commit is local only and unpushed. Before it: the documentation rebaseline (DOC-REBASELINE-1 `2f23997` plus its correction `e56936c`), and before that:
+
 **Special-card play from hand + Voluntary Draw (canonical gameplay-rule reconciliation).**
 `Game_rules.md` sections 51 and 52 (`RULE-SPECIAL-PLAY-001`..`008`, `RULE-VOLUNTARY-DRAW-001`..`007`) with supersession/clarification register entries; implemented in `packages/game-engine/src/validation.ts` (hand legality decided by the actual top Play Pile card), `packages/game-engine/src/reducer.ts` (retired voluntary-draw gate removed, Ghost-turn exception kept), and the retired `allowVoluntaryDraw` production knob removed from `GameConfig`, engine defaults, Live config and Simulation config. Local commit `cb1b1b9289458ddde9709498caf25d4073f60cd3`.
 
 ## Current task
 
-**DOC-REBASELINE-1** — documentation rebaseline only (this slice). It creates/updates the twelve-document set so the repository itself is the resume point. No source, test, schema, dependency or `Game_rules.md` change is authorized in it.
+None in flight. The branch tip (RECOVERY-HARDEN-1, live room concurrency) is the verified state awaiting owner review; read the exact SHA with `git rev-parse HEAD`. The published baseline is `e56936c`.
 
 ## Next authorized task
 
-**AUTHORITY-GUARD-1** — a machine-enforced rule-ID / change-governance gate (direction recorded in `docs/CHANGE_GOVERNANCE.md`). Then the whole-product ownership/dependency audit. Do not start either from this handoff; they require explicit owner authorization.
+**AUTHORITY-GUARD-1** — a machine-enforced rule-ID / change-governance gate (direction recorded in `docs/CHANGE_GOVERNANCE.md`). Then the whole-product ownership/dependency audit. Do not start either from this handoff; they require explicit owner authorization. Pushing the RECOVERY-HARDEN-1 commit also requires explicit authorization.
 
 ## Blockers and known unknowns
 
@@ -49,13 +51,13 @@ git ls-remote origin refs/heads/recovery/single-engine-authority
 
 ## Publication / deployment state
 
-Nothing is pushed, deployed or merged from this recovery branch. Remote state, unchanged by this work:
+The recovery branch is published on origin for preservation at `e56936c` (authorized non-force push; GitHub Actions run 35627085061 green 5/5). The RECOVERY-HARDEN-1 commit above is **not** pushed and no push of it is authorized yet. No merge and no deployment happened. Remote state:
 
 ```text
 origin/main                                   964a9162d7d9e1a12acfccc61f0fb88430a8f4ff
 origin/feature/visual-integration-checkpoint  95febd07e4d739c96843fcc4a02f070eb3c623c0   (deployed production source)
 origin/recovery/single-engine-authority-ci    f384c824a0553d1adceb05ef55612e177967bb1a   (CI anchor)
-origin/recovery/single-engine-authority       (absent)
+origin/recovery/single-engine-authority       e56936cb1d98344f87f3ca9ee6202cf018e58c27   (published for preservation)
 ```
 
 Deployment targets remain Cloudflare Pages (Web, Telegram) and Railway (API, PostgreSQL). Production must not be mutated without an explicit owner gate.

@@ -24,13 +24,13 @@ The original damage was split gameplay authority (duplicate client runtimes). Th
 repository   funmarket/cribbit-chaos
 worktree     C:\Users\GrowB\cribbit-chaos-recovery
 branch       recovery/single-engine-authority
-HEAD         cb1b1b9289458ddde9709498caf25d4073f60cd3   (verified clean before this slice)
+HEAD         e56936cb1d98344f87f3ca9ee6202cf018e58c27   (published preservation baseline)
 worktree     clean    (`git status --short` empty, `git diff --check` clean)
-pushed       NO
+pushed       YES      (recovery/single-engine-authority published on origin for preservation)
 deployed     NO
 ```
 
-The DOC-REBASELINE-1 documentation commit is the next local commit after `cb1b1b9`; always re-verify the tip with `git rev-parse HEAD` instead of trusting this line.
+The RECOVERY-HARDEN-1 commit is the local commit after this published baseline; always re-verify the tip with `git rev-parse HEAD` instead of trusting this line. DOC-REBASELINE-1 (`2f23997`) and its preservation-classification correction (`e56936c`) are the last published commits.
 
 ## Completed recovery slices (all local, all in this branch's ancestry)
 
@@ -53,7 +53,9 @@ The DOC-REBASELINE-1 documentation commit is the next local commit after `cb1b1b
 | ROULETTE-PRIVACY-1 — sealed selection boundary | `59829d6` | Sealed Roulette selection is masked at the authoritative projection; viewers no longer receive it early |
 | COMMAND-ID-1 — canonical Live command identity | `3a574ff` | Live `commandId` must be an RFC 4122 UUID; malformed ids fail with `400 INVALID_COMMAND_ENVELOPE` before persistence; idempotency preserved |
 | Special-card play from hand + Voluntary Draw | `cb1b1b9` | `Game_rules.md` sections 51/52 implemented in the shared engine; the retired `allowVoluntaryDraw` production knob removed |
-| DOC-REBASELINE-1 — this slice | local commit of this file | Documentation set reconciled to verified reality |
+| DOC-REBASELINE-1 — documentation rebaseline | `2f23997` | Twelve-document set reconciled to verified reality (`AGENTS.md` reading order, `HANDOFF.md`, single execution ledger, roadmap order) |
+| DOC-REBASELINE-1 correction — preservation classification | `e56936c` | `apps/web/src/canonical-game-runtime.ts` reclassified `DEAD / SAFE TO REMOVE` -> `UNKNOWN — PRESERVE` (published baseline) |
+| RECOVERY-HARDEN-1 — live room concurrency | local commit of this file | Room-row-lock serialization: a waiting room can never exceed `playerCount` and one room can never hold two ACTIVE sessions |
 
 ## Current canonical gameplay rules (this slice's authority)
 
@@ -92,7 +94,12 @@ Implementation owners: `packages/game-engine/src/validation.ts`, `packages/game-
 
 ## CURRENT TASK
 
-**DOC-REBASELINE-1 — documentation rebaseline only.** Reconcile the twelve-document set (`README.md`, `PLAN.md`, `AGENTS.md`, `HANDOFF.md`, `docs/PRODUCT_SCOPE.md`, `docs/CHANGE_GOVERNANCE.md`, `docs/ADMIN_CONTROL_ROOM.md`, `docs/HISTORICAL_PRODUCT_EVIDENCE.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE.md`, `docs/LIVING_STATUS.md`, `docs/BUTTON_MAP.md`) against verified current source. No source, test, schema, dependency or `Game_rules.md` change is part of this task.
+**RECOVERY-HARDEN-1 — live room concurrency only.** Two correctness races found by review of the published recovery branch are repaired at the authoritative PostgreSQL boundary:
+
+- **join capacity race** — `joinWaitingRoom()` read the member count, compared it with `playerCount` and then inserted, with no atomicity, so concurrent joins could exceed capacity. The capacity decision and the insert now run in one transaction that locks the room row (`select ... from rooms where ... for update`).
+- **double Start race** — `startRoom()` checked the active session outside the transaction and re-checked it inside without locking, so two concurrent Start requests could both create a session. The Start transaction now takes the same room-row lock first, re-checks under it, and re-verifies membership before inserting; the losing request fails with `SESSION_ALREADY_CREATED`.
+
+Both invariants are enforced by database-level serialization (room-row lock), so they hold with more than one Node process; no in-process mutex and no schema migration were needed, and no parallel room/session model was introduced. New real-PostgreSQL integration coverage lives in `apps/api/test/live-room-concurrency.test.ts` (skipped without `DATABASE_URL`, run against local PostgreSQL for this slice). One disclosed companion edit: `apps/api/test/web-login-suggestion.test.ts` counted ALL `users` rows before/after an operation, which is not deterministic while other DB-backed test files run in parallel; those counts are now scoped to the test's own identity with the same assertion intents.
 
 ## Current blocker
 
@@ -104,20 +111,24 @@ None for the documentation slice. Delivery-wide blockers and unverified areas:
 
 ## Next authorized task
 
-**AUTHORITY-GUARD-1** — machine-enforced rule-ID / change-governance gate (direction recorded in `docs/CHANGE_GOVERNANCE.md`, not implemented). It must not be started until DOC-REBASELINE-1 is reviewed and the owner authorizes it.
+**AUTHORITY-GUARD-1** — machine-enforced rule-ID / change-governance gate (direction recorded in `docs/CHANGE_GOVERNANCE.md`, not implemented). It must not be started until the owner authorizes it. This hardening slice does not authorize a push of its own commit.
 
 ## Checks and evidence
 
-Last verified on the pre-slice tip `cb1b1b9289458ddde9709498caf25d4073f60cd3`:
+Last verified on the RECOVERY-HARDEN-1 candidate (local tip after the published baseline `e56936c`):
 
 ```text
+apps/api/test/live-room-concurrency.test.ts (DATABASE_URL set)   5/5 pass, 3 consecutive runs
+  - RED before the fix: 6 members in a playerCount=2 room; 5 ACTIVE sessions for one room
+  - GREEN after the fix: 2 members; exactly 1 ACTIVE session; 4x SESSION_ALREADY_CREATED
+npm test (DATABASE_URL set)              243 tests, 237 passed, 6 skipped, 0 failed  (run twice)
+npm test (no DATABASE_URL)               243 tests, 218 passed, 25 skipped, 0 failed
 npm run typecheck                        exit 0
-npm test                                 238 tests, 218 passed, 20 skipped, 0 failed
 npm run lint                             exit 0
 npm run audit:ui                         0 unclassified buttons, 0 duplicate ids, 0 inline handlers
 npm run build:web / build:telegram / build:api   exit 0
 git diff --check                         clean
-git ls-remote origin refs/heads/recovery/single-engine-authority   no ref (not pushed)
+git ls-remote origin refs/heads/recovery/single-engine-authority   e56936c (published; local tip ahead by this slice)
 ```
 
 `npm run architecture:check` does not exist in this repository (reported, not invented). Documentation-only slices additionally run the repository-provided rule/deck documentation checks: `packages/cards/test/game-rules-authority.test.ts` (canonical rule file SHA-256 + required rule IDs) and `packages/cards/test/deck-docs-consistency.test.ts`.
@@ -142,7 +153,7 @@ Documentation conflicts deferred to a future authorized slice (they are NOT in t
 origin/main                                   964a9162d7d9e1a12acfccc61f0fb88430a8f4ff
 origin/feature/visual-integration-checkpoint  95febd07e4d739c96843fcc4a02f070eb3c623c0   (deployed production source)
 origin/recovery/single-engine-authority-ci    f384c824a0553d1adceb05ef55612e177967bb1a   (CI anchor: 5/5 jobs green)
-origin/recovery/single-engine-authority       absent  -> this work is local only
+origin/recovery/single-engine-authority       e56936cb1d98344f87f3ca9ee6202cf018e58c27   (published for preservation; local tip ahead by the RECOVERY-HARDEN-1 commit, not pushed)
 ```
 
-No push, deploy, merge or remote mutation has occurred from this line of work. Deployment targets remain Cloudflare Pages (Web, Telegram) and Railway (API, PostgreSQL). Production remains on the previous source until the owner authorizes publication.
+The only remote mutation from this line of work was the authorized non-force publication of `recovery/single-engine-authority` at `e56936c` (GitHub Actions run 35627085061: 5/5 jobs green). No merge, no deployment, no `main` mutation, no other ref changed, and the RECOVERY-HARDEN-1 commit is deliberately unpushed. Deployment targets remain Cloudflare Pages (Web, Telegram) and Railway (API, PostgreSQL). Production remains on the previous source until the owner authorizes publication.

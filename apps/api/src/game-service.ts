@@ -267,31 +267,39 @@ export async function createWaitingRoom(user: AuthUser, input: RoomCreateInput):
 }
 
 export async function joinWaitingRoom(user: AuthUser, code: string): Promise<WaitingRoomResult> {
-  const db = requirePool();
   const normalized = code.trim().toUpperCase();
-  const roomResult = await db.query(`select id,join_code,owner_user_id,config from rooms where upper(join_code)=upper($1)`, [normalized]);
-  if (!roomResult.rowCount) throw Object.assign(new Error('Room not found.'), { code: 'ROOM_NOT_FOUND', statusCode: 404 });
-  const room = roomResult.rows[0] as RoomRow;
-
-  const started = await activeSessionId(room.id);
-  const existing = await db.query(`select role from room_members where room_id=$1 and user_id=$2`, [room.id, user.id]);
-  if (started) {
-    if (!existing.rowCount) throw Object.assign(new Error('This game already started.'), { code: 'GAME_ALREADY_STARTED', statusCode: 409 });
-    return roomProjection(room, await loadRoomMembers(room.id), started);
-  }
-
-  if (!existing.rowCount) {
-    const members = await loadRoomMembers(room.id);
-    if (members.length >= normalizePlayerCount((room.config ?? {}).playerCount)) {
-      throw Object.assign(new Error('This room is already full.'), { code: 'ROOM_FULL', statusCode: 409 });
-    }
-    await db.query(
-      `insert into room_members(room_id,user_id,role) values($1,$2,'player') on conflict(room_id,user_id) do nothing`,
-      [room.id, user.id],
+  // The capacity decision and the membership insert must be atomic: both run in one transaction
+  // that first locks the room row (select ... for update), so concurrent joins serialize on the
+  // room and a later joiner observes the earlier insert already committed. This is database-level
+  // serialization, so it stays correct with more than one Node process.
+  return withTransaction(async client => {
+    const roomResult = await client.query(
+      `select id,join_code,owner_user_id,config from rooms where upper(join_code)=upper($1) for update`,
+      [normalized],
     );
-  }
+    if (!roomResult.rowCount) throw Object.assign(new Error('Room not found.'), { code: 'ROOM_NOT_FOUND', statusCode: 404 });
+    const room = roomResult.rows[0] as RoomRow;
 
-  return roomProjection(room, await loadRoomMembers(room.id), null);
+    const started = await activeSessionId(room.id, client);
+    const existing = await client.query(`select role from room_members where room_id=$1 and user_id=$2`, [room.id, user.id]);
+    if (started) {
+      if (!existing.rowCount) throw Object.assign(new Error('This game already started.'), { code: 'GAME_ALREADY_STARTED', statusCode: 409 });
+      return roomProjection(room, await loadRoomMembers(room.id, client), started);
+    }
+
+    if (!existing.rowCount) {
+      const members = await loadRoomMembers(room.id, client);
+      if (members.length >= normalizePlayerCount((room.config ?? {}).playerCount)) {
+        throw Object.assign(new Error('This room is already full.'), { code: 'ROOM_FULL', statusCode: 409 });
+      }
+      await client.query(
+        `insert into room_members(room_id,user_id,role) values($1,$2,'player') on conflict(room_id,user_id) do nothing`,
+        [room.id, user.id],
+      );
+    }
+
+    return roomProjection(room, await loadRoomMembers(room.id, client), null);
+  });
 }
 
 export async function getWaitingRoom(user: AuthUser, roomId: string): Promise<WaitingRoomResult> {
@@ -343,8 +351,23 @@ export async function startRoom(user: AuthUser, roomId: string): Promise<RoomSes
 
   const storedConfig: StoredRoomConfig = { ...config, playerCount, playerNames };
   await withTransaction(async client => {
+    // Lock the room row first: two concurrent Start requests can no longer both observe
+    // "no active session". The loser waits here, re-reads, and fails with SESSION_ALREADY_CREATED,
+    // so a room can never end up with two ACTIVE sessions. Database-level serialization keeps this
+    // correct across multiple Node processes.
+    const lockedRoom = await client.query(`select id from rooms where id=$1 for update`, [roomId]);
+    if (!lockedRoom.rowCount) throw Object.assign(new Error('Room not found.'), { code: 'ROOM_NOT_FOUND', statusCode: 404 });
     if (await activeSessionId(roomId, client)) {
       throw Object.assign(new Error('This room already has an active game.'), { code: 'SESSION_ALREADY_CREATED', statusCode: 409 });
+    }
+    // Membership is re-checked under the same lock so the seat list the state was built from is
+    // still authoritative at commit time.
+    const lockedMembers = await loadRoomMembers(roomId, client);
+    if (lockedMembers.length !== playerCount) {
+      throw Object.assign(
+        new Error(`This room needs exactly ${playerCount} real players before it can start.`),
+        { code: 'PLAYER_COUNT_NOT_REACHED', statusCode: 409 },
+      );
     }
     await client.query(`update rooms set config=$2::jsonb where id=$1`, [roomId, JSON.stringify(storedConfig)]);
     await client.query(

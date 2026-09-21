@@ -109,20 +109,28 @@ dbTest('unknown Telegram creates nothing, explicit creation creates exactly one 
   const tag = stamp();
   const telegramId = `9600${tag}`;
   assert.ok(pool);
-  const before = (await pool.query('select count(*)::int as total from users')).rows[0].total;
+  // Row counts are scoped to this test's own identity on purpose: several DB-backed test files run
+  // in parallel against the same database, so a global `select count(*) from users` is not a
+  // deterministic assertion and a concurrent insert by another file would fail it.
+  const identityOwnerCount = async () => (await pool!.query(
+    `select count(*)::int as total from user_identities where provider='telegram' and provider_user_id=$1`,
+    [telegramId],
+  )).rows[0].total as number;
+  const userRowCount = async (userId: string) => (await pool!.query('select count(*)::int as total from users where id=$1', [userId])).rows[0].total as number;
 
   const unknown = await findTelegramIdentityUser(telegramId);
   assert.equal(unknown, null);
-  assert.equal((await pool.query('select count(*)::int as total from users')).rows[0].total, before, 'an unknown Telegram identity must never provision a user');
+  assert.equal(await identityOwnerCount(), 0, 'an unknown Telegram identity must never provision a user identity');
 
   const telegramUser = await createTelegramCanonicalUser({ telegramId, displayName: `Lifecycle ${tag}`, username: `Cycle${tag}` });
-  assert.equal((await pool.query('select count(*)::int as total from users')).rows[0].total, before + 1, 'explicit creation creates exactly one canonical user');
+  assert.equal(await identityOwnerCount(), 1, 'explicit creation attaches exactly one canonical owner to the identity');
+  assert.equal(await userRowCount(telegramUser.id), 1, 'explicit creation creates exactly one canonical user');
 
   const login = `cycle${tag}`;
   await attachWebCredential(telegramUser.id, { loginUsername: login, password: 'Password1234', displayUsername: `Cycle${tag}` });
   const webLogin = await authenticateWebUser({ loginUsername: login, password: 'Password1234', ipHash: 'test-ip' });
   assert.equal(webLogin?.id, telegramUser.id, 'the attached Web login resolves the same canonical user');
-  assert.equal((await pool.query('select count(*)::int as total from users')).rows[0].total, before + 1, 'attaching a Web credential never creates a user');
+  assert.equal(await userRowCount(telegramUser.id), 1, 'attaching a Web credential never creates a user');
 
   await pool.query('delete from users where id=$1', [telegramUser.id]);
 });
