@@ -3,14 +3,12 @@ import { makeEvent } from './events.ts';
 import { applyCommand as reduceCommand } from './reducer.ts';
 import { createTurnResolution, type GameCommandContext } from './social.ts';
 import { createEngineError } from './errors.ts';
+import { fingerprintGameCommand } from './command-identity.ts';
 
 function clone<T>(value: T): T {
   return structuredClone(value);
 }
 
-function fingerprint(command: GameCommand & { type:'PLAY_NOPE' }): string {
-  return [command.sessionId, command.type, command.playerId, command.cardId].join('|');
-}
 
 function recordOutcome<TState extends GameState>(
   state: TState,
@@ -24,7 +22,7 @@ function recordOutcome<TState extends GameState>(
     commandId:command.commandId,
     type:command.type,
     playerId:command.playerId,
-    fingerprint:fingerprint(command),
+    fingerprint:fingerprintGameCommand(command),
     revision:nextState.revision,
     ok,
     events,
@@ -58,7 +56,7 @@ function replayIfKnown<TState extends GameState>(
 ): GameTransition<TState> | null {
   const prior = state.processedCommands[command.commandId];
   if (!prior) return null;
-  if (prior.type !== command.type || prior.playerId !== command.playerId || prior.fingerprint !== fingerprint(command)) {
+  if (prior.type !== command.type || prior.playerId !== command.playerId || prior.fingerprint !== fingerprintGameCommand(command)) {
     return collision(state);
   }
   return {

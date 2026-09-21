@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { AuthUser, CommandResponse, GameCommand, GameEvent, GameState, PlayerDecisionCapabilities, SessionSnapshot, WaitingRoomResult } from '../../../packages/contracts/src/index.ts';
-import { applyCommand, chooseBotOption, createGame, projectDecisionCapabilities, projectRoulettePresentation } from '../../../packages/game-engine/src/index.ts';
+import { applyCommand, chooseBotOption, createGame, fingerprintGameCommand, projectDecisionCapabilities, projectRoulettePresentation } from '../../../packages/game-engine/src/index.ts';
 import { promptPoolForSources } from '../../../packages/prompts/src/index.ts';
 import { pool, withTransaction } from './db.ts';
 
@@ -438,8 +438,27 @@ export async function processSessionCommand(user: AuthUser, sessionId: string, c
   assertLiveCommandId(command?.commandId);
 
   return withTransaction(async client => {
-    const duplicate = await client.query(`select result from game_commands where command_id=$1 and session_id=$2`, [command.commandId, sessionId]);
-    if (duplicate.rowCount && duplicate.rows[0].result) return duplicate.rows[0].result as CommandResponse<GameState>;
+    const duplicate = await client.query(`select session_id,payload,result from game_commands where command_id=$1`, [command.commandId]);
+    if (duplicate.rowCount) {
+      const persistedCommand = duplicate.rows[0].payload as GameCommand;
+      if (persistedCommand && fingerprintGameCommand(persistedCommand) === fingerprintGameCommand(command) && duplicate.rows[0].result) {
+        return duplicate.rows[0].result as CommandResponse<GameState> & { capabilities?: PlayerDecisionCapabilities };
+      }
+
+      const collisionRow = await loadSessionRow(sessionId, user.id, false, client);
+      return {
+        ok:false,
+        commandId:command.commandId,
+        revision:Number(collisionRow.revision),
+        state:projectStateForPlayer(collisionRow.state, user.id),
+        capabilities:projectDecisionCapabilities(collisionRow.state, user.id),
+        events:[],
+        error:{
+          code:'COMMAND_ID_COLLISION',
+          message:'This commandId was already used for a different command.',
+        },
+      };
+    }
 
     const row = await loadSessionRow(sessionId, user.id, true, client);
     const originalState = row.state;
