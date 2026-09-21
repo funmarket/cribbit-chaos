@@ -438,6 +438,9 @@ export async function processSessionCommand(user: AuthUser, sessionId: string, c
   assertLiveCommandId(command?.commandId);
 
   return withTransaction(async client => {
+    // command_id is a global primary key. Serialize all requests sharing one UUID before
+    // duplicate lookup so concurrent retries/collisions cannot race into a raw unique-key error.
+    await client.query(`select pg_advisory_xact_lock(hashtextextended($1, 0))`, [command.commandId]);
     const duplicate = await client.query(`select session_id,payload,result from game_commands where command_id=$1`, [command.commandId]);
     if (duplicate.rowCount) {
       const persistedCommand = duplicate.rows[0].payload as GameCommand;
