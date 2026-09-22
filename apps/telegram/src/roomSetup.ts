@@ -1,6 +1,11 @@
-export type RoomMode = 'duel' | 'squad' | 'party' | 'mayhem';
-export type ContentWorld = 'clean' | 'adult';
-export type PromptSource = 'original' | 'community' | 'house' | 'live';
+import { ROOM_CEILING_VALUES, ROOM_MODE_BOUNDS, ROOM_PROMPT_SOURCE_KEYS } from '@cribbit/contracts';
+import type { RoomContentWorld, RoomMode, RoomPromptSourceKey } from '@cribbit/contracts';
+
+// The room setup vocabulary and its bounds are owned by the shared contract; Telegram keeps only
+// the presentation. The server remains the validation authority for every value below.
+export type { RoomContentWorld, RoomMode, RoomPromptSourceKey };
+export type ContentWorld = RoomContentWorld;
+export type PromptSource = RoomPromptSourceKey;
 
 export interface ModeOption {
   readonly id: RoomMode;
@@ -16,41 +21,39 @@ export interface CeilingOption {
   readonly label: string;
 }
 
-// Verified against the current approved V4 compatibility runtime.
-// These values are presentation/setup options only; authoritative gameplay remains outside Telegram UI.
+// Labels and copy are presentation; the numeric bounds come from the shared room config contract.
 export const ROOM_MODES: readonly ModeOption[] = [
-  { id: 'duel', label: 'Duel', min: 2, max: 2, defaultPlayers: 2, copy: 'Fast head-to-head pacing.' },
-  { id: 'squad', label: 'Squad', min: 3, max: 4, defaultPlayers: 4, copy: 'Balanced teaching format.' },
-  { id: 'party', label: 'Party', min: 5, max: 7, defaultPlayers: 5, copy: 'Primary social format.' },
-  { id: 'mayhem', label: 'Mayhem', min: 8, max: 10, defaultPlayers: 8, copy: 'Shorter timers, more anti-downtime.' }
-] as const;
+  { id: 'duel', label: 'Duel', ...ROOM_MODE_BOUNDS.duel, defaultPlayers: 2, copy: 'Fast head-to-head pacing.' },
+  { id: 'squad', label: 'Squad', ...ROOM_MODE_BOUNDS.squad, defaultPlayers: 4, copy: 'Balanced teaching format.' },
+  { id: 'party', label: 'Party', ...ROOM_MODE_BOUNDS.party, defaultPlayers: 5, copy: 'Primary social format.' },
+  { id: 'mayhem', label: 'Mayhem', ...ROOM_MODE_BOUNDS.mayhem, defaultPlayers: 8, copy: 'Shorter timers, more anti-downtime.' }
+];
 
 export const CONTENT_WORLDS = [
   { id: 'clean' as const, label: 'Clean CHAOS' },
   { id: 'adult' as const, label: 'Adult CHAOS (18+ demo)' }
 ] as const;
 
-export const CEILINGS: Readonly<Record<ContentWorld, readonly CeilingOption[]>> = {
-  clean: [
-    { value: 0, label: 'Easy' },
-    { value: 1, label: 'Funny' },
-    { value: 3, label: 'Wild' },
-    { value: 4, label: 'Max' }
-  ],
-  adult: [
-    { value: 0, label: 'Chill' },
-    { value: 1, label: 'Flirty' },
-    { value: 2, label: 'Bold' },
-    { value: 3, label: 'Chaos' }
-  ]
-} as const;
+// Approved ceiling values are owned by the shared contract; only the labels are presentation.
+const CEILING_LABELS: Readonly<Record<ContentWorld, Readonly<Record<number, string>>>> = {
+  clean: { 0: 'Easy', 1: 'Funny', 3: 'Wild', 4: 'Max' },
+  adult: { 0: 'Chill', 1: 'Flirty', 2: 'Bold', 3: 'Chaos' }
+};
 
-export const PROMPT_SOURCES = [
-  { id: 'original' as const, label: 'Original', detail: 'Curated' },
-  { id: 'community' as const, label: 'Community', detail: 'Approved' },
-  { id: 'house' as const, label: 'House', detail: 'Private group' },
-  { id: 'live' as const, label: 'Live', detail: 'Tonight' }
-] as const;
+export const CEILINGS: Readonly<Record<ContentWorld, readonly CeilingOption[]>> = {
+  clean: ROOM_CEILING_VALUES.clean.map(value => ({ value, label: CEILING_LABELS.clean[value] ?? String(value) })),
+  adult: ROOM_CEILING_VALUES.adult.map(value => ({ value, label: CEILING_LABELS.adult[value] ?? String(value) }))
+};
+
+const SOURCE_PRESENTATION: Readonly<Record<PromptSource, { label: string; detail: string }>> = {
+  original: { label: 'Original', detail: 'Curated' },
+  community: { label: 'Community', detail: 'Approved' },
+  house: { label: 'House', detail: 'Private group' },
+  live: { label: 'Live', detail: 'Tonight' }
+};
+
+export const PROMPT_SOURCES: readonly { readonly id: PromptSource; readonly label: string; readonly detail: string }[] =
+  ROOM_PROMPT_SOURCE_KEYS.map(id => ({ id, label: SOURCE_PRESENTATION[id].label, detail: SOURCE_PRESENTATION[id].detail }));
 
 export interface TelegramRoomDraft {
   profileName: string;

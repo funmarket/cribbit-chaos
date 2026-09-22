@@ -7,6 +7,9 @@ import type {
   GameCommand,
   PlayerDecisionCapabilities,
   ProfileUpdateRequest,
+  RoomConfigUpdateRequest,
+  RoomCreateRequest,
+  RoomSessionResult,
   SessionSnapshot,
   WaitingRoomResult,
   TelegramAuthRequest,
@@ -18,24 +21,19 @@ import type {
 } from '../../contracts/src/index.ts';
 import { cribbitSessionTokenStore } from './session-token-store.ts';
 
-export type { WaitingRoomMember, WaitingRoomResult } from '../../contracts/src/index.ts';
-
-export interface RoomSessionResult {
-  ok: true;
-  roomId: string;
-  sessionId: string;
-  joinCode: string;
-  players: Array<{ id:string; name:string; isHuman:boolean }>;
-}
-
-export interface RoomCreateRequest {
-  roomName?: string;
-  mode?: string;
-  playerCount?: number;
-  world?: 'clean' | 'adult';
-  ceiling?: number;
-  sources?: Record<string, boolean>;
-}
+// Room setup is one shared contract: the client consumes the same canonical room config types the
+// server validates against instead of restating its own copy of the room setup shape.
+export type {
+  RoomConfig,
+  RoomConfigUpdateRequest,
+  RoomContentWorld,
+  RoomCreateRequest,
+  RoomMode,
+  RoomPromptSourceKey,
+  RoomSessionResult,
+  WaitingRoomMember,
+  WaitingRoomResult,
+} from '../../contracts/src/index.ts';
 
 export interface GameSessionSnapshot<TState = unknown> extends SessionSnapshot<TState> {
   players: Array<{ id:string; name:string; isHuman:boolean }>;
@@ -157,8 +155,8 @@ export class CribbitApiClient {
   startRoom(roomId: string): Promise<RoomSessionResult> {
     return this.request(`/v1/rooms/${encodeURIComponent(roomId)}/start`, { method:'POST', body:'{}' });
   }
-  updateRoomConfig(roomId: string, config: unknown): Promise<unknown> {
-    return this.request(`/v1/rooms/${encodeURIComponent(roomId)}/config`, { method:'PATCH', body:JSON.stringify(config) });
+  updateRoomConfig(roomId: string, patch: RoomConfigUpdateRequest): Promise<WaitingRoomResult> {
+    return this.request(`/v1/rooms/${encodeURIComponent(roomId)}/config`, { method:'PATCH', body:JSON.stringify(patch) });
   }
   getSnapshot<TState>(sessionId: string): Promise<GameSessionSnapshot<TState>> {
     return this.request(`/v1/games/${encodeURIComponent(sessionId)}/snapshot`);

@@ -1,5 +1,5 @@
 import type { Card, CardColor, GameCommand, GameState, LegalCommandOption, PlayerDecisionCapabilities } from '../../../packages/contracts/src/index.ts';
-import { ApiError, CribbitApiClient, CribbitRealtimeClient, type RoomSessionResult, type WaitingRoomResult } from '../../../packages/api-client/src/index.ts';
+import { ApiError, CribbitApiClient, CribbitRealtimeClient, type RoomConfigUpdateRequest, type RoomCreateRequest, type RoomMode, type RoomSessionResult, type WaitingRoomResult } from '../../../packages/api-client/src/index.ts';
 import { cribbitAuth } from '../../../packages/ui/src/auth-controller.ts';
 import { activateSharedView, type SharedNavigationRoot } from '../../../packages/ui/src/navigation-controller.ts';
 import { openWebAuthDialog } from './web-auth.ts';
@@ -209,17 +209,35 @@ export function toast(title:string, copy:string): void {
   window.setTimeout(() => node.remove(),3200);
 }
 
-export function readRoomCreatePayload() {
-  const sources: Record<string,boolean> = {};
+// The Web creation form reads the same shared room setup contract the server validates against;
+// the surface is never the validity authority, it only reports what the host selected.
+const WEB_ROOM_MODES: readonly RoomMode[] = ['duel', 'squad', 'party', 'mayhem'];
+
+function selectedRoomMode(): RoomMode {
+  const fromSelect = document.querySelector<HTMLSelectElement>('#modeSelect')?.value;
+  const fromPressed = document.querySelector<HTMLElement>('[data-mode][aria-pressed="true"]')?.dataset.mode;
+  const candidate = fromSelect || fromPressed;
+  return WEB_ROOM_MODES.includes(candidate as RoomMode) ? candidate as RoomMode : 'party';
+}
+
+// The form always submits a complete setup, so every shared field is present (never partial).
+export function readRoomCreatePayload(): Required<RoomCreateRequest> {
+  const sources: Record<string, boolean> = {};
   document.querySelectorAll<HTMLButtonElement>('[data-source]').forEach(item => { if (item.dataset.source) sources[item.dataset.source] = item.getAttribute('aria-pressed') !== 'false'; });
   return {
     roomName:(document.querySelector<HTMLInputElement>('#roomName')?.value || 'Night Squad').trim(),
-    mode:document.querySelector<HTMLSelectElement>('#modeSelect')?.value || document.querySelector<HTMLElement>('[data-mode][aria-pressed="true"]')?.dataset.mode || 'party',
+    mode: selectedRoomMode(),
     playerCount:Number(document.querySelector<HTMLInputElement>('#playerCount')?.value || 5),
-    world:(document.querySelector<HTMLSelectElement>('#worldSelect')?.value === 'adult' ? 'adult' : 'clean') as 'adult'|'clean',
+    world:(document.querySelector<HTMLSelectElement>('#worldSelect')?.value === 'adult' ? 'adult' : 'clean'),
     ceiling:Number(document.querySelector<HTMLSelectElement>('#ceilingSelect')?.value || 3),
     sources,
   };
+}
+
+/** The approved Web post-create controls are the Live waiting room; a rejected update must be told
+ * to the host rather than silently dropped, and the authoritative room state is refetched after. */
+export async function updateLiveRoomConfig(api: CribbitApiClient, roomId: string, patch: RoomConfigUpdateRequest): Promise<WaitingRoomResult> {
+  return api.updateRoomConfig(roomId, patch);
 }
 
 function installLiveControls(): void {

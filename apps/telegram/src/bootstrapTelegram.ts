@@ -1,5 +1,5 @@
 import type { AuthSession, AuthUser } from '../../../packages/contracts/src/index.ts';
-import { ApiError, CribbitApiClient, isTelegramIdentityUnlinked, CribbitRealtimeClient, clientConfig, type RoomSessionResult, type WaitingRoomResult } from '../../../packages/api-client/src/index.ts';
+import { ApiError, CribbitApiClient, isTelegramIdentityUnlinked, CribbitRealtimeClient, clientConfig, type RoomConfigUpdateRequest, type RoomSessionResult, type WaitingRoomResult } from '../../../packages/api-client/src/index.ts';
 import type { PlatformAdapter } from '../../../packages/platform/src/types.ts';
 import { resolveVisualFixture, VISUAL_FIXTURES, type VisualFixtureName } from '../../../packages/ui/src/fixtures.ts';
 import { createTelegramBackendGame } from './backendGame.ts';
@@ -352,6 +352,14 @@ function renderSourceButton(id: PromptSource, label: string, detail: string, act
   `;
 }
 
+/**
+ * Room setup controls are presentation for a local draft until this host owns a live waiting room.
+ * While it does, the approved controls publish their change to the canonical server room through
+ * packages/api-client; the server validates it and the waiting panel refetches authoritative state.
+ * Nothing is published when the surface has no host-owned live room (joiners, simulation, no room).
+ */
+let publishRoomSetupChange: ((patch: RoomConfigUpdateRequest) => void) | null = null;
+
 function bindRoomCreation(
   host: HTMLElement,
   platform: PlatformAdapter,
@@ -370,6 +378,8 @@ function bindRoomCreation(
   profileInput?.addEventListener('input', () => { draft.profileName = profileInput.value.slice(0, 20); });
   profileInput?.addEventListener('change', () => { void persistProfile(host, api, draft); });
   roomNameInput?.addEventListener('input', () => { draft.roomName = roomNameInput.value.slice(0, 28); });
+  // The room name is published when the field is committed rather than on every keystroke.
+  roomNameInput?.addEventListener('change', () => { publishRoomSetupChange?.({ roomName: draft.roomName }); });
 
   worldSelect?.addEventListener('change', () => {
     draft.world = worldSelect.value as ContentWorld;
@@ -378,11 +388,15 @@ function bindRoomCreation(
     if (ceilingSelect) {
       ceilingSelect.innerHTML = available.map(option => `<option value="${option.value}"${option.value === draft.ceiling ? ' selected' : ''}>${option.label}</option>`).join('');
     }
+    // World and ceiling travel together because the persisted ceiling may not be approved for the
+    // new world; the server re-validates both against the shared contract.
+    publishRoomSetupChange?.({ world: draft.world, ceiling: draft.ceiling });
     platform.haptic('light');
   });
 
   ceilingSelect?.addEventListener('change', () => {
     draft.ceiling = Number(ceilingSelect.value);
+    publishRoomSetupChange?.({ ceiling: draft.ceiling });
     platform.haptic('light');
   });
 
@@ -396,6 +410,7 @@ function bindRoomCreation(
       const copy = host.querySelector<HTMLElement>('[data-mode-copy]');
       if (copy) copy.textContent = nextMode.copy;
       rerenderPlayerCounts(host, draft);
+      publishRoomSetupChange?.({ mode: draft.mode, playerCount: draft.playerCount });
       platform.haptic('light');
     });
   });
@@ -409,6 +424,7 @@ function bindRoomCreation(
       button.setAttribute('aria-pressed', String(draft.sources[source]));
       const marker = button.querySelector('i');
       if (marker) marker.textContent = draft.sources[source] ? '✓' : '';
+      publishRoomSetupChange?.({ sources: { ...draft.sources } });
       platform.haptic('light');
     });
   });
@@ -463,6 +479,7 @@ function bindPlayerCountButtons(host: HTMLElement, platform: PlatformAdapter, dr
     button.addEventListener('click', () => {
       draft.playerCount = Number(button.dataset.playerCount);
       host.querySelectorAll<HTMLButtonElement>('[data-player-count]').forEach(item => item.setAttribute('aria-pressed', String(Number(item.dataset.playerCount) === draft.playerCount)));
+      publishRoomSetupChange?.({ mode: draft.mode, playerCount: draft.playerCount });
       const value = host.querySelector<HTMLElement>('[data-player-count-value]');
       if (value) value.textContent = String(draft.playerCount);
       platform.haptic('light');
@@ -582,6 +599,19 @@ function openWaitingRoom(
   };
   paint(room);
 
+  // Only the host of a live waiting room owns canonical room setup. A joiner's setup controls stay
+  // local presentation for their own draft/simulation and never publish a server change.
+  publishRoomSetupChange = isHost && room.status !== 'STARTED'
+    ? (patch: RoomConfigUpdateRequest): void => {
+        void api.updateRoomConfig(room.roomId, patch)
+          .then(next => { paint(next); })
+          .catch(error => {
+            console.warn('[Cribbit] Room setup update rejected.', error);
+            setStatus(host, `Room setup was not accepted: ${error instanceof Error ? error.message : 'unknown error'}`, 'warning');
+          });
+      }
+    : null;
+
   panel.addEventListener('click', event => {
     const button = event.target instanceof Element ? event.target.closest('[data-action="start-game"]') : null;
     if (!button) return;
@@ -596,6 +626,8 @@ function openWaitingRoom(
   socket.on('room-updated', () => { void api.getRoom(room.roomId).then(next => { paint(next); }).catch(() => undefined); });
   socket.on('room-started', (payload:{ sessionId?:string }) => {
     if (!payload?.sessionId) return;
+    // The server freezes room setup at Start, so the host's setup controls stop publishing here.
+    publishRoomSetupChange = null;
     realtime.disconnect();
     void onSession({ ok:true, roomId:room.roomId, sessionId:payload.sessionId, joinCode:room.joinCode, players:[] });
   });
