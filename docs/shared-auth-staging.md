@@ -1,7 +1,7 @@
 # Shared auth staging
 
 
-Current source/deployment separation: recovery work is published on `recovery/single-engine-authority` (verified parent `625f0ade...`) but is not deployed. Railway API production remains sourced from `main` with latest successful deployed commit `b48493db...`; original Cloudflare Web/Telegram production branches remain `feature/visual-integration-checkpoint`.
+Current source/deployment separation: the accepted RECOVERY-HARDEN-4 closeout is `a7e984bc6bb4bd22bf23d471550d677a4cba5500`; the subsequent documentation-only living-state reconciliation is published at `babce6ba56b7569481eca5e9fc5b4eaf06bb7211` on `recovery/single-engine-authority`, which is not deployed. Railway API production remains sourced from `main` with latest successful deployed commit `b48493db...`; original Cloudflare Web/Telegram production branches remain `feature/visual-integration-checkpoint`.
 
 This is a living auth/staging control document. Update it whenever hosting, auth configuration, identity proof, backend state, or staging blockers change.
 
