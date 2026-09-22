@@ -1,5 +1,8 @@
 # Cribbit CHAOS Live Fix Plan
 
+
+> **HISTORICAL / COMPATIBILITY REFERENCE — SUPERSEDED AS LIVE ROADMAP.** This forensic repair plan is preserved for evidence and chronology. It must not be used for the current branch, current task, deployment status, or authorization. Current authority: `AGENTS.md` -> `HANDOFF.md` -> `docs/LIVING_STATUS.md` -> current roadmap in `PLAN.md`.
+
 > **Purpose:** This is the live no-drift repair plan for the real app. It uses the forensic audit findings and Superpowers-style workflow gates so implementation does not drift, guess, or switch targets.
 
 ## 0. Absolute target boundary
@@ -16,7 +19,7 @@ The protected local project is evidence/user work only. Do not edit it unless th
 
 Do not use any other repo, scaffold, trunk, branch family, clean-room copy, or replacement project.
 
-## 1. Verified current app state
+## 1. Verified app state at the time of this historical plan
 
 Last verified in the safe clone:
 

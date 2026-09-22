@@ -1,5 +1,8 @@
 # Recovery scope contract — `recovery/single-engine-authority`
 
+
+> **HISTORICAL RECOVERY-SCOPE CHECKPOINT.** The branch name remains relevant, but this file does not own current task sequencing or current verified state. Use `AGENTS.md`, `HANDOFF.md`, `docs/LIVING_STATUS.md`, and `PLAN.md` for current recovery authority.
+
 Purpose: keep this recovery experiment mechanically bounded. Any action that is not listed as IN SCOPE is out of
 scope and must be raised before it happens, not after.
 

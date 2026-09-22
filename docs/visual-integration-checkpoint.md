@@ -1,6 +1,9 @@
 # Visual integration checkpoint
 
-This is a living Phase 3.5 control document. Update it whenever visual staging, hosting, live smoke-test evidence, or Phase 3.5 blockers change.
+
+> **HISTORICAL / COMPATIBILITY REFERENCE — NOT CURRENT EXECUTION AUTHORITY.** This document preserves the Phase 3.5 visual-integration checkpoint. Current recovery branch/task/status live in `HANDOFF.md`, `docs/LIVING_STATUS.md`, and `PLAN.md`.
+
+This was the living Phase 3.5 control document at the time of the checkpoint; it is now historical evidence.
 
 This checkpoint makes the approved Cribbit CHAOS V4 look visible inside the shared UI while keeping gameplay authority out of the client.
 
@@ -30,7 +33,7 @@ This checkpoint makes the approved Cribbit CHAOS V4 look visible inside the shar
 - Telegram Mini App preview
 - Telegram safe-area preview with mocked insets
 
-## Current primary staging evidence
+## Historical primary staging evidence
 
 GitHub branch:
 
@@ -92,11 +95,11 @@ Historical non-Cloudflare deployments are not the current Phase 3.5 staging sour
 - roulette spin is visual-only and resolves to the preselected prompt afterward
 - board transitions remain presentation only; they do not decide authoritative state
 
-## Current live-proof status
+## Historical live-proof status
 
 Local and prior staging visual QA has passed. After PR #8 merged to `main`, the Cloudflare production URLs returned HTTP `200` and their top-level HTML loaded without the old direct `canonical-game-runtime` bootstrap strings. Full browser visual/runtime click-through is still pending because HTTP/readback is not the same as rendered interaction proof.
 
-Current next visual task:
+Historical next visual task at this checkpoint:
 
 - open `https://cribbit-chaos-web.pages.dev`
 - confirm the approved V4 interface renders
@@ -120,4 +123,4 @@ Then repeat the equivalent visual smoke test for `https://cribbit-chaos-telegram
 
 The approved V4 design language remains the baseline. This checkpoint migrates it into the shared UI without redesigning it.
 
-After each visual/staging implementation slice, synchronize this file, `PLAN.md`, `docs/DEPLOYMENT.md`, and the active PR description.
+Do not update this historical checkpoint as current execution state. Record new visual/runtime evidence in the living recovery documents and any newly authorized implementation record.

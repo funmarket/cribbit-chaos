@@ -1,5 +1,8 @@
 # Cribbit Chaos Dual-Authentication Verification
 
+
+> **HISTORICAL / COMPATIBILITY REFERENCE.** This file preserves an earlier authentication design/audit/verification checkpoint. It is not current account-model or execution authority. The current locked account model is in `AGENTS.md` and `docs/LIVING_STATUS.md`; current implementation status is in `HANDOFF.md` / `PLAN.md`.
+
 Date: 2026-08-21
 
 ## Source head validated

@@ -1,6 +1,9 @@
 # Cribbit CHAOS — Telegram Mobile Frontend Implementation Plan
 
-## Status
+
+> **HISTORICAL / COMPATIBILITY REFERENCE — NOT CURRENT EXECUTION AUTHORITY.** This file preserves the Phase 3.5 Telegram mobile implementation checkpoint from the pre-recovery `feature/visual-integration-checkpoint` line. Current branch, task, blockers and authorization live only in `HANDOFF.md`, `docs/LIVING_STATUS.md`, and the current roadmap in `PLAN.md`.
+
+## Historical status at checkpoint
 
 - Phase: **3.5 — Telegram mobile composition + shared staging**
 - Active branch: `feature/visual-integration-checkpoint`
@@ -15,9 +18,9 @@
 - T4 verified deployment head: `76cbdaff1ff4ff64e81a0914f7fe1318eb00337d`
 - T5 verified deployment head: `df581a56accbf6f128e7e460317508f26cdd366e`
 - T6 card-visual correction code head: `2094e1464d3a8d0b0ed67e23b275e254341bb0da`
-- Current task: **T6 — re-verify corrected cards on real Telegram device**
+- Historical task at checkpoint: **T6 — re-verify corrected cards on real Telegram device**
 
-This is a living execution document. After every controlled slice, update this file, `PLAN.md`, affected technical/operational docs, and PR #8 before proceeding.
+This is no longer a living execution document. It is retained as compatibility/product-history evidence; do not use its branch, PR, phase, or task statements as current instructions.
 
 ## Locked architecture
 
@@ -217,7 +220,7 @@ Phase 4/7 state source: Railway authoritative room/game state
 
 Presentation should remain stable while the state provider becomes real.
 
-## Current Next Task
+## Historical Next Task At This Checkpoint
 
 **T6 — Real-device recheck of the corrected Cribbit cards.**
 

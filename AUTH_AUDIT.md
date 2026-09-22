@@ -1,5 +1,8 @@
 # Cribbit Chaos Authentication Audit
 
+
+> **HISTORICAL / COMPATIBILITY REFERENCE.** This file preserves an earlier authentication design/audit/verification checkpoint. It is not current account-model or execution authority. The current locked account model is in `AGENTS.md` and `docs/LIVING_STATUS.md`; current implementation status is in `HANDOFF.md` / `PLAN.md`.
+
 ## Scope
 
 This audit covers the source-level dual-authentication migration for the Web app and Telegram Mini App. It records the repository state inspected before implementation and the architectural decisions applied.

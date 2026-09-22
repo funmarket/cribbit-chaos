@@ -22,6 +22,10 @@ That snapshot, the Foundation Report and any legacy registry strings are evidenc
 | Approved V4 Web template (visual/UX source) | `reference/approved-v4-template.html` | Product visual source; defines the approved UI/UX direction and card presentation | `COMPATIBILITY REFERENCE` |
 | Legacy canonical Web board runtime | `packages/legacy-runtime` | Retained only for the fixture-preview `runtimeMode: 'legacy-compatibility'` branch and its own tests | `COMPATIBILITY REFERENCE` |
 | Recovery/forensic fix plan | `chaosfixplan.md` | Historical repair plan and audit trail; superseded as roadmap by `PLAN.md` | `COMPATIBILITY REFERENCE` |
+| Historical Telegram mobile plan | `docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md` | Phase 3.5 mobile implementation checkpoint; old branch/PR/task statements are historical only | `COMPATIBILITY REFERENCE` |
+| Historical visual integration checkpoint | `docs/visual-integration-checkpoint.md` | Pre-recovery visual/staging evidence; not current branch/task authority | `COMPATIBILITY REFERENCE` |
+| Historical auth verification set | `AUTH.md`, `AUTH_AUDIT.md`, `AUTH_VERIFICATION.md` | Earlier auth design/audit/verification evidence; superseded by the locked current account model | `COMPATIBILITY REFERENCE` |
+| Historical recovery scope contract | `docs/RECOVERY_SCOPE.md` | Earlier recovery boundary/evidence checkpoint; current sequencing lives in the living control documents | `COMPATIBILITY REFERENCE` |
 | Requirements baseline | `REQUIREMENTS.md` | Original product requirements | `COMPATIBILITY REFERENCE` |
 | Authentication design/audit/verification notes | `AUTH.md`, `AUTH_AUDIT.md`, `AUTH_VERIFICATION.md` | Historical auth evidence predating the locked account model | `COMPATIBILITY REFERENCE` |
 | Recovery scope and checkpoint notes | `docs/RECOVERY_SCOPE.md`, `docs/visual-integration-checkpoint.md` | Recovery evidence | `COMPATIBILITY REFERENCE` |

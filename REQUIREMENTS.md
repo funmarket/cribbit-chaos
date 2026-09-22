@@ -1,5 +1,8 @@
 # Cribbit CHAOS Requirements
 
+
+> **PRODUCT REQUIREMENTS BASELINE.** This file preserves durable product requirements; it does not own current branch, task, blocker, or deployment status. Current execution state is maintained in `HANDOFF.md`, `docs/LIVING_STATUS.md`, and `PLAN.md`.
+
 ## Project-control requirement
 
 The repository documentation is living project-control documentation.

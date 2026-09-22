@@ -1,5 +1,8 @@
 # Cribbit Chaos Authentication
 
+
+> **HISTORICAL / COMPATIBILITY REFERENCE.** This file preserves an earlier authentication design/audit/verification checkpoint. It is not current account-model or execution authority. The current locked account model is in `AGENTS.md` and `docs/LIVING_STATUS.md`; current implementation status is in `HANDOFF.md` / `PLAN.md`.
+
 Cribbit Chaos has one application identity domain and two independent authentication adapters.
 
 ```text
