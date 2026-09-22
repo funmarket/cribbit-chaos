@@ -52,6 +52,9 @@ Mapping policy (also recorded in `docs/button-audit.json`):
 | Live safety controls | Pass / Rewind / Nope / Flag | `game-command` | Live only; not wired into local Simulation |
 | Account | register, login, logout, profile update, Telegram onboarding, link code, Web credential attach | `rest` | One canonical `users.id`; linking is explicit |
 | Navigation and layout | page navigation, dialogs, drawers, filters | `client-only` | `packages/ui/src/navigation-controller.ts` |
+| Product-bar zones | one `header.app-header` with `header-left` / `header-center` / `header-right` | `client-only` | `packages/ui/src/template.html`, `packages/ui/src/styles.css` | Single composition authority: client stylesheets must not re-compose or re-height the product bar |
+| Appearance | dark/light appearance control (`toggle-appearance`) | `client-only` | `packages/ui/src/bootstrap.ts` | Local presentation preference (`cribbit.appearance`); never gameplay, server or canonical card state |
+| QA diagnostics | connection/revision/fixture pills, reconnect test, reset (`?diagnostics=1`) | `dev-only` | `packages/ui/src/bootstrap.ts`, `packages/ui/src/template.html` | Hidden diagnostic surface below the product bar; never part of the product bar and never able to change its structure or height |
 
 ### QA/local surfaces (not product behaviour)
 

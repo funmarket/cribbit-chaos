@@ -48,3 +48,21 @@ Room-config coverage is split into a PostgreSQL-backed contract/integration suit
 - `apps/api/test/room-config-boundary.test.ts` — source-shape boundary: one REST room-config route, realtime invalidation only, shared-contract vocabulary, and api-client/Telegram/Web wiring.
 
 All three are registered in the root `npm test` script. `npm test` needs `DATABASE_URL` for the DB-backed rows; local runs use a disposable PostgreSQL (`127.0.0.1:55433`) and every race claim comes from that real database, never from a mock.
+
+## APP-SHELL-1 shell contracts
+
+`apps/web/test/app-shell-contract.test.ts` (8 contracts) guards the shared product shell statically against the built sources:
+
+1. exactly one structural header owner and no second product bar;
+2. three zones in order (left trigger, centred approved wordmark, right utilities);
+3. an accessible top-right appearance control with `aria-label` and `aria-pressed`;
+4. QA/diagnostic presentation absent from the bar but preserved in the hidden `[data-diagnostics]` surface;
+5. every `[data-nav]` resolving to a real `[data-view]`;
+6. one canonical bar height per breakpoint with no per-view override and a real centring grid;
+7. light and dark appearance surfaces owned by the shared stylesheet;
+8. production Web keeping `runtimeMode: 'none'` with exactly one navigation owner.
+
+`packages/ui/test/navigation-controller.test.ts` (6 contracts) continues to guard controller-level page switching, `aria-current`, refusal of unknown views, and the absence of gameplay/runtime authority in the controller.
+
+Run them with `npx tsx --test apps/web/test/app-shell-contract.test.ts packages/ui/test/navigation-controller.test.ts`. Rendered verification uses a headless browser against the built bundle (and a CSS-only shell harness to isolate style from application cost).
+

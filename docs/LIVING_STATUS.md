@@ -33,6 +33,7 @@ accepted HARDEN-4 baseline                  a7e984bc6bb4bd22bf23d471550d677a4cba
 exact HARDEN-4 CI                           35674013904  SUCCESS
 main                                        964a9162d7d9e1a12acfccc61f0fb88430a8f4ff
 recovery/single-engine-authority-ci         f384c824a0553d1adceb05ef55612e177967bb1a
+APP-SHELL-1 chain                          8210d92 (RED) + 2ea497e (shell) + 036a36c (responsive) + docs commit
 recovery branch deployed                    NO
 ```
 
@@ -60,6 +61,7 @@ The recovery branch is not deployed.
 | CRLF reclassification | `7f934ad` | Two local test failures reclassified as CRLF fragility, not product failures |
 | Live multiplayer lifecycle (Create -> Join -> Start) | `88e7f881` | Real members only, no fabricated bots, one authoritative session per Start |
 | NAV-1 — shared page navigation | `efb7240` | Presentation-only navigation restored through the shared UI controller |
+| APP-SHELL-1 — one canonical product shell | `8210d92`, `2ea497e`, `036a36c` | One structural product bar (three zones, one composition authority, per-breakpoint canonical height), top-left mobile drawer trigger, centred approved wordmark, top-right utilities with a locally persisted dark/light appearance control, and QA/diagnostic presentation relocated to a hidden `?diagnostics=1` surface |
 | SIM-1 — Local QA Simulation on the shared engine | `b083784` | `#startGameButton` = local QA Simulation (locked decision), no Live room, no persistence |
 | LINK-1 — explicit cross-transport identity linking | `a91ee8b` | Explicit linking attaches a second method to an existing `users.id`; no merges |
 | IDENTITY-2 — canonical identity convergence (API, UI, docs) | `beb2b2a`, `0730e64`, `5f2b4cfe` | Unknown Telegram auth is lookup-only; explicit creation makes exactly one user; no profile rewrite by authentication |
@@ -100,7 +102,7 @@ Implementation owners: `packages/game-engine/src/validation.ts`, `packages/game-
 | Realtime transport (invalidations only) | ACTIVE | VERIFIED LOCALLY (`room-updated`, `room-started`, `session-updated`) |
 | Accounts, identity linking, Web login, Telegram auth | ACTIVE | VERIFIED LOCALLY (spec-signed `initData`); real Mini App runtime NOT VERIFIED |
 | Local QA Simulation (Web; Telegram adapter) | ACTIVE (QA) | VERIFIED LOCALLY; special-card human-input stall known |
-| Shared navigation + UI shell | ACTIVE | BROWSER-VERIFIED |
+| Shared navigation + UI shell | ACTIVE | BROWSER-VERIFIED (APP-SHELL-1: one product bar, three zones, per-breakpoint height, appearance control, diagnostic surface) |
 | Gameplay mutation transport | ACTIVE | VERIFIED — one REST transport (`POST /v1/games/:sessionId/commands`) for both clients; realtime is subscription/invalidation only (RECOVERY-HARDEN-4) |
 | Room configuration (room setup) | ACTIVE | VERIFIED LOCALLY against real PostgreSQL — canonical server state in `rooms.config`; host-only `PATCH /v1/rooms/:roomId/config`; frozen at Start on the room row (ROOM-CONFIG-1) |
 | Card/deck canonical registry (`CHAOS-133-V1`) | ACTIVE | Deck-composition tests green |
@@ -121,7 +123,7 @@ Implementation owners: `packages/game-engine/src/validation.ts`, `packages/game-
 
 ## CURRENT TASK
 
-**None in flight after ROOM-CONFIG-1 publication.** Room setup is canonical server state (shared contract vocabulary, host-only mutation, room-row-serialized freeze at Start, session creation fed by the persisted config). The next implementation slice requires explicit owner authorization.
+**None in flight.** APP-SHELL-1 (global Web shell / top bar / navigation / page reachability) is complete on the controlled branch: one canonical product bar with three zones, one composition authority, a per-breakpoint canonical height, top-left mobile trigger, centred approved wordmark, top-right product utilities, a persisted dark/light appearance control, QA/diagnostic presentation moved out of the product bar, and every `[data-nav]` destination resolving to a real view. Publication and exact-SHA CI for the slice are recorded in the slice report. Room setup is canonical server state (shared contract vocabulary, host-only mutation, room-row-serialized freeze at Start, session creation fed by the persisted config). The next implementation slice requires explicit owner authorization.
 
 ## Current blockers / hardening queue
 

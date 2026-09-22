@@ -3,6 +3,8 @@
 
 > **CURRENT ROADMAP AUTHORITY:** Only the `## Current roadmap` and `## Current Next Task` sections near the end of this file define present sequencing. Earlier "next task" statements inside completed-slice history are historical checkpoint notes only.
 
+
+
 ## Mandatory project-control workflow
 
 Every implementation slice must follow:
@@ -587,12 +589,22 @@ Current recovery order after the completed documentation and authority-hardening
 9. **Whole-product ownership/dependency audit** — mandatory before broad deletion/migration decisions across apps/packages/unmigrated verticals.
 10. **AUTHORITY-GUARD-1** — unauthorized and not started; its precondition list still includes the unresolved Truth-or-Chaos owner decisions.
 11. **Subsequent owner-approved product phases** — restore/migrate the complete product verticals, verify real Telegram Mini App runtime, tune mechanics/pacing, then finalize art and deployment/release work.
+12. **APP-SHELL-1 - one canonical global Web shell** - COMPLETE. RED contract `8210d9271d4d4d3762d9b10ef45cd1182489e626`, shell `2ea497ee731195b9adcee3fe6b7e907a3c724bc8`, responsive corrections `036a36c2d52e3b240376552b7ebea36a11d953b4` plus this documentation closeout. One structural product bar (three zones, one composition authority, per-breakpoint canonical height), top-left mobile drawer trigger, centred approved wordmark, top-right utilities with a locally persisted dark/light appearance control, and QA/diagnostic presentation relocated to a hidden `?diagnostics=1` surface.
 
 Every phase must preserve the existing contract: one complete application, two delivery surfaces, gameplay authority in the server/shared engine boundary, one PostgreSQL database, and `Game_rules.md` as the only gameplay meaning.
 
 ## Current Next Task
 
-**No implementation task is currently authorized after RECOVERY-HARDEN-4.** The owner must choose the next hardening slice. `AUTHORITY-GUARD-1` is not authorized and must not be started automatically.
+**None in flight after APP-SHELL-1.** The global Web shell slice is complete on the controlled branch as RED `8210d92` -> shell `2ea497e` -> responsive `036a36c` + documentation closeout: one canonical product bar, one composition authority, per-breakpoint canonical height, top-left mobile drawer trigger, centred approved wordmark, top-right utilities with a locally persisted appearance control, and QA/diagnostic presentation moved into a hidden `?diagnostics=1` surface.
+
+The next real unfinished work remains (each requiring explicit owner authorization, in the owner's order):
+
+1. Truth-or-Chaos owner decisions, then the pending group-punishment completion path.
+2. Unmigrated product verticals (Rooms, CHAOS Board, Library/Create, Recap/History, Notifications, Moderation) - preserved, not dead.
+3. Roulette SVG presentation, then retirement of the preserved legacy/canonical client runtimes.
+4. Newly reported shell-adjacent findings from APP-SHELL-1: the full application renderer stops responding at <=768px while the same stylesheet renders instantly in a CSS-only shell harness, and the lobby hero deck overflows horizontally by 43px at 768px. Both are outside the shared product-bar scope and are not repaired.
+
+**No further implementation task is authorized beyond APP-SHELL-1.** The owner must choose the next slice. `AUTHORITY-GUARD-1` remains unauthorized and must not be started automatically.
 
 ## Historical note — superseded roadmap text
 

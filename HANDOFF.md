@@ -19,6 +19,9 @@ Freshly verified state after this ROOM-CONFIG-1 reconciliation:
 repository                                  funmarket/cribbit-chaos
 branch                                      recovery/single-engine-authority
 ROOM-CONFIG-1 client wiring                 fc7691c3784dc5e26e9bad4b10105e2befda2a4f
+APP-SHELL-1 RED contract commit             8210d9271d4d4d3762d9b10ef45cd1182489e626
+APP-SHELL-1 shell commit                    2ea497ee731195b9adcee3fe6b7e907a3c724bc8
+APP-SHELL-1 responsive commit               036a36c2d52e3b240376552b7ebea36a11d953b4
 ROOM-CONFIG-1 exact-SHA CI                  see "Publication / deployment state" below
 main                                        964a9162d7d9e1a12acfccc61f0fb88430a8f4ff   (unchanged)
 recovery/single-engine-authority-ci         f384c824a0553d1adceb05ef55612e177967bb1a   (unchanged)
@@ -35,6 +38,7 @@ Current accepted recovery sequence:
 67dbff10 + 3fd53f77   RECOVERY-HARDEN-3/3B — command identity/collision/concurrency
 b5df941 + cb3126c + a7e984b   RECOVERY-HARDEN-4 — one REST gameplay mutation transport
 81bd195 + b848327 + 5be19e7 + fc7691c   ROOM-CONFIG-1 — canonical room setup state
+8210d92 + 2ea497e + 036a36c   APP-SHELL-1 — one canonical product shell (Web top bar, navigation, appearance)
 ```
 
 RECOVERY-HARDEN-4 exact-SHA CI run `35674013904` succeeded for typecheck, PostgreSQL-backed tests, build-web, build-telegram, and build-api. Hermes's local recovery worktree and the remote recovery branch were aligned at `a7e984b...` after publication. The superseded local documentation commit remains preserved only on local branch `preserve/recovery-harden1-docs-reconcile`.
@@ -42,6 +46,23 @@ RECOVERY-HARDEN-4 exact-SHA CI run `35674013904` succeeded for typecheck, Postgr
 Deployment remains separate from recovery source state. Railway API production is still sourced from `main`; original Cloudflare Web/Telegram production branches remain `feature/visual-integration-checkpoint`. Recovery publication is not production deployment proof.
 
 ## Last completed task
+
+**APP-SHELL-1 — global Web shell / top bar / navigation / page reachability — IMPLEMENTATION + RESPONSIVE CORRECTIONS + DOC CLOSEOUT COMPLETE.**
+
+Published locally on the controlled branch as RED `8210d92` -> shell `2ea497e` -> responsive `036a36c` + this documentation commit.
+
+What one canonical product shell now guarantees:
+
+1. `packages/ui/src/template.html` owns exactly one `header.app-header` with three zones: `header-left` (mobile trigger plus desktop navigation), `header-center` (the approved Cribbit wordmark, centred by a real grid), `header-right` (product utilities). No view declares a second product header.
+2. `packages/ui/src/styles.css` owns the single composition for the product bar: `height: var(--header-h)` with a `minmax(0, 1fr) auto minmax(0, 1fr)` grid, so the bar keeps one canonical height per breakpoint and never varies per view. The Web-specific stylesheets no longer re-compose the header.
+3. Compact desktop and tablet widths (<=1199px) hand navigation to the existing `#mobileNavDialog` drawer opened by the top-left trigger; desktop keeps the inline product navigation (all seven clusters at >=1360px, the two trailing clusters folding into the drawer below that).
+4. A top-right appearance control (`data-action="toggle-appearance"`, `aria-label` + `aria-pressed`) switches dark/light, persists locally under `cribbit.appearance`, survives page navigation and reload, and never touches gameplay or server state.
+5. QA/diagnostic presentation (connection, revision, fixture pills, reconnect test, reset) moved out of the product bar into a hidden `[data-diagnostics]` surface shown only with `?diagnostics=1`; every element is preserved and cannot resize or restructure the product bar.
+6. `packages/ui/src/bootstrap.ts` installs the appearance controller and the diagnostic gate alongside `installSharedNavigation`, so production Web keeps exactly one navigation owner (`runtimeMode: 'none'`).
+
+Rendered evidence (headless Chrome on the built bundle): bar height 57px at 1440/1280/1200/1100, 53px at 1024, brand centred within 0.1px, symmetric zones, no overlap, no overflow at 1440/1280/1200/1100/1024; CSS-only shell harness verified at 768/430/360 (bar 55/53/53, brand centred, trigger at x=12, no overflow at 430/360).
+
+## Previous completed task — ROOM-CONFIG-1
 
 **ROOM-CONFIG-1 — canonical room configuration — COMPLETE / PUBLISHED / EXACT-SHA CI GREEN.**
 
@@ -77,7 +98,7 @@ Historical RECOVERY-HARDEN-4 background (still binding as the gameplay transport
 
 ## Current task
 
-**None in flight after ROOM-CONFIG-1 publication.** Room setup is canonical server state and the next implementation slice requires explicit owner authorization.
+**None in flight.** APP-SHELL-1 is complete on the controlled branch (implementation, responsive corrections, living-doc closeout); publication and exact-SHA CI for this slice are recorded in the slice report and under "Publication / deployment state" below. Room setup is canonical server state and the next implementation slice requires explicit owner authorization.
 
 ## Next task / authorization state
 

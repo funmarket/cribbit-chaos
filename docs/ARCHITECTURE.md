@@ -117,3 +117,23 @@ Current unverified areas: real Telegram Mini App runtime (`initData` cannot be m
 - The Truth-or-Chaos flow can deadlock in `ANSWER_RESOLVE` (`packages/game-engine/src/capabilities.ts`, `reducer.ts`).
 
 Do not fix these outside an explicitly authorized slice.
+
+## Product-bar composition authority (APP-SHELL-1)
+
+The shared UI package owns the product bar; clients own only their view content and their responsive refinements.
+
+```text
+packages/ui/src/template.html     one structural header: header-left | header-center | header-right
+packages/ui/src/styles.css        one composition: height var(--header-h) + minmax(0, 1fr) auto minmax(0, 1fr)
+packages/ui/src/bootstrap.ts      installs appearance (client-only) and the ?diagnostics=1 surface gate
+apps/web/src/*.css                view presentation and breakpoints only; must not re-compose the header
+```
+
+Rules:
+
+1. Exactly one `header.app-header` exists in the shared shell; no view may introduce a second product header.
+2. The product bar height is the shared `--header-h` token per breakpoint — never a per-view or per-client override.
+3. Client-specific stylesheets may tune their view content but must not declare their own `app-header__inner` grid or `grid-template-areas`.
+4. The appearance control and the diagnostic gate are presentation-only: no gameplay command, no server state, no canonical card data.
+5. QA/diagnostic presentation lives below the product bar and cannot change its structure or height.
+
