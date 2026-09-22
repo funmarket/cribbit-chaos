@@ -50,68 +50,92 @@
       <symbol id="i-collapse" viewBox="0 0 64 64"><path d="M10 24h14V10M54 24H40V10M10 40h14v14M54 40H40v14"/></symbol>
       <symbol id="i-chevron-left" viewBox="0 0 64 64"><path d="M40 12 20 32l20 20"/></symbol>
       <symbol id="i-chevron-right" viewBox="0 0 64 64"><path d="m24 12 20 20-20 20"/></symbol>
-    </defs>
+    <symbol id="i-contrast" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 2v14a7 7 0 0 1 0-14Z" fill="currentColor"/></symbol>
+</defs>
   </svg>
 
-  <header class="app-header">
+<header class="app-header">
     <div class="app-header__inner">
-      <button class="brand-lockup" data-nav="lobby" type="button" aria-label="Cribbit CHAOS lobby">
-        <svg class="frog-mark icon" aria-hidden="true"><use href="#i-frog" /></svg>
-        <span class="brand-type"><span class="brand-type__cribbit">Cribbit</span><span class="brand-type__chaos">Chaos</span></span>
-      </button>
-      <nav class="product-nav header-nav" aria-label="Primary navigation">
+      <div class="header-left">
+        <button class="header-utility-icon mobile-nav-trigger" data-action="open-mobile-nav" type="button" aria-label="Open product navigation"><svg class="icon"><use href="#i-menu" /></svg></button>
+        <nav class="product-nav header-nav" aria-label="Primary navigation">
         <div class="nav-cluster">
-          <button class="nav-button" data-nav="lobby" type="button">Play</button>
-          <div class="nav-popover"><div class="nav-popover__label">Play</div>
-            <button class="nav-menu-item" data-nav="lobby" type="button" style="--nav-accent:var(--lime)"><svg class="icon"><use href="#i-home" /></svg><span><b>Lobby</b><span>Create, join or continue a room.</span></span></button>
-            <button class="nav-menu-item" data-nav="game" type="button" style="--nav-accent:var(--magenta)"><svg class="icon"><use href="#i-play" /></svg><span><b>Active Game</b><span>Return to the authoritative table.</span></span></button>
-            <button class="nav-menu-item" data-nav="recap" type="button" style="--nav-accent:var(--gold)"><svg class="icon"><use href="#i-trophy" /></svg><span><b>Recent Recap</b><span>Winner, stats and Save That.</span></span></button>
-          </div>
+        <button class="nav-button" data-nav="lobby" type="button">Play</button>
+        <div class="nav-popover"><div class="nav-popover__label">Play</div>
+        <button class="nav-menu-item" data-nav="lobby" type="button" style="--nav-accent:var(--lime)"><svg class="icon"><use href="#i-home" /></svg><span><b>Lobby</b><span>Create, join or continue a room.</span></span></button>
+        <button class="nav-menu-item" data-nav="game" type="button" style="--nav-accent:var(--magenta)"><svg class="icon"><use href="#i-play" /></svg><span><b>Active Game</b><span>Return to the authoritative table.</span></span></button>
+        <button class="nav-menu-item" data-nav="recap" type="button" style="--nav-accent:var(--gold)"><svg class="icon"><use href="#i-trophy" /></svg><span><b>Recent Recap</b><span>Winner, stats and Save That.</span></span></button>
+        </div>
         </div>
         <div class="nav-cluster">
-          <button class="nav-button" data-nav="rooms" type="button">Rooms</button>
-          <div class="nav-popover"><div class="nav-popover__label">Rooms</div>
-            <button class="nav-menu-item" data-nav="rooms" type="button" style="--nav-accent:var(--orange)"><svg class="icon"><use href="#i-users" /></svg><span><b>Tonight’s CHAOS</b><span>Vibe, categories and source mix.</span></span></button>
-            <button class="nav-menu-item" data-nav="rooms" data-room-anchor="pool" type="button" style="--nav-accent:var(--cyan)"><svg class="icon"><use href="#i-cards" /></svg><span><b>Live Room Pool</b><span>The exact eligible prompts for tonight.</span></span></button>
-            <button class="nav-menu-item" data-nav="lobby" type="button" style="--nav-accent:var(--lime)"><svg class="icon"><use href="#i-send" /></svg><span><b>Join Room</b><span>Enter a simulated room code.</span></span></button>
-          </div>
+        <button class="nav-button" data-nav="rooms" type="button">Rooms</button>
+        <div class="nav-popover"><div class="nav-popover__label">Rooms</div>
+        <button class="nav-menu-item" data-nav="rooms" type="button" style="--nav-accent:var(--orange)"><svg class="icon"><use href="#i-users" /></svg><span><b>Tonight’s CHAOS</b><span>Vibe, categories and source mix.</span></span></button>
+        <button class="nav-menu-item" data-nav="rooms" data-room-anchor="pool" type="button" style="--nav-accent:var(--cyan)"><svg class="icon"><use href="#i-cards" /></svg><span><b>Live Room Pool</b><span>The exact eligible prompts for tonight.</span></span></button>
+        <button class="nav-menu-item" data-nav="lobby" type="button" style="--nav-accent:var(--lime)"><svg class="icon"><use href="#i-send" /></svg><span><b>Join Room</b><span>Enter a simulated room code.</span></span></button>
+        </div>
         </div>
         <div class="nav-cluster">
-          <button class="nav-button" data-nav="board" type="button">CHAOS Board</button>
-          <div class="nav-popover"><div class="nav-popover__label">Discover</div>
-            <button class="nav-menu-item" data-nav="board" data-board-tab="all" type="button" style="--nav-accent:var(--lime)"><svg class="icon"><use href="#i-globe" /></svg><span><b>Discover All</b><span>Official and moderated community prompts.</span></span></button>
-            <button class="nav-menu-item" data-nav="board" data-board-tab="original" type="button" style="--nav-accent:var(--lime)"><svg class="icon"><use href="#i-check" /></svg><span><b>Cribbit Originals</b><span>Curated official game content.</span></span></button>
-            <button class="nav-menu-item" data-nav="board" data-board-tab="community" type="button" style="--nav-accent:var(--magenta)"><svg class="icon"><use href="#i-users" /></svg><span><b>Community CHAOS</b><span>Approved player-created prompts.</span></span></button>
-            <div class="nav-popover__divider"></div>
-            <button class="nav-menu-item" data-nav="board" data-board-tab="trending" type="button" style="--nav-accent:var(--orange)"><svg class="icon"><use href="#i-bolt-circle" /></svg><span><b>Trending & Staff Picks</b><span>Positive discovery signals only.</span></span></button>
-          </div>
+        <button class="nav-button" data-nav="board" type="button">CHAOS Board</button>
+        <div class="nav-popover"><div class="nav-popover__label">Discover</div>
+        <button class="nav-menu-item" data-nav="board" data-board-tab="all" type="button" style="--nav-accent:var(--lime)"><svg class="icon"><use href="#i-globe" /></svg><span><b>Discover All</b><span>Official and moderated community prompts.</span></span></button>
+        <button class="nav-menu-item" data-nav="board" data-board-tab="original" type="button" style="--nav-accent:var(--lime)"><svg class="icon"><use href="#i-check" /></svg><span><b>Cribbit Originals</b><span>Curated official game content.</span></span></button>
+        <button class="nav-menu-item" data-nav="board" data-board-tab="community" type="button" style="--nav-accent:var(--magenta)"><svg class="icon"><use href="#i-users" /></svg><span><b>Community CHAOS</b><span>Approved player-created prompts.</span></span></button>
+        <div class="nav-popover__divider"></div>
+        <button class="nav-menu-item" data-nav="board" data-board-tab="trending" type="button" style="--nav-accent:var(--orange)"><svg class="icon"><use href="#i-bolt-circle" /></svg><span><b>Trending & Staff Picks</b><span>Positive discovery signals only.</span></span></button>
+        </div>
         </div>
         <div class="nav-cluster">
-          <button class="nav-button" data-nav="library" type="button">Library</button>
-          <div class="nav-popover"><div class="nav-popover__label">Your memory</div>
-            <button class="nav-menu-item" data-nav="library" data-library-tab="my" type="button" style="--nav-accent:var(--cyan)"><svg class="icon"><use href="#i-bookmark" /></svg><span><b>My Saved Deck</b><span>Private prompts saved for future games.</span></span></button>
-            <button class="nav-menu-item" data-nav="library" data-library-tab="house" type="button" style="--nav-accent:var(--orange)"><svg class="icon"><use href="#i-home" /></svg><span><b>House Deck</b><span>Private recurring group history.</span></span></button>
-            <button class="nav-menu-item" data-nav="library" data-library-tab="live" type="button" style="--nav-accent:var(--lime)"><svg class="icon"><use href="#i-play" /></svg><span><b>Live Room Pool</b><span>Prompts eligible in tonight’s game.</span></span></button>
-          </div>
+        <button class="nav-button" data-nav="library" type="button">Library</button>
+        <div class="nav-popover"><div class="nav-popover__label">Your memory</div>
+        <button class="nav-menu-item" data-nav="library" data-library-tab="my" type="button" style="--nav-accent:var(--cyan)"><svg class="icon"><use href="#i-bookmark" /></svg><span><b>My Saved Deck</b><span>Private prompts saved for future games.</span></span></button>
+        <button class="nav-menu-item" data-nav="library" data-library-tab="house" type="button" style="--nav-accent:var(--orange)"><svg class="icon"><use href="#i-home" /></svg><span><b>House Deck</b><span>Private recurring group history.</span></span></button>
+        <button class="nav-menu-item" data-nav="library" data-library-tab="live" type="button" style="--nav-accent:var(--lime)"><svg class="icon"><use href="#i-play" /></svg><span><b>Live Room Pool</b><span>Prompts eligible in tonight’s game.</span></span></button>
+        </div>
         </div>
         <div class="nav-cluster">
-          <button class="nav-button" data-nav="create" type="button">Create</button>
-          <div class="nav-popover"><div class="nav-popover__label">Contribute</div>
-            <button class="nav-menu-item" data-nav="create" data-create-destination="my" type="button" style="--nav-accent:var(--cyan)"><svg class="icon"><use href="#i-bookmark" /></svg><span><b>Private Save</b><span>Keep a prompt only in My Saved Deck.</span></span></button>
-            <button class="nav-menu-item" data-nav="create" data-create-destination="house" type="button" style="--nav-accent:var(--orange)"><svg class="icon"><use href="#i-home" /></svg><span><b>House Deck</b><span>Add private group-owned content.</span></span></button>
-            <button class="nav-menu-item" data-nav="create" data-create-destination="live" type="button" style="--nav-accent:var(--lime)"><svg class="icon"><use href="#i-play" /></svg><span><b>Current Game</b><span>Moderate into tonight’s sealed pool.</span></span></button>
-            <button class="nav-menu-item" data-nav="create" data-create-destination="community" type="button" style="--nav-accent:var(--magenta)"><svg class="icon"><use href="#i-globe" /></svg><span><b>Suggest to CHAOS Board</b><span>Submit for duplicate, quality and moderation review.</span></span></button>
-          </div>
+        <button class="nav-button" data-nav="create" type="button">Create</button>
+        <div class="nav-popover"><div class="nav-popover__label">Contribute</div>
+        <button class="nav-menu-item" data-nav="create" data-create-destination="my" type="button" style="--nav-accent:var(--cyan)"><svg class="icon"><use href="#i-bookmark" /></svg><span><b>Private Save</b><span>Keep a prompt only in My Saved Deck.</span></span></button>
+        <button class="nav-menu-item" data-nav="create" data-create-destination="house" type="button" style="--nav-accent:var(--orange)"><svg class="icon"><use href="#i-home" /></svg><span><b>House Deck</b><span>Add private group-owned content.</span></span></button>
+        <button class="nav-menu-item" data-nav="create" data-create-destination="live" type="button" style="--nav-accent:var(--lime)"><svg class="icon"><use href="#i-play" /></svg><span><b>Current Game</b><span>Moderate into tonight’s sealed pool.</span></span></button>
+        <button class="nav-menu-item" data-nav="create" data-create-destination="community" type="button" style="--nav-accent:var(--magenta)"><svg class="icon"><use href="#i-globe" /></svg><span><b>Suggest to CHAOS Board</b><span>Submit for duplicate, quality and moderation review.</span></span></button>
+        </div>
         </div>
         <div class="nav-cluster"><button class="nav-button" data-nav="call" type="button">Call Mode</button></div>
         <div class="nav-cluster"><button class="nav-button" data-nav="lab" type="button">Rules</button></div>
-      </nav>
-      <div class="status-cluster">
+        </nav>
+      </div>
+      <div class="header-center">
+        <button class="brand-lockup" data-nav="lobby" type="button" aria-label="Cribbit CHAOS lobby">
+        <svg class="frog-mark icon" aria-hidden="true"><use href="#i-frog" /></svg>
+        <span class="brand-type"><span class="brand-type__cribbit">Cribbit</span><span class="brand-type__chaos">Chaos</span></span>
+        </button>
+      </div>
+      <div class="header-right">
+        <button class="header-utility-icon appearance-toggle" data-action="toggle-appearance" type="button" aria-label="Switch to light appearance" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-contrast" /></svg></button>
+      <div class="header-tools">
+
+        <button class="header-utility-icon" data-action="open-global-search" type="button" aria-label="Search prompts and pages"><svg class="icon"><use href="#i-search" /></svg></button>
+        <button class="header-utility-icon notification-dot" data-action="open-notifications" type="button" aria-label="Open notifications"><svg class="icon"><use href="#i-bolt-circle" /></svg></button>
+        <button class="tool-button telegram-login-button" data-action="continue-with-telegram" type="button"><svg class="icon"><use href="#i-person" /></svg><span>Continue with Telegram</span></button>
+        <span class="auth-status" data-auth-status hidden></span>
+
+
+        <button class="profile-chip" data-action="open-profile" type="button" aria-label="Open profile">Y</button>
+      </div>
+    </div>
+      </div>
+    </div>
+</header>
+  <div class="diagnostic-strip" data-diagnostics hidden>
+    <span class="diagnostic-label">Diagnostics</span>
+        <div class="status-cluster">
         <span class="status-pill" id="connectionPill" data-state="connected"><i></i><span>Connected</span></span>
         <span class="status-pill" data-hide-mobile="true"><svg class="icon"><use href="#i-shield" /></svg><span id="revisionLabel">Server rev 0</span></span>
         <button class="status-pill fixture-pill" id="fixturePill" data-action="cycle-fixture" type="button" hidden><svg class="icon"><use href="#i-palette" /></svg><span id="fixtureLabel">Fixture preview</span></button>
-      </div>
-      <div class="header-tools">
+        </div>
+        <div class="header-tools">
         <button class="header-utility-icon mobile-nav-trigger" data-action="open-mobile-nav" type="button" aria-label="Open product navigation"><svg class="icon"><use href="#i-menu" /></svg></button>
         <button class="header-utility-icon" data-action="open-global-search" type="button" aria-label="Search prompts and pages"><svg class="icon"><use href="#i-search" /></svg></button>
         <button class="header-utility-icon notification-dot" data-action="open-notifications" type="button" aria-label="Open notifications"><svg class="icon"><use href="#i-bolt-circle" /></svg></button>
@@ -120,9 +144,11 @@
         <button class="tool-button" data-action="simulate-disconnect" type="button"><svg class="icon"><use href="#i-wifi" /></svg><span>Reconnect test</span></button>
         <button class="tool-button" data-action="reset-demo" type="button"><svg class="icon"><use href="#i-refresh" /></svg><span>Reset</span></button>
         <button class="profile-chip" data-action="open-profile" type="button" aria-label="Open profile">Y</button>
-      </div>
-    </div>
-  </header>
+        </div>
+        </div>
+        <button class="tool-button" data-action="simulate-disconnect" type="button"><svg class="icon"><use href="#i-wifi" /></svg><span>Reconnect test</span></button>
+        <button class="tool-button" data-action="reset-demo" type="button"><svg class="icon"><use href="#i-refresh" /></svg><span>Reset</span></button>
+  </div>
 
   <main>
     <section class="view is-active" data-view="lobby" aria-labelledby="lobbyTitle">

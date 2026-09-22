@@ -48,6 +48,8 @@ export async function bootstrap(
   // when no compatibility runtime is loaded, so no client has two owners.
   if (options.runtimeMode === 'none') {
     installSharedNavigation(document);
+  installAppearance(document);
+  installDiagnosticSurface(document);
   }
 
   const config = clientConfig(platform.kind);
@@ -137,3 +139,69 @@ declare global {
     __CRIBBIT_VISUAL_FIXTURE_META__?: { name: VisualFixtureName; label: string; summary: string } | null;
   }
 }
+
+/**
+ * APP-SHELL-1 — appearance preference for the shared shell.
+ *
+ * Presentation only: the preference never reaches the API, never changes
+ * canonical card or board data, and never touches gameplay. It is stored on the
+ * document element so switching pages cannot reset it, and remembered locally
+ * for the next visit.
+ */
+export type AppearancePreference = 'dark' | 'light';
+
+export const APPEARANCE_STORAGE_KEY = 'cribbit.appearance';
+
+export function resolveAppearance(stored: string | null | undefined, prefersLight: boolean): AppearancePreference {
+  if (stored === 'light' || stored === 'dark') return stored;
+  return prefersLight ? 'light' : 'dark';
+}
+
+function appearanceStorage(root: Document): Storage | null {
+  try {
+    return root.defaultView?.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function applyAppearance(root: Document, preference: AppearancePreference): void {
+  root.documentElement.dataset.appearance = preference;
+  const control = root.querySelector<HTMLElement>('[data-action="toggle-appearance"]');
+  if (!control) return;
+  const light = preference === 'light';
+  control.setAttribute('aria-pressed', light ? 'true' : 'false');
+  control.setAttribute('aria-label', light ? 'Switch to dark appearance' : 'Switch to light appearance');
+}
+
+export function installAppearance(root: Document, storage: Storage | null = appearanceStorage(root)): void {
+  const prefersLight = root.defaultView?.matchMedia?.('(prefers-color-scheme: light)').matches ?? false;
+  let preference = resolveAppearance(storage?.getItem(APPEARANCE_STORAGE_KEY) ?? null, prefersLight);
+  applyAppearance(root, preference);
+  root.addEventListener('click', event => {
+    const trigger = event.target instanceof Element ? event.target.closest('[data-action="toggle-appearance"]') : null;
+    if (!trigger) return;
+    preference = preference === 'light' ? 'dark' : 'light';
+    applyAppearance(root, preference);
+    try {
+      storage?.setItem(APPEARANCE_STORAGE_KEY, preference);
+    } catch {
+      // Local storage refused: the preference still applies for this session.
+    }
+  });
+}
+
+/**
+ * APP-SHELL-1 — diagnostic surface.
+ *
+ * QA/status presentation stays reachable under ?diagnostics=1 without occupying
+ * or resizing the production product bar.
+ */
+export function installDiagnosticSurface(root: Document): void {
+  const requested = new URLSearchParams(root.defaultView?.location?.search ?? '').get('diagnostics') === '1';
+  const strip = root.querySelector<HTMLElement>('[data-diagnostics]');
+  if (!requested || !strip) return;
+  strip.hidden = false;
+  root.documentElement.dataset.diagnostics = '1';
+}
+
