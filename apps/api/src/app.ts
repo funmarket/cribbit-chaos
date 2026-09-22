@@ -2,10 +2,10 @@ import { createHash } from 'node:crypto';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { Server as SocketIOServer } from 'socket.io';
-import type { AuthUser, GameCommand, TelegramMiniAppAuthRequest, WebLoginRequest, WebLoginSuggestionResponse, WebRegisterRequest } from '../../../packages/contracts/src/index.ts';
+import type { AuthUser, GameCommand, RoomConfigUpdateRequest, TelegramMiniAppAuthRequest, WebLoginRequest, WebLoginSuggestionResponse, WebRegisterRequest } from '../../../packages/contracts/src/index.ts';
 import { ACTION_ASSIGNMENTS } from '../../../packages/action-registry/src/index.ts';
 import { authenticateSessionToken, authenticateWebUser, createGuestIdentity, createServerSession, dbHealth, registerWebUser, revokeServerSession, updateUserProfile, linkTelegramIdentity, findTelegramIdentityUser, createTelegramCanonicalUser, attachWebCredential, createIdentityLinkChallenge, consumeIdentityLinkChallenge, suggestWebLoginUsername } from './db.ts';
-import { createWaitingRoom, getSessionSnapshot, joinWaitingRoom, processSessionCommand, type RoomCreateInput, getWaitingRoom, startRoom } from './game-service.ts';
+import { createWaitingRoom, getSessionSnapshot, joinWaitingRoom, processSessionCommand, getWaitingRoom, startRoom, updateRoomConfig } from './game-service.ts';
 import { validateTelegramInitData } from './telegram-auth.ts';
 
 type TelegramIdentityInput = { telegramId:string; displayName:string; username?:string };
@@ -475,7 +475,7 @@ export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
   app.post('/v1/rooms', async (request:any, reply:any) => {
     try {
       const auth = await principal(request);
-      const room = await createWaitingRoom(auth.user, (request.body ?? {}) as RoomCreateInput);
+      const room = await createWaitingRoom(auth.user, (request.body ?? {}) as RoomConfigUpdateRequest);
       sessions.to(`room:${room.roomId}`).emit('room-updated', { roomId: room.roomId });
       return room;
     } catch (error) {
@@ -496,7 +496,18 @@ export async function createApiApp(deps:ApiDependencies = defaultDependencies) {
     }
   });
 
-  app.patch('/v1/rooms/:roomId/config', async (_request:any, reply:any) => reply.code(501).send({ error:'ROOM_CONFIG_NOT_IMPLEMENTED' }));
+  app.patch('/v1/rooms/:roomId/config', async (request:any, reply:any) => {
+    try {
+      const auth = await principal(request);
+      const { roomId } = request.params as { roomId:string };
+      const room = await updateRoomConfig(auth.user, roomId, (request.body ?? {}) as RoomConfigUpdateRequest);
+      // Invalidation only: subscribers refetch the authoritative room projection over REST.
+      sessions.to(`room:${roomId}`).emit('room-updated', { roomId });
+      return room;
+    } catch (error) {
+      return routeError(reply, error);
+    }
+  });
   app.get('/v1/rooms/:roomId', async (request:any, reply:any) => {
     try {
       const auth = await principal(request);

@@ -1,5 +1,23 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import type { AuthUser, CommandResponse, GameCommand, GameEvent, GameState, PlayerDecisionCapabilities, SessionSnapshot, WaitingRoomResult } from '../../../packages/contracts/src/index.ts';
+import {
+  ROOM_CEILING_VALUES,
+  ROOM_MODE_BOUNDS,
+  ROOM_PROMPT_SOURCE_KEYS,
+  type AuthUser,
+  type CommandResponse,
+  type GameCommand,
+  type GameEvent,
+  type GameState,
+  type PlayerDecisionCapabilities,
+  type RoomConfig,
+  type RoomConfigUpdateRequest,
+  type RoomContentWorld,
+  type RoomMode,
+  type RoomPromptSourceKey,
+  type RoomSessionResult,
+  type SessionSnapshot,
+  type WaitingRoomResult,
+} from '../../../packages/contracts/src/index.ts';
 import { applyCommand, chooseBotOption, createGame, fingerprintGameCommand, projectDecisionCapabilities, projectRoulettePresentation } from '../../../packages/game-engine/src/index.ts';
 import { promptPoolForSources } from '../../../packages/prompts/src/index.ts';
 import { pool, withTransaction } from './db.ts';
@@ -7,27 +25,10 @@ import { pool, withTransaction } from './db.ts';
 const BOT_NAMES = ['Maya', 'Leo', 'Nina', 'Jordan', 'Sam', 'Alex', 'Zoe', 'Arjun', 'Dev'] as const;
 const BOT_PREFIX = 'bot:';
 
-export interface RoomCreateInput {
-  roomName?: string;
-  mode?: string;
-  playerCount?: number;
-  world?: 'clean' | 'adult';
-  ceiling?: number;
-  sources?: Record<string, boolean>;
-}
-
 export interface SessionPlayerView {
   id: string;
   name: string;
   isHuman: boolean;
-}
-
-export interface RoomSessionResult {
-  ok: true;
-  roomId: string;
-  sessionId: string;
-  joinCode: string;
-  players: SessionPlayerView[];
 }
 
 export interface ProjectedSessionSnapshot extends SessionSnapshot<GameState> {
@@ -35,8 +36,21 @@ export interface ProjectedSessionSnapshot extends SessionSnapshot<GameState> {
   capabilities: PlayerDecisionCapabilities;
 }
 
-type StoredRoomConfig = RoomCreateInput & {
+/**
+ * Stored room configuration. rooms.config is server-owned pre-game room state: the canonical
+ * RoomConfig plus the internal seat-name map, which is never projected to clients.
+ */
+type StoredRoomConfig = RoomConfig & {
   playerNames?: Record<string, string>;
+};
+
+const DEFAULT_ROOM_CONFIG: RoomConfig = {
+  roomName: 'Night Squad',
+  mode: 'party',
+  playerCount: 5,
+  world: 'clean',
+  ceiling: 3,
+  sources: { original: true, community: true, house: true, live: true },
 };
 
 function requirePool() {
@@ -44,20 +58,121 @@ function requirePool() {
   return pool;
 }
 
+function roomConfigError(code: string, message: string, statusCode = 400) {
+  return Object.assign(new Error(message), { code, statusCode });
+}
+
 function normalizePlayerCount(value: unknown): number {
-  const count = Number(value ?? 5);
+  const count = Number(value ?? DEFAULT_ROOM_CONFIG.playerCount);
   if (!Number.isInteger(count) || count < 2 || count > 10) {
-    throw Object.assign(new Error('playerCount must be between 2 and 10.'), { code: 'INVALID_PLAYER_COUNT', statusCode: 400 });
+    throw roomConfigError('INVALID_PLAYER_COUNT', 'playerCount must be between 2 and 10.');
   }
   return count;
 }
 
-function normalizeRoomName(value: unknown): string {
-  const roomName = String(value ?? 'Night Squad').trim();
-  if (!roomName || roomName.length > 40) {
-    throw Object.assign(new Error('roomName must be 1 to 40 characters.'), { code: 'INVALID_ROOM_NAME', statusCode: 400 });
-  }
+/** Every valid playerCount belongs to exactly one mode; this is used only when no mode was ever chosen. */
+function defaultModeForPlayerCount(playerCount: number): RoomMode {
+  const modes = Object.keys(ROOM_MODE_BOUNDS) as RoomMode[];
+  return modes.find(mode => playerCount >= ROOM_MODE_BOUNDS[mode].min && playerCount <= ROOM_MODE_BOUNDS[mode].max) ?? DEFAULT_ROOM_CONFIG.mode;
+}
+
+function readRoomName(value: unknown, fallback: string): string {
+  if (value === undefined) return fallback;
+  if (typeof value !== 'string') throw roomConfigError('INVALID_ROOM_NAME', 'roomName must be a string.');
+  const roomName = value.trim();
+  if (!roomName || roomName.length > 40) throw roomConfigError('INVALID_ROOM_NAME', 'roomName must be 1 to 40 characters.');
   return roomName;
+}
+
+function readRoomMode(value: unknown): RoomMode {
+  if (typeof value !== 'string' || !Object.prototype.hasOwnProperty.call(ROOM_MODE_BOUNDS, value)) {
+    throw roomConfigError('INVALID_ROOM_MODE', `mode must be one of ${Object.keys(ROOM_MODE_BOUNDS).join(', ')}.`);
+  }
+  return value as RoomMode;
+}
+
+function readContentWorld(value: unknown): RoomContentWorld {
+  if (value !== 'clean' && value !== 'adult') throw roomConfigError('INVALID_CONTENT_WORLD', 'world must be clean or adult.');
+  return value;
+}
+
+function readContentCeiling(value: unknown, world: RoomContentWorld): number {
+  const ceiling = Number(value);
+  if (!ROOM_CEILING_VALUES[world].includes(ceiling)) {
+    throw roomConfigError('INVALID_CONTENT_CEILING', `ceiling for ${world} must be one of ${ROOM_CEILING_VALUES[world].join(', ')}.`);
+  }
+  return ceiling;
+}
+
+function readPromptSources(value: unknown, fallback: Record<RoomPromptSourceKey, boolean>): Record<RoomPromptSourceKey, boolean> {
+  if (value === undefined) return fallback;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw roomConfigError('INVALID_PROMPT_SOURCES', 'sources must be an object of known prompt source keys.');
+  }
+  const raw = value as Record<string, unknown>;
+  for (const key of Object.keys(raw)) {
+    if (!ROOM_PROMPT_SOURCE_KEYS.includes(key as RoomPromptSourceKey)) {
+      throw roomConfigError('INVALID_PROMPT_SOURCES', `Unknown prompt source key: ${key}.`);
+    }
+    if (typeof raw[key] !== 'boolean') {
+      throw roomConfigError('INVALID_PROMPT_SOURCES', `Prompt source ${key} must be a boolean.`);
+    }
+  }
+  const sources = {} as Record<RoomPromptSourceKey, boolean>;
+  for (const key of ROOM_PROMPT_SOURCE_KEYS) sources[key] = raw[key] === true ? true : raw[key] === false ? false : fallback[key];
+  if (!ROOM_PROMPT_SOURCE_KEYS.some(key => sources[key])) {
+    throw roomConfigError('NO_PROMPT_SOURCE_ENABLED', 'At least one prompt source must stay enabled.');
+  }
+  return sources;
+}
+
+/**
+ * Canonical room configuration resolution and validation. The server owns validity: a malformed
+ * product choice is rejected, never silently rewritten. Only an absent field falls back -- to the
+ * persisted room value on update, or to the canonical default on creation. A mode is derived from
+ * playerCount only when the room never had one.
+ */
+function resolveRoomConfig(current: Partial<RoomConfig> | undefined, patch: RoomConfigUpdateRequest): RoomConfig {
+  const base: Partial<RoomConfig> = current ?? {};
+  const roomName = readRoomName(patch.roomName, base.roomName ?? DEFAULT_ROOM_CONFIG.roomName);
+  const world = readContentWorld(patch.world ?? base.world ?? DEFAULT_ROOM_CONFIG.world);
+  const ceiling = readContentCeiling(patch.ceiling ?? base.ceiling ?? DEFAULT_ROOM_CONFIG.ceiling, world);
+  const sources = readPromptSources(patch.sources, base.sources ?? DEFAULT_ROOM_CONFIG.sources);
+  const playerCount = normalizePlayerCount(patch.playerCount ?? base.playerCount ?? DEFAULT_ROOM_CONFIG.playerCount);
+  const mode = patch.mode === undefined && base.mode === undefined
+    ? defaultModeForPlayerCount(playerCount)
+    : readRoomMode(patch.mode ?? base.mode);
+  const bounds = ROOM_MODE_BOUNDS[mode];
+  if (playerCount < bounds.min || playerCount > bounds.max) {
+    throw roomConfigError(
+      'MODE_PLAYER_COUNT_MISMATCH',
+      `${mode} supports ${bounds.min === bounds.max ? bounds.min : `${bounds.min} to ${bounds.max}`} players, received ${playerCount}.`,
+    );
+  }
+  return { roomName, mode, playerCount, world, ceiling, sources };
+}
+
+/**
+ * Read-side projection of persisted room state. It never mutates storage and never throws on a
+ * historical row: it guarantees the client receives a complete, valid canonical config.
+ */
+function publicRoomConfig(config: Partial<StoredRoomConfig> | undefined): RoomConfig {
+  const raw = config ?? {};
+  const playerCount = Number.isInteger(Number(raw.playerCount)) && Number(raw.playerCount) >= 2 && Number(raw.playerCount) <= 10
+    ? Number(raw.playerCount)
+    : DEFAULT_ROOM_CONFIG.playerCount;
+  const world = raw.world === 'adult' ? 'adult' : 'clean';
+  const mode = typeof raw.mode === 'string' && Object.prototype.hasOwnProperty.call(ROOM_MODE_BOUNDS, raw.mode)
+    ? raw.mode as RoomMode
+    : defaultModeForPlayerCount(playerCount);
+  return {
+    roomName: typeof raw.roomName === 'string' && raw.roomName.trim() ? raw.roomName : DEFAULT_ROOM_CONFIG.roomName,
+    mode,
+    playerCount,
+    world,
+    ceiling: ROOM_CEILING_VALUES[world].includes(Number(raw.ceiling)) ? Number(raw.ceiling) : DEFAULT_ROOM_CONFIG.ceiling,
+    sources: readPromptSources(raw.sources, DEFAULT_ROOM_CONFIG.sources),
+  };
 }
 
 function makeJoinCode(): string {
@@ -196,12 +311,14 @@ function orderedMembers(members: RoomMemberRow[]): RoomMemberRow[] {
 
 function roomProjection(room: RoomRow, members: RoomMemberRow[], sessionId: string | null): WaitingRoomResult {
   const ordered = orderedMembers(members);
+  const config = publicRoomConfig(room.config);
   return {
     ok: true,
     roomId: room.id,
     joinCode: room.join_code,
     ownerUserId: room.owner_user_id,
-    playerCount: normalizePlayerCount((room.config ?? {}).playerCount),
+    config,
+    playerCount: config.playerCount,
     memberCount: ordered.length,
     members: ordered.map((member, index) => ({
       userId: member.user_id,
@@ -243,17 +360,17 @@ async function requireRoomMembership(roomId: string, userId: string): Promise<vo
   if (!result.rowCount) throw Object.assign(new Error('Authenticated user is not a member of this room.'), { code: 'ROOM_MEMBERSHIP_REQUIRED', statusCode: 403 });
 }
 
-export async function createWaitingRoom(user: AuthUser, input: RoomCreateInput): Promise<WaitingRoomResult> {
-  const playerCount = normalizePlayerCount(input.playerCount);
-  const roomName = normalizeRoomName(input.roomName);
-  const world = input.world === 'adult' ? 'adult' : 'clean';
+export async function createWaitingRoom(user: AuthUser, input: RoomConfigUpdateRequest): Promise<WaitingRoomResult> {
+  // Creation uses the same canonical validation as an update: a malformed room choice is rejected
+  // here, before a room row exists, and only absent fields fall back to the canonical defaults.
+  const config = resolveRoomConfig(undefined, input ?? {});
   const joinCode = makeJoinCode();
-  const config: StoredRoomConfig = { ...input, roomName, playerCount, world, playerNames: {} };
+  const stored: StoredRoomConfig = { ...config, playerNames: {} };
 
   const roomId = await withTransaction(async client => {
     const room = await client.query(
       `insert into rooms(join_code,owner_user_id,config) values($1,$2,$3::jsonb) returning id`,
-      [joinCode, user.id, JSON.stringify(config)],
+      [joinCode, user.id, JSON.stringify(stored)],
     );
     const id = String(room.rows[0].id);
     await client.query(
@@ -309,33 +426,81 @@ export async function getWaitingRoom(user: AuthUser, roomId: string): Promise<Wa
   return roomProjection(room, await loadRoomMembers(roomId), await activeSessionId(roomId));
 }
 
-export async function startRoom(user: AuthUser, roomId: string): Promise<RoomSessionResult> {
-  const room = await loadRoomRow(roomId);
-  if (room.owner_user_id !== user.id) {
-    throw Object.assign(new Error('Only the room host can start this game.'), { code: 'NOT_ROOM_OWNER', statusCode: 403 });
-  }
-  if (await activeSessionId(roomId)) {
-    throw Object.assign(new Error('This room already has an active game.'), { code: 'SESSION_ALREADY_CREATED', statusCode: 409 });
-  }
+/**
+ * Canonical room configuration owner. Only the room host may change a waiting room's setup, and
+ * the change is persisted in rooms.config. The locked room row is the single serialization point
+ * shared with Start, so an update can never commit after the session created from the previous
+ * configuration -- and Start can never create a session from a configuration read before the lock.
+ */
+export async function updateRoomConfig(user: AuthUser, roomId: string, patch: RoomConfigUpdateRequest): Promise<WaitingRoomResult> {
+  return withTransaction(async client => {
+    // Lock the room row first: Start locks the same row, so the two mutations serialize.
+    const roomResult = await client.query(`select id,join_code,owner_user_id,config from rooms where id=$1 for update`, [roomId]);
+    if (!roomResult.rowCount) throw roomConfigError('ROOM_NOT_FOUND', 'Room not found.', 404);
+    const room = roomResult.rows[0] as RoomRow;
 
-  const config = (room.config ?? {}) as StoredRoomConfig;
-  const playerCount = normalizePlayerCount(config.playerCount);
-  const members = orderedMembers(await loadRoomMembers(roomId));
-  if (members.length !== playerCount) {
-    throw Object.assign(
-      new Error(`This room needs exactly ${playerCount} real players before it can start.`),
-      { code: 'PLAYER_COUNT_NOT_REACHED', statusCode: 409 },
-    );
-  }
+    const membership = await client.query(`select role from room_members where room_id=$1 and user_id=$2`, [room.id, user.id]);
+    if (!membership.rowCount) throw roomConfigError('ROOM_MEMBERSHIP_REQUIRED', 'Authenticated user is not a member of this room.', 403);
+    if (room.owner_user_id !== user.id) throw roomConfigError('NOT_ROOM_OWNER', 'Only the room host can change room setup.', 403);
+    if (await activeSessionId(room.id, client)) {
+      throw roomConfigError('ROOM_ALREADY_STARTED', 'Room configuration is frozen once the game has started.', 409);
+    }
 
-  const sessionId = randomUUID();
-  const playerNames: Record<string, string> = {};
-  const seats = members.map((member, index) => {
-    playerNames[member.user_id] = member.display_name ?? member.user_id;
-    return { id: member.user_id, seat: index };
+    const proposed = resolveRoomConfig(room.config, patch);
+    const members = await loadRoomMembers(room.id, client);
+    if (members.length > proposed.playerCount) {
+      throw roomConfigError(
+        'ROOM_CAPACITY_BELOW_MEMBERS',
+        `This room already has ${members.length} members; playerCount cannot be lower than that.`,
+        409,
+      );
+    }
+
+    // The stored configuration keeps every canonical field plus the internal seat-name map.
+    const stored: StoredRoomConfig = { ...(room.config ?? {}), ...proposed, playerNames: room.config?.playerNames ?? {} };
+    await client.query(`update rooms set config=$2::jsonb where id=$1`, [room.id, JSON.stringify(stored)]);
+    return roomProjection({ ...room, config: stored }, members, null);
   });
+}
 
-  const created = createGame(
+export async function startRoom(user: AuthUser, roomId: string): Promise<RoomSessionResult> {
+  return withTransaction(async client => {
+    // Every verification happens under the room-row lock, and the room configuration is read only
+    // while holding it: a concurrent room config update either committed before this point -- and
+    // is therefore the configuration the session is created from -- or it waits here and then
+    // fails as frozen. Database-level serialization keeps this correct across multiple Node
+    // processes, and two concurrent Start requests can no longer both observe "no active session".
+    const lockedResult = await client.query(`select id,join_code,owner_user_id,config from rooms where id=$1 for update`, [roomId]);
+    if (!lockedResult.rowCount) throw Object.assign(new Error('Room not found.'), { code: 'ROOM_NOT_FOUND', statusCode: 404 });
+    const room = lockedResult.rows[0] as RoomRow;
+    if (room.owner_user_id !== user.id) {
+      throw Object.assign(new Error('Only the room host can start this game.'), { code: 'NOT_ROOM_OWNER', statusCode: 403 });
+    }
+    if (await activeSessionId(roomId, client)) {
+      throw Object.assign(new Error('This room already has an active game.'), { code: 'SESSION_ALREADY_CREATED', statusCode: 409 });
+    }
+
+    // The frozen canonical configuration: Start creates the session from exactly these values.
+    const config = resolveRoomConfig(room.config, {});
+    const playerCount = config.playerCount;
+    // Membership is re-checked under the same lock so the seat list the state was built from is
+    // still authoritative at commit time.
+    const members = await loadRoomMembers(roomId, client);
+    if (members.length !== playerCount) {
+      throw Object.assign(
+        new Error(`This room needs exactly ${playerCount} real players before it can start.`),
+        { code: 'PLAYER_COUNT_NOT_REACHED', statusCode: 409 },
+      );
+    }
+
+    const sessionId = randomUUID();
+    const playerNames: Record<string, string> = {};
+    const seats = members.map((member, index) => {
+      playerNames[member.user_id] = member.display_name ?? member.user_id;
+      return { id: member.user_id, seat: index };
+    });
+
+    const created = createGame(
     {
       seed: sessionId,
       startingHandCount: 7,
@@ -346,45 +511,29 @@ export async function startRoom(user: AuthUser, roomId: string): Promise<RoomSes
     undefined,
     { now: Date.now() },
   );
-  if (!created.ok) throw Object.assign(new Error(created.error?.message ?? 'Unable to create game.'), { code: created.error?.code ?? 'INVALID_SETUP', statusCode: 400 });
-  created.state.id = sessionId;
-  created.events.forEach(event => { event.sessionId = sessionId; });
+    if (!created.ok) throw Object.assign(new Error(created.error?.message ?? 'Unable to create game.'), { code: created.error?.code ?? 'INVALID_SETUP', statusCode: 400 });
+    created.state.id = sessionId;
+    created.events.forEach(event => { event.sessionId = sessionId; });
 
-  const storedConfig: StoredRoomConfig = { ...config, playerCount, playerNames };
-  await withTransaction(async client => {
-    // Lock the room row first: two concurrent Start requests can no longer both observe
-    // "no active session". The loser waits here, re-reads, and fails with SESSION_ALREADY_CREATED,
-    // so a room can never end up with two ACTIVE sessions. Database-level serialization keeps this
-    // correct across multiple Node processes.
-    const lockedRoom = await client.query(`select id from rooms where id=$1 for update`, [roomId]);
-    if (!lockedRoom.rowCount) throw Object.assign(new Error('Room not found.'), { code: 'ROOM_NOT_FOUND', statusCode: 404 });
-    if (await activeSessionId(roomId, client)) {
-      throw Object.assign(new Error('This room already has an active game.'), { code: 'SESSION_ALREADY_CREATED', statusCode: 409 });
-    }
-    // Membership is re-checked under the same lock so the seat list the state was built from is
-    // still authoritative at commit time.
-    const lockedMembers = await loadRoomMembers(roomId, client);
-    if (lockedMembers.length !== playerCount) {
-      throw Object.assign(
-        new Error(`This room needs exactly ${playerCount} real players before it can start.`),
-        { code: 'PLAYER_COUNT_NOT_REACHED', statusCode: 409 },
-      );
-    }
+    // One transaction: the frozen configuration, the session row and its opening events commit
+    // together, so a room can never end up with two ACTIVE sessions and never with a session
+    // created from a configuration that a concurrent update replaced afterwards.
+    const storedConfig: StoredRoomConfig = { ...(room.config ?? {}), ...config, playerNames };
     await client.query(`update rooms set config=$2::jsonb where id=$1`, [roomId, JSON.stringify(storedConfig)]);
     await client.query(
       `insert into game_sessions(id,room_id,status,revision,state) values($1,$2,$3,$4,$5::jsonb)`,
       [sessionId, roomId, created.state.status, created.state.revision, JSON.stringify(created.state)],
     );
     await persistEvents(client, sessionId, created.events);
-  });
 
-  return {
-    ok: true,
-    roomId,
-    sessionId,
-    joinCode: room.join_code,
-    players: playerViewsFromState(created.state, storedConfig, user.id),
-  };
+    return {
+      ok: true,
+      roomId,
+      sessionId,
+      joinCode: room.join_code,
+      players: playerViewsFromState(created.state, storedConfig, user.id),
+    };
+  });
 }
 
 async function loadSessionRow(sessionId: string, userId: string, forUpdate = false, client: any = requirePool()) {

@@ -413,6 +413,49 @@ export interface ClientConfig {
   appEnv: 'development' | 'preview' | 'production';
 }
 
+/**
+ * Canonical room setup vocabulary. The bounds and approved ceiling values are the single
+ * authority for room-config validity; the server validates against them and clients may use
+ * them for UX only.
+ */
+export type RoomMode = 'duel' | 'squad' | 'party' | 'mayhem';
+export type RoomContentWorld = 'clean' | 'adult';
+export type RoomPromptSourceKey = 'original' | 'community' | 'house' | 'live';
+
+export const ROOM_MODE_BOUNDS: Readonly<Record<RoomMode, { min: number; max: number }>> = {
+  duel: { min: 2, max: 2 },
+  squad: { min: 3, max: 4 },
+  party: { min: 5, max: 7 },
+  mayhem: { min: 8, max: 10 },
+};
+
+/** Approved content ceiling values per world. These are the approved labels; do not invent others. */
+export const ROOM_CEILING_VALUES: Readonly<Record<RoomContentWorld, readonly number[]>> = {
+  clean: [0, 1, 3, 4],
+  adult: [0, 1, 2, 3],
+};
+
+export const ROOM_PROMPT_SOURCE_KEYS: readonly RoomPromptSourceKey[] = ['original', 'community', 'house', 'live'];
+
+/**
+ * Canonical room setup configuration. This is server-owned pre-game room state persisted in
+ * rooms.config; prompt sources filter the shared prompt pool and never change the physical deck.
+ */
+export interface RoomConfig {
+  roomName: string;
+  mode: RoomMode;
+  playerCount: number;
+  world: RoomContentWorld;
+  ceiling: number;
+  sources: Record<RoomPromptSourceKey, boolean>;
+}
+
+/** A partial room setup update. Absent fields keep their persisted canonical value. */
+export type RoomConfigUpdateRequest = Partial<RoomConfig>;
+
+/** Room creation accepts the same fields; absent fields take the server's canonical defaults. */
+export type RoomCreateRequest = RoomConfigUpdateRequest;
+
 export type WaitingRoomMemberRole = 'owner' | 'player';
 
 export interface WaitingRoomMember {
@@ -421,6 +464,14 @@ export interface WaitingRoomMember {
   role: WaitingRoomMemberRole;
   seat: number;
   joinedAt: string;
+}
+
+export interface RoomSessionResult {
+  ok: true;
+  roomId: string;
+  sessionId: string;
+  joinCode: string;
+  players: Array<{ id: string; name: string; isHuman: boolean }>;
 }
 
 export interface WaitingRoomResult {
@@ -433,4 +484,5 @@ export interface WaitingRoomResult {
   members: WaitingRoomMember[];
   status: 'WAITING' | 'STARTED';
   sessionId: string | null;
+  config: RoomConfig;
 }
