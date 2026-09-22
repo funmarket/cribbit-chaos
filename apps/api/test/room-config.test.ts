@@ -30,15 +30,15 @@ async function makeUsers(count: number) {
 }
 
 async function fixture(playerCount: number, joinerCount = 0) {
-  const users = await makeUsers(1 + joinerCount);
+  // One extra account is always allocated and never joins, so the non-member denial case is a
+  // genuine non-member rather than the last joiner.
+  const users = await makeUsers(2 + joinerCount);
   const owner = users[0];
+  const members = users.slice(1, 1 + joinerCount);
+  const stranger = users[users.length - 1];
   const room = await createWaitingRoom(owner, { roomName: 'Config Room', playerCount });
-  const members = [];
-  for (const joiner of users.slice(1)) {
-    members.push(joiner);
-    await joinWaitingRoom(joiner, room.joinCode);
-  }
-  return { owner, members, room, stranger: users[users.length - 1] };
+  for (const joiner of members) await joinWaitingRoom(joiner, room.joinCode);
+  return { owner, members, room, stranger };
 }
 
 async function storedRoomConfig(roomId: string): Promise<Record<string, unknown>> {

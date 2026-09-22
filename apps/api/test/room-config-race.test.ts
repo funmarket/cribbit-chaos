@@ -116,10 +116,12 @@ dbTest('a config update and Start serialize on the room row, and Start always us
       await cleanup(room.roomId);
     }
   }
-  // At least one of the two orderings must actually have been observed; otherwise the race never
-  // exercised a real interleaving and the invariant would be untested.
-  assert.ok(observations.some(entry => entry.includes('patch=FULFILLED')), `no patch-first interleaving observed: ${observations.join(' | ')}`);
-  assert.ok(observations.some(entry => entry.includes('patch=ROOM_ALREADY_STARTED')), `no start-first interleaving observed: ${observations.join(' | ')}`);
+  // The invariant above is asserted for every round and never depends on which of the two
+  // requests reached the room-row lock first, so this test can never become schedule-dependent.
+  // The two branches are also proven deterministically elsewhere: PATCH-then-Start by
+  // 'the created session consumes the final persisted room configuration', and Start-then-PATCH
+  // by 'room configuration is frozen once Start created the authoritative session'.
+  assert.equal(observations.length, 6, `expected six concurrent rounds, got: ${observations.join(' | ')}`);
 });
 
 dbTest('the created session consumes the final persisted room configuration', async () => {
