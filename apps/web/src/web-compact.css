@@ -26,21 +26,19 @@ body:not(.is-game-view) .app-header {
 }
 
 body:not(.is-game-view) .app-header__inner {
-  min-height: 0;
+  height: var(--header-h);
+  min-height: var(--header-h);
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-areas:
-    "brand nav tools"
-    "status status status";
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-areas: none;
   align-items: center;
-  column-gap: 14px;
-  row-gap: 0;
-  padding-block: 5px 0;
+  column-gap: 12px;
+  padding: 0 12px;
 }
 
 /* Restore the canonical home/brand control from the shared template. */
 body:not(.is-game-view) .brand-lockup {
-  grid-area: brand;
+  grid-area: auto;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -63,7 +61,7 @@ body:not(.is-game-view) .brand-lockup .brand-type__chaos {
 
 /* Primary menu: centered in the free space, never under the brand/home icon. */
 body:not(.is-game-view) .product-nav {
-  grid-area: nav;
+  grid-area: auto;
   position: relative;
   inset: auto;
   display: flex;
@@ -105,8 +103,8 @@ body:not(.is-game-view) .product-nav .nav-button[aria-current="page"] {
 }
 
 /* Utility icons remain on the same primary row, aligned to the far right. */
-body:not(.is-game-view) .header-tools {
-  grid-area: tools;
+body:not(.is-game-view) .header-right {
+  grid-area: auto;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -122,7 +120,7 @@ body:not(.is-game-view) .header-utility-icon {
 
 /* Secondary diagnostics row. */
 body:not(.is-game-view) .status-cluster {
-  grid-area: status;
+  grid-area: auto;
   min-width: 0;
   width: 100%;
   min-height: 31px;
@@ -426,10 +424,15 @@ body:not(.is-game-view) .setup-panel #startGameButton {
   }
 
   body:not(.is-game-view) .app-header__inner {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas: "brand status tools";
-    padding-block: 6px;
-  }
+  height: var(--header-h);
+  min-height: var(--header-h);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-areas: none;
+  align-items: center;
+  column-gap: 12px;
+  padding: 0 12px;
+}
 
   body:not(.is-game-view) .brand-lockup {
     display: inline-flex;
@@ -444,7 +447,7 @@ body:not(.is-game-view) .setup-panel #startGameButton {
   }
 
   body:not(.is-game-view) .status-cluster {
-    grid-area: status;
+    grid-area: auto;
     min-height: 30px;
     max-height: 30px;
     padding: 0;
@@ -491,5 +494,16 @@ body:not(.is-game-view) .setup-panel #startGameButton {
   body:not(.is-game-view) .setup-panel .start-row .button,
   body:not(.is-game-view) .setup-panel #startGameButton {
     width: 100%;
+  }
+}
+
+/* APP-SHELL-1 - compact desktop/tablet uses the drawer, never a squeezed inline nav. */
+@media (max-width: 1199px) {
+  body:not(.is-game-view) .product-nav {
+    display: none;
+  }
+
+  body:not(.is-game-view) .mobile-nav-trigger {
+    display: grid;
   }
 }

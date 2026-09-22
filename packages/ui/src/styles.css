@@ -94,6 +94,7 @@
       border-bottom: 1px solid var(--line);
       background: rgba(5,6,10,.84);
       backdrop-filter: blur(20px) saturate(1.25);
+          overflow: hidden;
     }
 
     .app-header__inner {
@@ -1758,7 +1759,7 @@
       .library-page-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
     }
 
-    @media (max-width: 900px) {
+    @media (max-width: 1199px) {
       .product-nav { display:none; }
       .game-layout { height:max(520px,calc(100dvh - var(--header-h) - var(--game-toolbar-h) - 26px)); }
       .desktop-play-grid { grid-template-columns:minmax(0,1fr) minmax(180px,.62fr); }
@@ -1794,7 +1795,7 @@
     .mobile-nav-body { display:grid;gap:20px; }
     .mobile-nav-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px; }
     .mobile-nav-dialog .dialog-shell { min-width:min(720px,92vw); }
-    @media (max-width:900px) {
+    @media (max-width:1199px) {
       .mobile-nav-trigger { display:grid; }
       .header-right { margin-left:auto; }
     }
@@ -2136,7 +2137,7 @@
       align-items: center;
       column-gap: 12px;
     }
-      .product-nav,.diagnostic-strip { display:none; }
+      .product-nav { display:none; }
       .header-right { grid-column:3; }
       .mobile-nav-trigger { display:grid; }
       .game-core { height:calc(100dvh - var(--header-h));min-height:500px; }
@@ -2330,3 +2331,36 @@ html[data-platform="telegram"] .game-layout {
       color: var(--text);
     }
 
+    /* APP-SHELL-1 - the diagnostic surface never changes the product bar and never overflows. */
+    .diagnostic-strip {
+      width: min(var(--shell), 100%);
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 4px 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .diagnostic-strip .status-cluster {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
+    @media (max-width: 1199px) {
+      .mobile-nav-trigger { display: grid; }
+
+      .header-left .product-nav { display: none; }
+    }
+
+    /* APP-SHELL-1 - the product bar clips instead of scrolling the page at narrow widths. */
+    .header-left,
+    .header-center,
+    .header-right {
+      overflow: hidden;
+    }
+
+    

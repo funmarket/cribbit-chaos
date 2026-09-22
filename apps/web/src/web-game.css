@@ -5,34 +5,34 @@
    ========================================================= */
 
 body:not(.is-game-view) .app-header__inner {
+  height: var(--header-h);
+  min-height: var(--header-h);
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-areas:
-    "brand nav"
-    "status tools";
-  gap: 8px 18px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-areas: none;
   align-items: center;
-  padding-block: 9px;
+  column-gap: 12px;
+  padding: 0 12px;
 }
 
 body:not(.is-game-view) .brand-lockup {
-  grid-area: brand;
+  grid-area: auto;
 }
 
 body:not(.is-game-view) .product-nav {
-  grid-area: nav;
+  grid-area: auto;
   justify-content: flex-start;
   margin-left: 0;
   min-width: 0;
 }
 
 body:not(.is-game-view) .status-cluster {
-  grid-area: status;
+  grid-area: auto;
   min-width: 0;
 }
 
-body:not(.is-game-view) .header-tools {
-  grid-area: tools;
+body:not(.is-game-view) .header-right {
+  grid-area: auto;
   justify-content: flex-end;
   min-width: 0;
 }
