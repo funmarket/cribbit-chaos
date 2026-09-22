@@ -3,11 +3,11 @@
 
 ## Current recovery state
 
-The active recovery source line is `recovery/single-engine-authority`. The verified published parent before this documentation rebaseline is `625f0ade6889a97a8577eebe3682879f1819ee8a`, with GitHub Actions run `35667604453` successful. RECOVERY-HARDEN-1, RECOVERY-HARDEN-2 and RECOVERY-HARDEN-3/3B are published on that line.
+The active recovery source line is `recovery/single-engine-authority`. The verified published tip before the RECOVERY-HARDEN-4 chain is `adc947cd8d1f8fd3737396a39445485ceff46cf8`, with GitHub Actions run `35670806884` successful. RECOVERY-HARDEN-1, RECOVERY-HARDEN-2, RECOVERY-HARDEN-3/3B and RECOVERY-HARDEN-4 are on that line; the RECOVERY-HARDEN-4 chain is RED `b5df94103455569a2dc12b1627aab0818d5e3bbf` -> implementation `cb3126c96c58db68f9401304cc23cd2fde5911d4` -> documentation commit.
 
 The recovery branch is **not deployed to production**. Railway API production is sourced from `main`; the original Cloudflare Pages Web and Telegram projects still use `feature/visual-integration-checkpoint` as their production branch. Source recovery state and deployed-runtime state must never be conflated.
 
-The next unresolved architecture hardening candidate is the stale socket/action-registry `game-command` path versus the authoritative REST gameplay-command path. Truth-or-Chaos completion remains blocked on unresolved owner rule decisions. `AUTHORITY-GUARD-1` remains deferred.
+The gameplay mutation transport contradiction is resolved by RECOVERY-HARDEN-4: gameplay commands reach the authoritative engine only through `POST /v1/games/:sessionId/commands`, the client realtime surface is subscription/invalidation only, and `packages/action-registry` marks only `backendClass:'realtime'` entries as `method:'WS'`. Truth-or-Chaos completion remains blocked on unresolved owner rule decisions. `AUTHORITY-GUARD-1` remains unauthorized and not started.
 
 Cribbit CHAOS is one multiplayer platform with two clients:
 

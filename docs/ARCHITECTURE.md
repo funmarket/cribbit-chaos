@@ -85,6 +85,8 @@ apps/telegram/src/main.ts
 
 Local QA Simulation never persists and never creates a Live room: it runs the shared engine in memory through `packages/simulation`.
 
+Gameplay mutation transport (verified, RECOVERY-HARDEN-4): both clients submit gameplay commands through the single authoritative REST route `POST /v1/games/:sessionId/commands`. `packages/api-client` exposes exactly one gameplay command sender (`CribbitApiClient.sendCommand`); `CribbitRealtimeClient` exposes only `connect`/`joinSession`/`joinRoomChannel`/`disconnect`, and the server registers no socket `game-command` handler. Realtime carries subscription and invalidation only.
+
 ## Rule and prompt authority
 
 - Gameplay meaning: `Game_rules.md` with permanent rule IDs (current gameplay slice: `RULE-SPECIAL-PLAY-001`..`008`, `RULE-VOLUNTARY-DRAW-001`..`007`).
@@ -107,7 +109,6 @@ Current unverified areas: real Telegram Mini App runtime (`initData` cannot be m
 - `packages/legacy-runtime` still contains the old board runtime; it is retained only for the fixture preview and its tests.
 - CHAOS Pulse adaptive draw is implemented in the shared engine; the legacy board is not yet consuming it.
 - Prompt library/pool, answers, recaps, notifications and moderation are unimplemented API verticals with persisted tables already reserved.
-- The API client still exposes a `game-command` socket emit path that the server does not handle; the authoritative gameplay mutation path is `POST /v1/games/:sessionId/commands`. Caller/ownership reconciliation remains a separate hardening task.
 - Live command identity is shared across engine and persistence through `packages/game-engine/src/command-identity.ts`: `command_id` is the global external idempotency key; semantic collision/replay identity includes session, actor, command type and every current semantic payload field but excludes envelope-only `commandId`/`expectedRevision`. The switch is exhaustively type-checked, and PostgreSQL globally serializes equal UUIDs with a transaction-scoped advisory lock before duplicate lookup.
 - `apps/web/src/canonical-game-runtime.ts` — `UNKNOWN — PRESERVE`: Zero importers and not part of the active authoritative runtime path. Removal is not authorized until ownership, historical product purpose, and migration/replacement status are proven.
 - Local Simulation can stall on a special-card interaction that expects human-style input.

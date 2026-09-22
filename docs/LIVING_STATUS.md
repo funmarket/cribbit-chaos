@@ -99,6 +99,7 @@ Implementation owners: `packages/game-engine/src/validation.ts`, `packages/game-
 | Accounts, identity linking, Web login, Telegram auth | ACTIVE | VERIFIED LOCALLY (spec-signed `initData`); real Mini App runtime NOT VERIFIED |
 | Local QA Simulation (Web; Telegram adapter) | ACTIVE (QA) | VERIFIED LOCALLY; special-card human-input stall known |
 | Shared navigation + UI shell | ACTIVE | BROWSER-VERIFIED |
+| Gameplay mutation transport | ACTIVE | VERIFIED — one REST transport (`POST /v1/games/:sessionId/commands`) for both clients; realtime is subscription/invalidation only (RECOVERY-HARDEN-4) |
 | Card/deck canonical registry (`CHAOS-133-V1`) | ACTIVE | Deck-composition tests green |
 | Card art / board presentation | ACTIVE (provisional) | Final art deliberately deferred by product priority |
 | Prompt library, prompt pool, saved prompts | UNMIGRATED | Routes reply `501` |
@@ -113,15 +114,15 @@ Implementation owners: `packages/game-engine/src/validation.ts`, `packages/game-
 
 ## Current phase
 
-**Recovery consolidation / authority hardening.** RECOVERY-HARDEN-1, RECOVERY-HARDEN-2 and RECOVERY-HARDEN-3/3B are implemented and published. Live clients consume authoritative server-projected gameplay capabilities. Persisted command-ID replay/collision semantics now have exhaustive semantic identity, global concurrency serialization and real PostgreSQL 16 CI coverage. Whole-product scope remains preserved.
+**Recovery consolidation / authority hardening.** RECOVERY-HARDEN-1, RECOVERY-HARDEN-2 and RECOVERY-HARDEN-3/3B are implemented and published. Live clients consume authoritative server-projected gameplay capabilities. Persisted command-ID replay/collision semantics now have exhaustive semantic identity, global concurrency serialization and real PostgreSQL 16 CI coverage. RECOVERY-HARDEN-4 retires the stale realtime gameplay-command surface so gameplay mutation has exactly one REST transport and the action registry describes only genuinely realtime actions as socket actions. Whole-product scope remains preserved.
 
 ## CURRENT TASK
 
-**None in flight after RECOVERY-HARDEN-3B documentation reconciliation.** The next implementation slice requires explicit owner authorization.
+**None in flight after RECOVERY-HARDEN-4 documentation reconciliation.** The next implementation slice requires explicit owner authorization.
 
 ## Current blockers / hardening queue
 
-- Active gameplay mutation is REST, while stale realtime/action-registry metadata still describes socket `game-command` behavior.
+- Gameplay transport metadata is reconciled (RECOVERY-HARDEN-4): one REST gameplay transport, realtime subscription/invalidation only. No open item remains here.
 - Truth-or-Chaos can enter `groupPunishmentPending` without a proven completion path; instigator participation and refusal behavior remain unresolved owner decisions.
 - Real Telegram Mini App runtime is not verified with genuine Telegram-generated `initData`.
 - Whole-product verticals listed above remain UNMIGRATED and must be preserved.
@@ -130,9 +131,9 @@ Implementation owners: `packages/game-engine/src/validation.ts`, `packages/game-
 
 **No implementation task is currently authorized after this slice.**
 
-Owner-selectable hardening candidates are REST-vs-WS/action-registry reconciliation; or, after resolving the missing owner rule decisions, Truth-or-Chaos completion hardening. The whole-product ownership/dependency audit remains mandatory before broad deletion/migration decisions.
+Owner-selectable hardening candidates are Truth-or-Chaos completion hardening (only after the missing owner rule decisions are resolved), the Roulette SVG presentation slice, migration of the unmigrated product verticals, or retirement of the preserved legacy/canonical client runtimes. The whole-product ownership/dependency audit remains mandatory before broad deletion/migration decisions.
 
-**AUTHORITY-GUARD-1 remains deferred** until the known authority contradictions are reconciled.
+**AUTHORITY-GUARD-1 remains unauthorized and not started.** Its precondition list still includes the unresolved Truth-or-Chaos owner decisions; the transport contradiction is reconciled by RECOVERY-HARDEN-4.
 
 ## Checks and evidence
 
@@ -188,6 +189,35 @@ command-ID DB regressions explicitly PASS:
 
 Current GitHub CI now runs the normal suite against PostgreSQL 16 after canonical migrations, in addition to typecheck and all three builds. `npm run architecture:check` does not exist in this repository. No schema, migration, `Game_rules.md`, deployment or production mutation occurred in RECOVERY-HARDEN-3B.
 
+RECOVERY-HARDEN-4 (gameplay mutation transport authority):
+
+```text
+RED contract commit
+b5df94103455569a2dc12b1627aab0818d5e3bbf
+  test(transport): require one REST gameplay mutation authority
+  observed RED: 7 tests / 4 pass / 3 fail
+    2 sendCommand definitions in packages/api-client (expected exactly 1)
+    CribbitRealtimeClient still exposed the gameplay command sender
+    registry transport contract could not load (missing canonical transport export)
+  premise probe: 35 registry entries claimed method:'WS' (28 game-command, 5 dev-only, 2 realtime)
+
+GREEN implementation commit
+cb3126c96c58db68f9401304cc23cd2fde5911d4
+  removed CribbitRealtimeClient.sendCommand - the only emit('game-command') in the repository, zero callers
+  exported GAMEPLAY_COMMAND_TRANSPORT = 'POST /v1/games/:sessionId/commands'
+  method:'WS' claims 35 -> 1 (only reconnect-now, backendClass realtime)
+  gameplay command entries now declare method:'POST'
+
+verification
+  focused transport contract tests            11 / 11 PASS
+  typecheck (tsconfig.check.json)             PASS
+  full suite, local PostgreSQL 18.4           261 tests / 254 pass / 1 fail / 6 skipped
+  lint, build:api, build:web, build:telegram, audit:ui   PASS
+```
+
+The single local full-suite failure is the pre-existing Windows CRLF source-shape assertion in `apps/web/test/runtime-single-owner.test.ts` (worktree `w/crlf` versus blob `i/lf`; the same assertion is green on Linux CI at `adc947cd`, run `35670806884`). The intermittent PostgreSQL-backed command-identity failure seen locally is pre-existing cross-test flakiness: it passes in isolation and had already failed remote CI runs before this slice. No schema, migration, `Game_rules.md`, deployment or production mutation occurred in RECOVERY-HARDEN-4.
+
+
 ## Known unknowns
 
 - Real Telegram Mini App runtime behaviour (identity, viewport, back button, native lifecycle).
@@ -200,14 +230,17 @@ Historical/reference documents that previously carried stale "current branch", "
 
 ## Remote / publication state
 
-Shared source state immediately before this documentation rebaseline:
+Shared source state immediately before the RECOVERY-HARDEN-4 chain (`origin/recovery/single-engine-authority` was `adc947cd8d1f8fd3737396a39445485ceff46cf8`, CI run `35670806884` SUCCESS):
 
 ```text
 origin/main                                   964a9162d7d9e1a12acfccc61f0fb88430a8f4ff
 origin/recovery/single-engine-authority-ci    f384c824a0553d1adceb05ef55612e177967bb1a
-origin/recovery/single-engine-authority       625f0ade6889a97a8577eebe3682879f1819ee8a
+origin/recovery/single-engine-authority       adc947cd8d1f8fd3737396a39445485ceff46cf8  (published tip before this chain)
+RECOVERY-HARDEN-4 RED                         b5df94103455569a2dc12b1627aab0818d5e3bbf
+RECOVERY-HARDEN-4 implementation              cb3126c96c58db68f9401304cc23cd2fde5911d4
+RECOVERY-HARDEN-4 documentation               this commit (published tip of the branch)
 ```
 
-This documentation-only rebaseline advances only `recovery/single-engine-authority`. It does not merge, deploy, mutate `main`, change the CI anchor, modify gameplay rules, or alter production resources.
+The RECOVERY-HARDEN-4 chain advances only `recovery/single-engine-authority`. It does not merge, deploy, mutate `main`, change the CI anchor, modify gameplay rules, or alter production resources.
 
 Current deployed production remains older than recovery source: Railway API is sourced from `main` and its latest successful deployment is commit `b48493dbd5eebf5a0bc82755c1e739117d8f713a`; the original Cloudflare Pages Web and Telegram projects still use `feature/visual-integration-checkpoint` as their production branch.

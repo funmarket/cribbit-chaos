@@ -88,25 +88,27 @@ The command-ID DB evidence gap is therefore CLOSED for the tested PostgreSQL 16 
 
 Before this follow-up: RECOVERY-HARDEN-3 established one shared command fingerprint owner; RECOVERY-HARDEN-2 removed Live client-side gameplay decision authority; RECOVERY-HARDEN-1 serialized Live room joins/starts.
 
+RECOVERY-HARDEN-4 established one gameplay mutation transport: gameplay commands reach the authoritative engine only through `POST /v1/games/:sessionId/commands`. The stale `CribbitRealtimeClient.sendCommand` socket gameplay emit was removed and `packages/action-registry` no longer claims `method:'WS'` outside genuinely realtime actions.
+
 ## Current task
 
-**None in flight after RECOVERY-HARDEN-3B documentation reconciliation.** The owner must authorize the next implementation slice.
+**None in flight after RECOVERY-HARDEN-4 documentation reconciliation.** The owner must authorize the next implementation slice.
 
 ## Next task / authorization state
 
 **No implementation task is currently authorized after this slice.**
 
-Remaining hardening candidates:
+Remaining hardening candidates (the former REST-vs-socket `game-command` metadata item is completed by RECOVERY-HARDEN-4):
 
-1. reconcile authoritative REST gameplay commands with stale socket `game-command` client/action-registry metadata;
-2. resolve the Truth-or-Chaos owner decisions, then repair its pending group-punishment completion path;
-3. complete the whole-product ownership/dependency audit before broad deletion or migration work.
+1. resolve the Truth-or-Chaos owner decisions, then repair its pending group-punishment completion path;
+2. complete the whole-product ownership/dependency audit before broad deletion or migration work;
+3. Roulette SVG presentation, migration of unmigrated product verticals, and retirement of the preserved legacy/canonical client runtimes remain separately unauthorized.
 
-**AUTHORITY-GUARD-1 remains deferred** until the known authority contradictions above are reconciled.
+**AUTHORITY-GUARD-1 remains unauthorized and not started.** Its precondition list still includes the unresolved Truth-or-Chaos owner decisions; the transport-authority contradiction is reconciled by RECOVERY-HARDEN-4.
 
 ## Blockers and known unknowns
 
-- **Gameplay transport metadata:** active gameplay mutation is REST, while stale realtime/action-registry metadata still describes a socket `game-command` path. Caller/ownership archaeology is required before removal or rewriting.
+- **Gameplay transport metadata — RESOLVED by RECOVERY-HARDEN-4:** gameplay mutation has exactly one transport (`POST /v1/games/:sessionId/commands`); `CribbitRealtimeClient` no longer exposes a gameplay command sender and the action registry no longer claims `method:'WS'` outside genuinely realtime actions.
 - **Truth or Chaos:** the current flow can reach `groupPunishmentPending` without a proven completion path. Whether the instigator also answers and the exact refusal/Pass rule remain unresolved owner decisions; do not invent them.
 - **Whole-product recovery:** prompt library/create/save, room prompt pool, notifications, moderation, answers, recap/history and other retained verticals remain UNMIGRATED. Not wired does not mean dead.
 - Real Telegram Mini App runtime remains NOT VERIFIED in this environment (no genuine Telegram-generated `initData`).
@@ -115,12 +117,12 @@ Remaining hardening candidates:
 
 ## Publication / deployment state
 
-The recovery source line is published through this documentation rebaseline, whose parent is `625f0ade6889a97a8577eebe3682879f1819ee8a`.
+The recovery source line is published through the RECOVERY-HARDEN-4 chain, whose tip is this documentation commit: RED contract `b5df94103455569a2dc12b1627aab0818d5e3bbf` -> implementation `cb3126c96c58db68f9401304cc23cd2fde5911d4` -> this documentation commit. Its parent is the implementation commit; the previously published tip was `adc947cd8d1f8fd3737396a39445485ceff46cf8`.
 
 ```text
 origin/main                                   964a9162d7d9e1a12acfccc61f0fb88430a8f4ff
 origin/recovery/single-engine-authority-ci    f384c824a0553d1adceb05ef55612e177967bb1a
-origin/recovery/single-engine-authority       this documentation rebaseline; parent 625f0ade6889a97a8577eebe3682879f1819ee8a
+origin/recovery/single-engine-authority       RECOVERY-HARDEN-4 documentation commit; parent cb3126c96c58db68f9401304cc23cd2fde5911d4
 Railway API source branch                     main
 Railway latest successful API commit          b48493dbd5eebf5a0bc82755c1e739117d8f713a
 Cloudflare Web production branch              feature/visual-integration-checkpoint

@@ -35,9 +35,10 @@ Re-run `npm run audit:ui` after any shared-UI change; the audit is a gate, not d
 
 Mapping policy (also recorded in `docs/button-audit.json`):
 
-- gameplay mutations map to `SERVER_COMMAND`/`game-command` or `realtime`;
+- gameplay mutations map to the authoritative `game-command` class (REST `POST /v1/games/:sessionId/commands`); `realtime` carries change intent/invalidation only and never a gameplay mutation;
 - navigation, tabs, dialogs, filters and display-only controls map to `client-only`;
-- backend-reserved actions stay registered so no control is mistaken for a missing route.
+- backend-reserved actions stay registered so no control is mistaken for a missing route;
+- gameplay transport is verified single and REST-only (RECOVERY-HARDEN-4): `packages/api-client` exposes exactly one gameplay command sender and `packages/action-registry` marks only `backendClass:'realtime'` entries as `method:'WS'`.
 
 ## Surface classification
 
@@ -72,7 +73,6 @@ Mapping policy (also recorded in `docs/button-audit.json`):
 ### UNKNOWN — PRESERVE
 
 - Controls that exist only inside `packages/legacy-runtime/src/runtime.ts` and are reachable only through the fixture-preview branch have not been individually re-verified against current product intent. Preserve; do not delete; do not document them as product behaviour.
-- The Live client emits a `game-command` socket event that the server does not handle. It is a dead client channel: the authoritative path is `POST /v1/games/:sessionId/commands`. Recorded as an observation; changing it is not authorized.
 
 ## Rules for UI work
 
