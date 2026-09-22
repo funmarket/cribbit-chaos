@@ -11,7 +11,7 @@ scope and must be raised before it happens, not after.
 Prove whether the existing `packages/game-engine/**` → `apps/api` → `live-entry`/`live-session` path can run a
 complete game once the competing browser runtime stops being booted.
 
-## Baseline and current state
+## Baseline and state at this checkpoint
 
 | Item | Value |
 |---|---|

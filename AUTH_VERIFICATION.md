@@ -135,7 +135,7 @@ The following are still manual/live verification items and are **not** claimed a
 5. Confirm both clients receive the same session revisions through realtime updates.
 6. Play/draw from both clients and prove the command is persisted and reflected on the opposite frontend.
 7. Confirm production PostgreSQL contains migration `002_dual_web_auth.sql` through a direct schema/migration query when database-console access is available.
-8. Confirm the current feature-branch frontend bundles are deployed to the intended Cloudflare Pages Web and Telegram environments.
+8. Confirm the feature-branch frontend bundles from this checkpoint are deployed to the intended Cloudflare Pages Web and Telegram environments.
 
 These are deployment/runtime signoff items, not reasons to duplicate or bypass the implemented authentication architecture.
 

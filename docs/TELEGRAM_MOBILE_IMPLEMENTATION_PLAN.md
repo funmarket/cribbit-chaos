@@ -6,8 +6,8 @@
 ## Historical status at checkpoint
 
 - Phase: **3.5 — Telegram mobile composition + shared staging**
-- Active branch: `feature/visual-integration-checkpoint`
-- Active PR: #8
+- Historical branch at checkpoint: `feature/visual-integration-checkpoint`
+- Historical PR at checkpoint: #8
 - Telegram: `https://cribbit-chaos-telegram.pages.dev`
 - Web: `https://cribbit-chaos-web.pages.dev`
 - API: `https://api-production-2556.up.railway.app`
@@ -146,7 +146,7 @@ Implemented 320–430 px hardening, Telegram safe-area spacing, overflow contain
 
 Exact T5 head `df581a56accbf6f128e7e460317508f26cdd366e` passed typecheck, tests, Web build, Telegram build and API build, and deployed successfully to Cloudflare Telegram.
 
-## T6 — Live Telegram signoff — CURRENT
+## T6 — Live Telegram signoff — HISTORICAL CHECKPOINT
 
 ### Real-device findings
 

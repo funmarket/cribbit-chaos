@@ -46,7 +46,7 @@ Primary Cloudflare Web:
 - Git integration: `funmarket/cribbit-chaos`
 - build command: `npm run build:web`
 - output: `apps/web/dist`
-- current-head production deployment: successful
+- checkpoint production deployment: successful
 
 Primary Cloudflare Telegram:
 
@@ -55,7 +55,7 @@ Primary Cloudflare Telegram:
 - Git integration: `funmarket/cribbit-chaos`
 - build command: `npm run build:telegram`
 - output: `apps/telegram/dist`
-- current-head production deployment: successful
+- checkpoint production deployment: successful
 
 Both primary clients are configured with the shared Railway API/WS URL:
 
@@ -63,12 +63,12 @@ Both primary clients are configured with the shared Railway API/WS URL:
 
 Railway accepts the exact two Cloudflare production origins.
 
-Historical non-Cloudflare deployments are not the current Phase 3.5 staging source and do not block progress.
+At this checkpoint, non-Cloudflare deployments were not the Phase 3.5 staging source and did not block progress.
 
 ## Telegram launch status
 
 - Bot username: `@CribbitChaos_bot`
-- Main Mini App configured to current Cloudflare URL? `no`
+- Main Mini App configured to the checkpoint Cloudflare URL? `no`
 - live Mini App auth verified? `no`
 - remaining step: configure a regenerated Railway-only bot token, point BotFather Main Mini App to `https://cribbit-chaos-telegram.pages.dev`, then perform live auth proof
 
