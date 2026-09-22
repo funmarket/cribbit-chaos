@@ -102,6 +102,7 @@ Implementation owners: `packages/game-engine/src/validation.ts`, `packages/game-
 | Local QA Simulation (Web; Telegram adapter) | ACTIVE (QA) | VERIFIED LOCALLY; special-card human-input stall known |
 | Shared navigation + UI shell | ACTIVE | BROWSER-VERIFIED |
 | Gameplay mutation transport | ACTIVE | VERIFIED — one REST transport (`POST /v1/games/:sessionId/commands`) for both clients; realtime is subscription/invalidation only (RECOVERY-HARDEN-4) |
+| Room configuration (room setup) | ACTIVE | VERIFIED LOCALLY against real PostgreSQL — canonical server state in `rooms.config`; host-only `PATCH /v1/rooms/:roomId/config`; frozen at Start on the room row (ROOM-CONFIG-1) |
 | Card/deck canonical registry (`CHAOS-133-V1`) | ACTIVE | Deck-composition tests green |
 | Card art / board presentation | ACTIVE (provisional) | Final art deliberately deferred by product priority |
 | Prompt library, prompt pool, saved prompts | UNMIGRATED | Routes reply `501` |
@@ -116,11 +117,11 @@ Implementation owners: `packages/game-engine/src/validation.ts`, `packages/game-
 
 ## Current phase
 
-**Recovery consolidation / authority hardening.** RECOVERY-HARDEN-1, RECOVERY-HARDEN-2 and RECOVERY-HARDEN-3/3B are implemented and published. Live clients consume authoritative server-projected gameplay capabilities. Persisted command-ID replay/collision semantics now have exhaustive semantic identity, global concurrency serialization and real PostgreSQL 16 CI coverage. RECOVERY-HARDEN-4 retires the stale realtime gameplay-command surface so gameplay mutation has exactly one REST transport and the action registry describes only genuinely realtime actions as socket actions. Whole-product scope remains preserved.
+**Recovery consolidation / authority hardening.** RECOVERY-HARDEN-1, RECOVERY-HARDEN-2 and RECOVERY-HARDEN-3/3B are implemented and published. Live clients consume authoritative server-projected gameplay capabilities. Persisted command-ID replay/collision semantics now have exhaustive semantic identity, global concurrency serialization and real PostgreSQL 16 CI coverage. RECOVERY-HARDEN-4 retires the stale realtime gameplay-command surface so gameplay mutation has exactly one REST transport and the action registry describes only genuinely realtime actions as socket actions. ROOM-CONFIG-1 then makes room setup canonical server state: one shared contract vocabulary, host-only mutation, database-serialized PATCH-vs-Start freeze, and session creation fed by the persisted config. Whole-product scope remains preserved.
 
 ## CURRENT TASK
 
-**None in flight after RECOVERY-HARDEN-4 documentation reconciliation.** The next implementation slice requires explicit owner authorization.
+**None in flight after ROOM-CONFIG-1 publication.** Room setup is canonical server state (shared contract vocabulary, host-only mutation, room-row-serialized freeze at Start, session creation fed by the persisted config). The next implementation slice requires explicit owner authorization.
 
 ## Current blockers / hardening queue
 
@@ -138,6 +139,31 @@ Owner-selectable hardening candidates are Truth-or-Chaos completion hardening (o
 **AUTHORITY-GUARD-1 remains unauthorized and not started.** Its precondition list still includes the unresolved Truth-or-Chaos owner decisions; the transport contradiction is reconciled by RECOVERY-HARDEN-4.
 
 ## Checks and evidence
+
+ROOM-CONFIG-1 (latest):
+
+```text
+RED       81bd195  test(room-config): require canonical room setup persistence and freeze at start
+          observed RED 18 tests / 0 pass / 18 fail against real PostgreSQL 18.4 (before any implementation)
+correction b848327 test(room-config): assert the stated race invariant and use a real non-member
+server    5be19e7  feat(api): make room setup canonical server state frozen at start
+client    fc7691c  feat(clients): wire room setup to the canonical room config transport
+
+focused room-config suite (PostgreSQL 18.4, 127.0.0.1:55433, disposable cribbit_r5)
+  room-config-boundary 8 tests / 8 pass
+  room-config + room-config-race 17 tests / 17 pass
+regression
+  live-room-lifecycle, live-room-concurrency, roulette-privacy, command-id-boundary,
+  bot-authority-contract, game-command-boundary 36 tests / 36 pass
+  transport-authority, action-transport, gameplay-transport-authority 22 tests / 22 pass
+gates
+  npm run typecheck, npm run lint, npm run audit:ui, build:api, build:web, build:telegram all exit 0
+  git diff --check clean
+
+The PATCH-vs-Start race proof comes from a real PostgreSQL row lock, never from a mock: every
+concurrent round asserts that a committed config update is the configuration the created session
+consumed, and that a rejected update leaves the started room's config untouched.
+```
 
 RECOVERY-HARDEN-3/3B:
 

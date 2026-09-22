@@ -53,3 +53,13 @@ Still pending:
 - prove the same Telegram account resolves to the same internal UUID as browser Web
 
 After each Telegram-related implementation slice, synchronize this file, `HANDOFF.md`, `docs/LIVING_STATUS.md`, `PLAN.md`, `docs/shared-auth-staging.md`, and `docs/DEPLOYMENT.md`. Update a PR description only if an active PR exists.
+
+
+## Room setup wiring (ROOM-CONFIG-1)
+
+Telegram room setup is presentation over the shared room-config contract: `apps/telegram/src/roomSetup.ts` derives mode bounds, ceiling values and prompt-source keys from `@cribbit/contracts` and keeps only labels/copy.
+
+- Host of a live waiting room: `roomName`, `mode`, `playerCount`, `world`, `ceiling` and `sources` edits publish through `packages/api-client` to `PATCH /v1/rooms/:roomId/config`; the waiting panel repaints from the authoritative response and from `room-updated` refetches.
+- Non-host: the setup controls remain local draft/simulation controls and publish nothing; an owner-only update from anyone else is rejected by the server with `403`.
+- The server stays the validation authority; Telegram never decides which setup is legal, and setup stops publishing once the room has started.
+- Known parity gap: setup controls are not role-disabled for a joiner, so a joiner's local draft can differ visually from the canonical room config.

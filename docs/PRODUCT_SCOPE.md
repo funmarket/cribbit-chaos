@@ -34,6 +34,7 @@ Cribbit CHAOS
 | Moderation queue | intended API | UNMIGRATED | `POST /v1/moderation/submissions/:id/advance` replies `501 MODERATION_NOT_MIGRATED` |
 | Admin Control Room | not implemented | UNMIGRATED | Future control plane; never a gameplay authority |
 | Telegram Mini App Live gameplay | `apps/telegram/src/backendGame.ts` | UNMIGRATED / NOT VERIFIED | Contract- and state-compatible; no verified Mini App runtime in this environment |
+| Room configuration (room setup) | `packages/contracts`, `apps/api/src/game-service.ts`, `rooms.config` | ACTIVE | Canonical server state; host-only `PATCH /v1/rooms/:roomId/config`; frozen at Start (ROOM-CONFIG-1) |
 | Browser Telegram Web Login / OIDC | `GET /v1/auth/telegram/web/*` | UNMIGRATED (fails closed) | Endpoints reply `503`/`501`; a browser cookie alone is never authority |
 | Legacy canonical Web board runtime | `packages/legacy-runtime`, `reference/approved-v4-template.html` | COMPATIBILITY REFERENCE | Reachable only through the fixture-preview `runtimeMode: 'legacy-compatibility'` branch |
 | `apps/web/src/canonical-game-runtime.ts` | `apps/web/src` | UNKNOWN — PRESERVE | Zero importers and not part of the active authoritative runtime path. Removal is not authorized until ownership, historical product purpose, and migration/replacement status are proven. |

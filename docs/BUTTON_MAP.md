@@ -10,7 +10,8 @@ Ownership of every UI control: which controls mutate gameplay, which call the AP
 Current audit result:
 
 ```text
-source                     packages/ui/src/template.html + packages/legacy-runtime/src/runtime.ts
+production source          packages/ui/src/template.html + active client sources (apps/web/src, apps/telegram/src)
+compatibility source       packages/legacy-runtime/src/runtime.ts (fixture preview only)
 static buttons             103
 actions discovered         56
 actions assigned           57
@@ -73,6 +74,18 @@ Mapping policy (also recorded in `docs/button-audit.json`):
 ### UNKNOWN — PRESERVE
 
 - Controls that exist only inside `packages/legacy-runtime/src/runtime.ts` and are reachable only through the fixture-preview branch have not been individually re-verified against current product intent. Preserve; do not delete; do not document them as product behaviour.
+
+## Production wiring authority vs legacy fixture controls
+
+Production control authority belongs to the active product surfaces and their shared tables:
+
+- `packages/action-registry/src/index.ts` — the action -> backend-class assignment table used by production controls;
+- active client/runtime source — `apps/web/src/{main,live-entry,live-session,simulation-mode}.ts`, `apps/telegram/src/{bootstrapTelegram,backendGame,gameView,simulation}.ts`;
+- `packages/ui/src/template.html` — the shared UI template those clients boot.
+
+`packages/legacy-runtime/src/runtime.ts` is **fixture compatibility only**: it is reachable through the Telegram fixture preview (`?compat=1&fixture=1`, `runtimeMode: 'legacy-compatibility'`) and is not production Web boot — production Web boots `runtimeMode: 'none'` in `apps/web/src/main.ts`. Controls that exist only there stay `UNKNOWN — PRESERVE` and must never be documented as production behaviour.
+
+Room setup controls are production controls: they are host-only and publish to the canonical room-config route `PATCH /v1/rooms/:roomId/config` through `packages/api-client`; the server validates and the room projection is refetched (`room-updated`). A non-host has no authoritative config mutation, and local Simulation keeps its own draft without persisting anything (ROOM-CONFIG-1).
 
 ## Rules for UI work
 

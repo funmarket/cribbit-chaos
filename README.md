@@ -61,6 +61,7 @@ packages/game-engine -> apps/api -> PostgreSQL -> packages/api-client -> Web / T
 - Start: `POST /v1/rooms/:roomId/start` is owner-only, refuses a duplicate start, requires real membership to equal the configured `playerCount`, seats the owner at 0 and the rest in `joined_at` order, calls the canonical `createGame()` exactly once, deals seven cards each, and persists one `game_sessions` row.
 - Realtime: `room:<roomId>` via `join-room-channel` carries `room-updated` and `room-started {roomId, sessionId}`. The server stays authoritative; clients refetch.
 - `GET /v1/rooms/:roomId` returns the waiting-room projection to members.
+- Configure: `PATCH /v1/rooms/:roomId/config` is owner-only, validates the merged result against the shared room-config contract (`packages/contracts`), refuses to shrink `playerCount` below the current member count, and refuses any change once the room has started. It persists canonical room state in `rooms.config` and emits the `room-updated` invalidation. This is the only room-config mutation route; it serializes with Start on the room row.
 
 Simulation remains a separate local/bot mode and does not use the Live session lifecycle.
 

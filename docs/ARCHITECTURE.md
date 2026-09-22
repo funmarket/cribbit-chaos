@@ -87,6 +87,8 @@ Local QA Simulation never persists and never creates a Live room: it runs the sh
 
 Gameplay mutation transport (verified, RECOVERY-HARDEN-4): both clients submit gameplay commands through the single authoritative REST route `POST /v1/games/:sessionId/commands`. `packages/api-client` exposes exactly one gameplay command sender (`CribbitApiClient.sendCommand`); `CribbitRealtimeClient` exposes only `connect`/`joinSession`/`joinRoomChannel`/`disconnect`, and the server registers no socket `game-command` handler. Realtime carries subscription and invalidation only.
 
+Room configuration authority (verified, ROOM-CONFIG-1): room setup is canonical server state. `packages/contracts` owns the vocabulary (`RoomConfig`, `ROOM_MODE_BOUNDS`, `ROOM_CEILING_VALUES`, `ROOM_PROMPT_SOURCE_KEYS`); `apps/api/src/game-service.ts` owns validation, persistence into `rooms.config` and the freeze at Start; the only mutation route is `PATCH /v1/rooms/:roomId/config` (host only), which emits the `room-updated` invalidation. Both clients mutate through `packages/api-client`, and neither client decides validity. `startRoom` and the config PATCH lock the same room row `for update`, so a config update either commits before session creation or fails as frozen.
+
 ## Rule and prompt authority
 
 - Gameplay meaning: `Game_rules.md` with permanent rule IDs (current gameplay slice: `RULE-SPECIAL-PLAY-001`..`008`, `RULE-VOLUNTARY-DRAW-001`..`007`).

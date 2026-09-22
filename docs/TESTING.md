@@ -37,3 +37,14 @@ Current accepted RECOVERY-HARDEN-4 closeout `a7e984bc6bb4bd22bf23d471550d677a4cb
 `npm run audit:ui` is a required local/shared-UI gate when UI/action-registry surfaces change, but it is not currently a separate GitHub Actions job. Do not claim it ran from CI unless the workflow is changed to run it.
 
 A green workflow proves only the checks represented above; runtime/browser/deployment acceptance remains separate evidence.
+
+
+## ROOM-CONFIG-1 test surface
+
+Room-config coverage is split into a PostgreSQL-backed contract/integration suite and a static boundary suite:
+
+- `apps/api/test/room-config.test.ts` — host-only mutation (403 non-owner, 403 non-member), 404 unknown room, mode/playerCount/world/ceiling/source validation, capacity floor, freeze-after-start, session consumption of the persisted config.
+- `apps/api/test/room-config-race.test.ts` — PATCH-vs-Start serialization on the room row; the invariant is asserted in every concurrent round and never depends on which request wins the lock.
+- `apps/api/test/room-config-boundary.test.ts` — source-shape boundary: one REST room-config route, realtime invalidation only, shared-contract vocabulary, and api-client/Telegram/Web wiring.
+
+All three are registered in the root `npm test` script. `npm test` needs `DATABASE_URL` for the DB-backed rows; local runs use a disposable PostgreSQL (`127.0.0.1:55433`) and every race claim comes from that real database, never from a mock.

@@ -77,3 +77,15 @@ link challenge         identity_link_challenges -> users.id   (purpose-scoped, s
 3. Never add a compatibility database, shadow table, or second write path to work around an incomplete API vertical.
 4. Keep migrations additive, idempotent and named in sequence.
 5. Document any new table here together with the vertical it serves and its classification (`ACTIVE` / `UNMIGRATED` / `COMPATIBILITY REFERENCE`).
+
+
+## Room configuration (ROOM-CONFIG-1)
+
+Room setup is canonical server state and requires no schema change: it lives in the existing `rooms.config` jsonb column.
+
+- Persisted shape: `{ roomName, mode, playerCount, world, ceiling, sources, playerNames }`.
+- `mode` and `playerCount` are validated together against the mode bounds (`duel` 2, `squad` 3-4, `party` 5-7, `mayhem` 8-10); `world` and `ceiling` must be an approved pair (`clean` 0/1/3/4, `adult` 0/1/2/3); `sources` must contain at least one known prompt-source key.
+- The configured `playerCount` may never be lowered below the member count already in the room.
+- It is frozen at Start: `game_sessions` creation reads the persisted config while holding the room-row lock.
+- `playerNames` is internal seat naming data and is never exposed by the public room projection.
+- ROOM-CONFIG-1 added no migration: migrations remain `001_initial.sql`, `002_dual_web_auth.sql`, `003_identity_link_challenges.sql`.

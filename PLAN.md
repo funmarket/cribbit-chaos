@@ -395,29 +395,39 @@ The earlier separate **Try CHAOS Pulse** lobby panel was removed before PR #8 me
 - `apps/web/src/chaos-pulse-lab.ts`
 - `apps/web/src/chaos-pulse-lab.css`
 
-Do not resume by trying to test that removed panel. The current app-facing path is the main Web board, which still boots through `runtimeMode: 'legacy-compatibility'` in `apps/web/src/main.ts`.
+Do not resume by trying to test that removed panel. The current app-facing path is the main Web board, which boots through `runtimeMode: 'none'` in `apps/web/src/main.ts`. Production Web does **not** boot the legacy compatibility runtime; that branch survives only for the Telegram fixture preview (`?compat=1&fixture=1`).
 
 Status: **SHARED ENGINE BUILDS — MAIN BOARD DECK SEAM STILL NEEDS MIGRATION.**
 
 ### Compatibility-runtime migration boundary
 
-The main visible gameplay board currently boots through `apps/web/src/main.ts` and still uses:
+The main visible gameplay board boots through `apps/web/src/main.ts` with:
 
 ```text
-runtimeMode: legacy-compatibility
+runtimeMode: 'none'
 ```
+
+Production Web is served by the shared authoritative engine path; the compatibility runtime is not production Web boot. `packages/legacy-runtime` remains reachable only through the Telegram fixture preview (`?compat=1&fixture=1`), which boots `packages/ui` with `runtimeMode: 'legacy-compatibility'`.
 
 PR #9 removed the extra direct `canonical-game-runtime.ts` bootstrap from `apps/web/index.html`, so the Web shell no longer starts both the canonical browser runtime and the compatibility path at the same time.
 
 Current runtime classification after PR #9:
 
 - `apps/web/src/canonical-game-runtime.ts` is reference/dead for Web boot and must not be imported by `apps/web/index.html`. Preservation classification: `UNKNOWN — PRESERVE` (see `docs/LIVING_STATUS.md`) — removal is not authorized until ownership, historical product purpose and migration/replacement status are proven.
-- `packages/legacy-runtime/src/runtime.ts` remains the active transitional board runtime through `bootstrap(... runtimeMode: 'legacy-compatibility')`.
+- `packages/legacy-runtime/src/runtime.ts` is fixture/compatibility only: it is reachable solely through the Telegram fixture-preview boot (`apps/telegram/src/main.ts` -> `bootstrap(platform, { runtimeMode: 'legacy-compatibility' })`, `?compat=1&fixture=1`). It is not production Web boot and never gameplay authority. Classification: `COMPATIBILITY REFERENCE`; its individual controls remain `UNKNOWN — PRESERVE`.
 - `apps/web/src/live-entry.ts` and `apps/web/src/live-session.ts` remain active auth/live-room command bridges.
 
 That legacy runtime still owns an obsolete local deck/deal/draw implementation. Do **not** copy CHAOS Pulse into it as a second algorithm.
 
 The next convergence step is to bridge/remove the legacy deck/deal/draw seam so the main board consumes the shared authoritative CHAOS Pulse engine. Until that migration is browser-verified, the main board remains the app-facing verification target.
+
+### ROOM-CONFIG-1 — canonical room setup (published)
+
+Room setup is canonical server state. `packages/contracts` owns the single room configuration vocabulary (`RoomConfig`, `ROOM_MODE_BOUNDS`, `ROOM_CEILING_VALUES`, `ROOM_PROMPT_SOURCE_KEYS`), `apps/api/src/game-service.ts` owns validation, persistence into `rooms.config` and the freeze at Start, and `PATCH /v1/rooms/:roomId/config` is the only room-config mutation route (host only, `room-updated` invalidation). Both clients submit through `packages/api-client`; no client decides validity.
+
+Room config is frozen at Start: `startRoom` locks the room row `for update` and reads the persisted config while holding that lock, so a config update either commits before the session is created or fails as frozen. The persisted config feeds session creation (`world` -> `contentWorld`, real room-member count -> `playerCount`, `ceiling` -> prompt-profile intensity, `sources` -> `promptPoolForSources`).
+
+Local QA Simulation keeps its own local draft and never publishes a room-config change; no Simulation data is persisted. A Web post-create room-setup control does not exist (the retired setup panel was not restored), which is recorded as a parity gap rather than replaced with a new screen.
 
 ## Locked game-feel rule — opening hand is free, later interaction draws auto-play
 
