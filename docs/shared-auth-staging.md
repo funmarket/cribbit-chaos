@@ -1,5 +1,8 @@
 # Shared auth staging
 
+
+Current source/deployment separation: recovery work is published on `recovery/single-engine-authority` (verified parent `625f0ade...`) but is not deployed. Railway API production remains sourced from `main` with latest successful deployed commit `b48493db...`; original Cloudflare Web/Telegram production branches remain `feature/visual-integration-checkpoint`.
+
 This is a living auth/staging control document. Update it whenever hosting, auth configuration, identity proof, backend state, or staging blockers change.
 
 Cribbit CHAOS is one product with two clients. Web and Telegram must converge on the same Railway API, the same Railway PostgreSQL database, and the same internal `users.id` UUID.
@@ -32,7 +35,7 @@ Current production environment:
 - PostgreSQL service ID: `951b9c62-7cd3-404b-b9f0-c93e2c2a51d7`
 - API domain: `https://api-production-2556.up.railway.app`
 - PostgreSQL is deployed with persistent storage
-- API deploy source: `funmarket/cribbit-chaos` / `feature/visual-integration-checkpoint`
+- API deploy source: `funmarket/cribbit-chaos` / `main` (fresh Railway configuration); latest successful deployed commit `b48493dbd5eebf5a0bc82755c1e739117d8f713a`
 - database migrations run before API deployment
 - Railway health check: `/health`
 - `FRONTEND_ORIGINS` includes the exact two Cloudflare production origins
@@ -117,8 +120,8 @@ Completed foundation:
 - dedicated Cribbit Chaos Railway PostgreSQL live
 - migrations execute before API deployment
 - Railway API deployment successful
-- current-head Cloudflare Web deployment successful
-- current-head Cloudflare Telegram deployment successful
+- original Cloudflare Web production deployment exists on `feature/visual-integration-checkpoint`; recovery branch is not deployed
+- original Cloudflare Telegram production deployment exists on `feature/visual-integration-checkpoint`; recovery branch is not deployed
 - both primary clients point to the same Railway API/WS URL
 - Railway CORS/origins configured for both exact Cloudflare origins
 
@@ -133,6 +136,6 @@ Still open:
 - same Telegram account resolving to the same Cribbit UUID from both clients
 - shared profile update/read proof across both clients
 
-Obsolete preview-provider deployment freshness is not a Phase 3.5 blocker while the current-head Cloudflare staging path remains healthy.
+Historical Phase 3.5 preview freshness is not current recovery evidence. Current deployment truth is recorded in `docs/DEPLOYMENT.md`; recovery source remains undeployed.
 
-After each auth/staging implementation slice, synchronize this file, `PLAN.md`, relevant deployment/environment/database docs, and the active PR description.
+After each auth/staging implementation slice, synchronize this file, `HANDOFF.md`, `docs/LIVING_STATUS.md`, `PLAN.md`, and relevant deployment/environment/database docs.

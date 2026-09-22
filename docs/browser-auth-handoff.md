@@ -1,5 +1,8 @@
 # Browser Telegram auth handoff
 
+
+> **CURRENT STATUS:** UNMIGRATED / FAIL-CLOSED. This document describes the intended browser handoff boundary, not a currently live OIDC flow. Current account authority is the locked model in `AGENTS.md` / `docs/LIVING_STATUS.md`: provider authentication is lookup-only and never silently creates or merges accounts; explicit linking/registration is separate.
+
 This is a living browser-auth control document. Update it whenever the Web host, OIDC callback/return flow, session transport, or live verification state changes.
 
 Cribbit CHAOS browser login must never place the Cribbit bearer session token in a redirect URL.
@@ -9,7 +12,7 @@ The production browser flow is:
 1. Web on Cloudflare Pages asks the Railway API to start Telegram login.
 2. Railway creates the Telegram authorization request and preserves the login-flow state server-side.
 3. Telegram redirects to the Railway callback.
-4. Railway validates the Telegram response and resolves the canonical Cribbit user through `resolveOrCreateTelegramIdentity()`.
+4. Railway validates the Telegram response and looks up the already-linked Telegram identity. Unknown identities must fail into explicit onboarding/linking; authentication must not silently create or merge a canonical user.
 5. Railway creates a short-lived, single-use opaque handoff code. This code is not a Cribbit API session token.
 6. Railway redirects to the approved Web Cloudflare Pages return URL with only the opaque handoff code.
 7. Web sends the handoff code back to Railway over HTTPS.
@@ -37,4 +40,4 @@ All Cribbit CHAOS auth/backend resources belong only to Railway project `Cribbit
 - Web OIDC live flow: not implemented/verified yet
 - same-UUID Web ↔ Telegram proof: pending
 
-After each browser-auth implementation slice, synchronize this file, `PLAN.md`, `docs/shared-auth-staging.md`, `docs/ENVIRONMENT.md`, and the active PR description.
+After each browser-auth implementation slice, synchronize this file, `HANDOFF.md`, `docs/LIVING_STATUS.md`, `PLAN.md`, `docs/shared-auth-staging.md`, and `docs/ENVIRONMENT.md`.

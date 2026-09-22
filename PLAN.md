@@ -1,5 +1,8 @@
 # Cribbit CHAOS Implementation Plan
 
+
+> **CURRENT ROADMAP AUTHORITY:** Only the `## Current roadmap` and `## Current Next Task` sections near the end of this file define present sequencing. Earlier "next task" statements inside completed-slice history are historical checkpoint notes only.
+
 ## Mandatory project-control workflow
 
 Every implementation slice must follow:
@@ -83,7 +86,7 @@ Machiavelli may create approved runtime card instances after game start. That ca
 
 ## Completed/accepted gameplay slices
 
-### Recovery slices (local only, in branch ancestry)
+### Recovery slices (published in recovery-branch ancestry)
 
 | Slice | Commit | Established |
 |---|---|---|
@@ -97,7 +100,7 @@ Machiavelli may create approved runtime card instances after game start. That ca
 | ROULETTE-PRIVACY-1 — sealed selection boundary | `59829d6` | Sealed Roulette selection masked at the authoritative projection |
 | COMMAND-ID-1 — canonical Live command identity | `3a574ff` | Live `commandId` must be an RFC 4122 UUID; invalid ids fail before persistence |
 | Special-card play + Voluntary Draw | `cb1b1b9` | `Game_rules.md` sections 51/52 implemented in the shared engine; retired `allowVoluntaryDraw` knob removed |
-| DOC-REBASELINE-1 | local commit of this file | Documentation set reconciled to verified reality |
+| DOC-REBASELINE-1 | `2f23997` | Documentation set reconciled to verified reality |
 
 ### Live multiplayer lifecycle (Create -> Join -> Start) — ACCEPTED (verified locally)
 
@@ -160,7 +163,7 @@ One server-authoritative game across both transports: the same human reading a s
 
 > Cribbit has one canonical account identifier: `users.id`. Telegram and Web are optional authentication methods attached to that account. Telegram authenticates directly from server-verified Telegram numeric identity; Web authenticates with username/password. Telegram username is provider metadata and may be used only as a convenient suggested Web login username when available. Username equality never links accounts. Linking requires explicit proof and attaches the second authentication method to the existing `users.id`. Telegram-only and Web-only accounts are both valid.
 
-Next task: `SIMSHARE-1` — replace the two duplicated simulation harnesses (`apps/web/src/simulation-session.ts`, `apps/telegram/src/simulation.ts`) with one shared engine-backed harness both clients consume.
+**Historical checkpoint:** SIMSHARE-1 was the next task at this point in the recovery timeline. It was subsequently completed at `7dae3e2`; this line is retained only to preserve slice chronology and is not a current instruction.
 
 ### Roulette presentation — ACCEPTED
 

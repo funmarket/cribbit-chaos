@@ -1,5 +1,14 @@
 # Cribbit CHAOS
 
+
+## Current recovery state
+
+The active recovery source line is `recovery/single-engine-authority`. The verified published parent before this documentation rebaseline is `625f0ade6889a97a8577eebe3682879f1819ee8a`, with GitHub Actions run `35667604453` successful. RECOVERY-HARDEN-1, RECOVERY-HARDEN-2 and RECOVERY-HARDEN-3/3B are published on that line.
+
+The recovery branch is **not deployed to production**. Railway API production is sourced from `main`; the original Cloudflare Pages Web and Telegram projects still use `feature/visual-integration-checkpoint` as their production branch. Source recovery state and deployed-runtime state must never be conflated.
+
+The next unresolved architecture hardening candidate is the stale socket/action-registry `game-command` path versus the authoritative REST gameplay-command path. Truth-or-Chaos completion remains blocked on unresolved owner rule decisions. `AUTHORITY-GUARD-1` remains deferred.
+
 Cribbit CHAOS is one multiplayer platform with two clients:
 
 - `apps/web` — standalone browser client, primary live host on Cloudflare Pages
@@ -100,11 +109,11 @@ Historical migration copies previously kept under `typescript/`, `webappchaos/`,
 
 ### `apps/web`
 
-Vite browser client. It currently contains the most complete playable visual/mechanical prototype and is the temporary card-visual baseline while mechanics are stabilized.
+Vite browser client. Live gameplay presentation consumes authoritative server snapshots and server-projected decision capabilities; it does not own Live gameplay legality.
 
 ### `apps/telegram`
 
-Vite Telegram Mini App. The source card renderer is being migrated away from the temporary PNG package to the Web-style HTML/CSS card presentation so both clients can converge on one shared card/game model.
+Vite Telegram Mini App. It shares the API/client contracts and authoritative game state with Web. Source compatibility is established, but genuine Telegram Mini App runtime acceptance remains NOT VERIFIED in the recovery environment.
 
 ### `apps/api`
 

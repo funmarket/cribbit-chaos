@@ -19,7 +19,7 @@ VITE_API_URL=https://api-production-2556.up.railway.app
 VITE_WS_URL=https://api-production-2556.up.railway.app
 ```
 
-These values belong to the current Cloudflare Pages frontend staging hosts.
+These values are the current original Cloudflare Pages frontend API/WS targets. The original Web/Telegram production projects still deploy from `feature/visual-integration-checkpoint`; the recovery branch is not deployed.
 
 ## Railway/server variables
 
@@ -62,4 +62,4 @@ Never commit `.env` or real credentials.
 
 The previous Telegram bot token shared during staging must be treated as compromised and replaced before live Mini App authentication proof.
 
-After each environment/configuration implementation slice, synchronize this file, `PLAN.md`, `docs/DEPLOYMENT.md`, related auth docs, and the active PR description.
+After each environment/configuration implementation slice, synchronize this file, `HANDOFF.md`, `docs/LIVING_STATUS.md`, `PLAN.md`, `docs/DEPLOYMENT.md`, and affected auth docs. Update a PR description only when an active PR actually exists.

@@ -25,8 +25,9 @@ Telegram Mini App on Cloudflare Pages
 -> raw Telegram.WebApp.initData
 -> Railway API
 -> server-side validation
--> resolveOrCreateTelegramIdentity()
--> canonical users.id UUID
+-> lookup Telegram identity in user_identities
+-> existing canonical users.id OR explicit unlinked/onboarding response
+-> explicit register/link action when needed
 -> Railway PostgreSQL
 ```
 
@@ -38,7 +39,7 @@ When building Telegram UI, keep the approved V4 visual language and respect safe
 
 Completed:
 
-- current-head Cloudflare Telegram build/deploy successful
+- original Cloudflare Telegram production project remains live on production branch `feature/visual-integration-checkpoint`; recovery branch is NOT deployed
 - client points to the shared Railway API/WS URL
 - Railway accepts the exact Cloudflare Telegram origin
 - shared identity/database foundation exists server-side
@@ -51,4 +52,4 @@ Still pending:
 - perform live raw-`initData` authentication proof
 - prove the same Telegram account resolves to the same internal UUID as browser Web
 
-After each Telegram-related implementation slice, synchronize this file, `PLAN.md`, `docs/shared-auth-staging.md`, `docs/DEPLOYMENT.md`, and the active PR description.
+After each Telegram-related implementation slice, synchronize this file, `HANDOFF.md`, `docs/LIVING_STATUS.md`, `PLAN.md`, `docs/shared-auth-staging.md`, and `docs/DEPLOYMENT.md`. Update a PR description only if an active PR exists.

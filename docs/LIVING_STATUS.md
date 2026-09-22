@@ -24,27 +24,31 @@ All work is governed by the **Whole-Project Scope and Preservation Rule** in `AG
 
 ## Verified shared repository state
 
-Fresh shared-state verification before this reconciliation:
+Fresh shared-state verification for this documentation rebaseline:
 
 ```text
 repository                                  funmarket/cribbit-chaos
 branch                                      recovery/single-engine-authority
-published tip before this reconciliation    187d0c25b971d00f474a7ffea4ef8a230e7bf793
-RECOVERY-HARDEN-1                           95e4d846d99ad55a6b7181c3b23ebf626a54109b   (published / accepted)
-main                                        964a9162d7d9e1a12acfccc61f0fb88430a8f4ff   (unchanged)
-recovery/single-engine-authority-ci         f384c824a0553d1adceb05ef55612e177967bb1a   (unchanged)
-deployed from recovery branch               NO
+published parent before this rebaseline     625f0ade6889a97a8577eebe3682879f1819ee8a
+main                                        964a9162d7d9e1a12acfccc61f0fb88430a8f4ff
+recovery/single-engine-authority-ci         f384c824a0553d1adceb05ef55612e177967bb1a
+recovery branch deployed                    NO
 ```
 
-Published ancestry immediately before this reconciliation:
+Exact GitHub CI on `625f0ade...`: run `35667604453` SUCCESS. The test job runs PostgreSQL 16, canonical migrations and the DB-backed suite.
+
+Hermes local recovery worktree was aligned to the same SHA with a clean worktree, no stash and 0/0 ahead/behind. Its superseded local-only documentation commit remains preserved on local branch `preserve/recovery-harden1-docs-reconcile`; it is not part of the recovery branch.
+
+Fresh deployment separation:
 
 ```text
-e56936cb1d98344f87f3ca9ee6202cf018e58c27
--> 95e4d846d99ad55a6b7181c3b23ebf626a54109b   RECOVERY-HARDEN-1
--> 187d0c25b971d00f474a7ffea4ef8a230e7bf793   whole-project preservation rule
+Railway API source branch              main
+Railway latest successful API commit   b48493dbd5eebf5a0bc82755c1e739117d8f713a
+Cloudflare Web production branch       feature/visual-integration-checkpoint
+Cloudflare Telegram production branch  feature/visual-integration-checkpoint
 ```
 
-Exact GitHub CI: `95e4d846` -> run `35636741098` SUCCESS; `187d0c25` -> run `35640701568` SUCCESS. Local Windows worktree state must always be freshly verified before local mutation.
+Those deployed sources are older than the recovery branch and are not evidence that recovery work is live in production.
 
 ## Completed recovery slices (all local, all in this branch's ancestry)
 
@@ -73,6 +77,8 @@ Exact GitHub CI: `95e4d846` -> run `35636741098` SUCCESS; `187d0c25` -> run `356
 | Whole-project preservation rule | `187d0c25` | Makes full-app dependency/preservation analysis mandatory; uncertain code is `UNKNOWN — PRESERVE` |
 | Publication-state reconciliation | `2e621715` | Corrected the recovery branch/publication ledger and deferred Authority Guard until known hardening contradictions are reconciled |
 | RECOVERY-HARDEN-2 — server-projected Live capabilities | `3b1da012`, `812acce` | Server/API projects each viewer's gameplay capabilities; Web/Telegram Live consume them without direct game-engine decision imports; stale architecture assertions were updated and exact candidate CI is green |
+| RECOVERY-HARDEN-3 — persisted command-ID collision contract | `cbe8c6fd`, `67dbff10`, `31f8b3a8` | One shared semantic command fingerprint; persisted replay/collision behavior aligned across engine/API; documentation recorded |
+| RECOVERY-HARDEN-3B — command identity completeness + concurrency | `d24264e4`, `3fd53f77`, `625f0ade` | Exhaustive payload-aware fingerprinting, advisory-lock serialization of global command IDs, PostgreSQL 16 CI with DB-backed concurrency proof, documentation closeout |
 
 ## Current canonical gameplay rules (this slice's authority)
 
@@ -190,21 +196,18 @@ Current GitHub CI now runs the normal suite against PostgreSQL 16 after canonica
 - Which fixture-preview controls in `packages/legacy-runtime` still correspond to approved product intent (`UNKNOWN — PRESERVE`).
 - Long-run multi-hour session behaviour (timers, reconnect, timeouts) is only partially exercised.
 
-Documentation conflicts deferred to a future authorized slice (they are NOT in the DOC-REBASELINE-1 document set, so this slice recorded rather than rewrote them):
-
-- `docs/TELEGRAM_MOBILE_IMPLEMENTATION_PLAN.md` still declares a `## Current Next Task` (T6 real-device card recheck) and a `Phase 3.5 / Active branch feature/visual-integration-checkpoint / Active PR #8` status. That describes the pre-recovery visual-integration line, not the current recovery state.
-- `chaosfixplan.md`, `docs/RECOVERY_SCOPE.md`, `docs/visual-integration-checkpoint.md`, `docs/DEPLOYMENT.md`, `docs/DEVELOPMENT.md`, `docs/ENVIRONMENT.md`, `docs/TELEGRAM.md`, `docs/browser-auth-handoff.md`, `docs/shared-auth-staging.md` and `REQUIREMENTS.md` contain phase/branch/"current" language from earlier lines of work. They are classified as `COMPATIBILITY REFERENCE` evidence in `docs/HISTORICAL_PRODUCT_EVIDENCE.md`.
-- Until those are reconciled, the single current-state authority is this file plus the `PLAN.md` roadmap; ignore any other document's claim about the active branch, phase or next task.
+Historical/reference documents that previously carried stale "current branch", "current task", Phase 3.5 or PR #8 language are reconciled in this documentation rebaseline. Historical plans remain preserved as `COMPATIBILITY REFERENCE` evidence, but they are explicitly labeled historical and cannot compete with this ledger or the current roadmap in `PLAN.md`.
 
 ## Remote / publication state
 
-Shared state immediately before this documentation reconciliation:
+Shared source state immediately before this documentation rebaseline:
 
 ```text
 origin/main                                   964a9162d7d9e1a12acfccc61f0fb88430a8f4ff
-origin/feature/visual-integration-checkpoint  95febd07e4d739c96843fcc4a02f070eb3c623c0   (deployed production source)
-origin/recovery/single-engine-authority-ci    f384c824a0553d1adceb05ef55612e177967bb1a   (CI anchor)
-origin/recovery/single-engine-authority       812acce7356c22336bb41e0e77f02893a3d4c771   (green RECOVERY-HARDEN-2 implementation/test candidate)
+origin/recovery/single-engine-authority-ci    f384c824a0553d1adceb05ef55612e177967bb1a
+origin/recovery/single-engine-authority       625f0ade6889a97a8577eebe3682879f1819ee8a
 ```
 
-This documentation-only commit advances only the recovery branch ledger. It does not merge, deploy, mutate `main`, change the CI anchor or modify production. Production remains on the previous deployed source until explicitly authorized.
+This documentation-only rebaseline advances only `recovery/single-engine-authority`. It does not merge, deploy, mutate `main`, change the CI anchor, modify gameplay rules, or alter production resources.
+
+Current deployed production remains older than recovery source: Railway API is sourced from `main` and its latest successful deployment is commit `b48493dbd5eebf5a0bc82755c1e739117d8f713a`; the original Cloudflare Pages Web and Telegram projects still use `feature/visual-integration-checkpoint` as their production branch.

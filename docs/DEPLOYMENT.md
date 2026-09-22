@@ -1,77 +1,63 @@
 # Deployment
 
-This is a living operational document and must be updated whenever deployment targets, verified deployment state, or staging blockers change.
+This is the current operational deployment document. Update it whenever deployment targets, source branches, verified live versions, or deployment blockers change.
 
-GitHub is the canonical source of truth for deployable source.
+GitHub is the canonical source of deployable source. **Recovery source state and deployed production state are intentionally separate until the owner authorizes deployment.**
 
-## Current primary deployment surface
-
-- API / live backend: Railway project `Cribbit Chaos` (`e2b0a674-43d9-4aac-ad8d-3e72b3ff486f`), service `api` (`c255714c-95a2-4194-8bb0-e1846a5e4cf1`)
-- API public domain: `https://api-production-2556.up.railway.app`
-- PostgreSQL: Railway service `Postgres` in the same project
-
-Railway is the active production deployment target for the authoritative backend/database path. Do not treat Cloudflare Pages or obsolete preview providers as proof that the live Cribbit CHAOS app has the latest rules.
-
-## Canonical flow
+## Current recovery source
 
 ```text
-GitHub main
-  |
-  +--> Railway project Cribbit Chaos
-          |
-          +--> api service
-                  |
-                  +--> Railway PostgreSQL
+repo                         funmarket/cribbit-chaos
+recovery branch              recovery/single-engine-authority
+verified parent before docs  625f0ade6889a97a8577eebe3682879f1819ee8a
+recovery deployed            NO
 ```
 
-The `api` service is connected to:
+Do not infer production deployment from recovery CI or branch publication.
 
-- repo: `funmarket/cribbit-chaos`
-- branch: `main`
-- service domain: `https://api-production-2556.up.railway.app`
+## Current deployed backend
 
-## Railway safety boundary
+Railway project: `Cribbit Chaos` (`e2b0a674-43d9-4aac-ad8d-3e72b3ff486f`)
 
-Cribbit CHAOS uses only Railway project `Cribbit Chaos` (`e2b0a674-43d9-4aac-ad8d-3e72b3ff486f`).
+- production environment: `60d848a2-a7df-4145-a2ec-757a5ec4dc31`
+- API service: `api` (`c255714c-95a2-4194-8bb0-e1846a5e4cf1`)
+- PostgreSQL service: `Postgres` (`951b9c62-7cd3-404b-b9f0-c93e2c2a51d7`)
+- API domain: `https://api-production-2556.up.railway.app`
+- API GitHub source: `funmarket/cribbit-chaos`
+- API source branch: `main`
+- latest fresh-verified successful API deployment: `f33285fc-14f7-4299-b5ab-793e5c512879`
+- deployed commit: `b48493dbd5eebf5a0bc82755c1e739117d8f713a`
+- build: `npm ci && npm run build:api`
+- pre-deploy: `npm run migrate:db`
+- start: `npm run start:api`
+- healthcheck: `/health`
 
-Do not use or mutate the separate Railway project `Cribbit` (`1440dc2c-e7fd-4bee-8ef7-57e663b8c735`).
+Recent later `main` pushes were SKIPPED by Railway watch-pattern selection; therefore `main` HEAD is not the same thing as the latest deployed API commit.
 
-## Build commands
+The separate Railway project named `Cribbit` belongs to another product and must never be mutated for Cribbit CHAOS.
 
-Before deploying or claiming a build is healthy, run the relevant checks:
+## Current deployed frontends
 
-```sh
-npm run typecheck
-npm test
-npm run build
-```
-
-Railway API service build/deploy settings observed on 2026-09-17:
-
-- Build command: `npm ci && npm run build:api`
-- Pre-deploy command: `npm run migrate:db`
-- Start command: `npm run start:api`
-- Health check path: `/health`
-- Runtime: Railway V2 / Railpack
-
-## Verified corrected-rules deployment
-
-After correcting `Game_rules.md` and shared engine behavior, source commit `c1cfbe3e8177208054f41b7b2fc353ce60001868` was deployed to Railway API deployment `23406abb-8b97-4ea8-8a1b-cca3ff2c6d13` from branch `main`.
-
-Readback:
+Original Cloudflare Pages projects:
 
 ```text
-GET https://api-production-2556.up.railway.app/health
-HTTP 200
-{"ok":true,"service":"cribbit-chaos-api","database":true,...}
+cribbit-chaos-web       production branch feature/visual-integration-checkpoint
+cribbit-chaos-telegram  production branch feature/visual-integration-checkpoint
 ```
 
-## Operational rule
+Both point to `https://api-production-2556.up.railway.app` for API/WS configuration.
 
-A source commit, GitHub CI pass, or stale frontend bundle check is not live production proof. For Railway, verify all of the following before claiming production updated:
+Recovery-branch pushes currently do **not** create previews on these original projects because preview deployments are disabled. A recovery-branch GitHub push therefore does not mean either frontend was deployed.
 
-1. `railway deployment list --project e2b0a674-43d9-4aac-ad8d-3e72b3ff486f --environment production --service api --json` shows the expected `main` commit in `SUCCESS`.
-2. `/health` on `https://api-production-2556.up.railway.app` returns `200` with `database:true`.
-3. The exact gameplay/API behavior under investigation is read back through the Railway API or through the real client that calls that API.
+## Deployment gate
 
-After every deployment-related implementation slice, update this file, `PLAN.md`, and the active proof section in `chaosfixplan.md` if deployment state or blockers changed.
+Before claiming recovery is deployed:
+
+1. verify the exact recovery candidate SHA;
+2. receive explicit owner deployment authorization;
+3. verify the exact Railway/Cloudflare target and source branch configuration;
+4. run required CI/build/migration gates on that exact candidate;
+5. deploy;
+6. verify the live API version/health and rendered Web/Telegram behavior.
+
+No recovery deployment is authorized merely by this document.

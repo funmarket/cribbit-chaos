@@ -13,27 +13,29 @@ Before any task, apply the **Whole-Project Scope and Preservation Rule** in `AGE
 
 ## Verified shared repository state
 
-Fresh shared-state verification before this reconciliation:
+Fresh shared-state verification for this documentation rebaseline:
 
 ```text
 repository                                  funmarket/cribbit-chaos
 branch                                      recovery/single-engine-authority
-published tip before this reconciliation    187d0c25b971d00f474a7ffea4ef8a230e7bf793
-RECOVERY-HARDEN-1                           95e4d846d99ad55a6b7181c3b23ebf626a54109b   (published / accepted)
+published parent before this rebaseline     625f0ade6889a97a8577eebe3682879f1819ee8a
 main                                        964a9162d7d9e1a12acfccc61f0fb88430a8f4ff   (unchanged)
 recovery/single-engine-authority-ci         f384c824a0553d1adceb05ef55612e177967bb1a   (unchanged)
-deployed from recovery branch               NO
+recovery branch deployed                    NO
 ```
 
-Published recovery ancestry immediately before this reconciliation:
+Current accepted recovery sequence includes:
 
 ```text
-e56936cb1d98344f87f3ca9ee6202cf018e58c27
--> 95e4d846d99ad55a6b7181c3b23ebf626a54109b   RECOVERY-HARDEN-1
--> 187d0c25b971d00f474a7ffea4ef8a230e7bf793   whole-project preservation rule
+95e4d846   RECOVERY-HARDEN-1 — room concurrency
+3b1da012 + 812acce   RECOVERY-HARDEN-2 — server-projected Live capabilities
+67dbff10 + 3fd53f77   RECOVERY-HARDEN-3/3B — command identity/collision/concurrency
+625f0ade   documentation closeout for HARDEN-3 quality gaps
 ```
 
-GitHub CI evidence: run `35636741098` succeeded on `95e4d846`; run `35640701568` succeeded on `187d0c25` (typecheck, test, build-web, build-telegram, build-api). The Windows Hermes worktree is not shared-state authority and must be freshly inspected before local mutation; do not infer its HEAD or cleanliness from this document.
+Exact GitHub CI on `625f0ade...`: run `35667604453` SUCCESS (typecheck, PostgreSQL-backed test job, build-web, build-telegram, build-api). Hermes's Windows recovery worktree was subsequently aligned to the same SHA with a clean 0/0 ahead/behind state; its superseded local docs commit is preserved only on local branch `preserve/recovery-harden1-docs-reconcile`.
+
+Deployment is intentionally separate from recovery source state. Fresh provider inspection shows Railway API source branch `main` with latest successful deployment commit `b48493dbd5eebf5a0bc82755c1e739117d8f713a`; original Cloudflare Web/Telegram production branches remain `feature/visual-integration-checkpoint`. Recovery pushes are not production deployment proof.
 
 ## Last completed task
 
@@ -113,22 +115,25 @@ Remaining hardening candidates:
 
 ## Publication / deployment state
 
-The recovery branch is published through RECOVERY-HARDEN-3B. Implementation candidate `3fd53f7748f28ddc10883278ce1f1b57fdb60434` is green in GitHub Actions run `35667385029`; this documentation reconciliation is the next documentation-only commit.
+The recovery source line is published through this documentation rebaseline, whose parent is `625f0ade6889a97a8577eebe3682879f1819ee8a`.
 
 ```text
-origin/main                                   964a9162d7d9e1a12acfccc61f0fb88430a8f4ff   (unchanged)
-origin/feature/visual-integration-checkpoint  95febd07e4d739c96843fcc4a02f070eb3c623c0   (deployed production source)
-origin/recovery/single-engine-authority-ci    f384c824a0553d1adceb05ef55612e177967bb1a   (CI anchor)
-origin/recovery/single-engine-authority       this documentation reconciliation; parent 3fd53f7748f28ddc10883278ce1f1b57fdb60434
+origin/main                                   964a9162d7d9e1a12acfccc61f0fb88430a8f4ff
+origin/recovery/single-engine-authority-ci    f384c824a0553d1adceb05ef55612e177967bb1a
+origin/recovery/single-engine-authority       this documentation rebaseline; parent 625f0ade6889a97a8577eebe3682879f1819ee8a
+Railway API source branch                     main
+Railway latest successful API commit          b48493dbd5eebf5a0bc82755c1e739117d8f713a
+Cloudflare Web production branch              feature/visual-integration-checkpoint
+Cloudflare Telegram production branch         feature/visual-integration-checkpoint
 ```
 
-No recovery-branch merge or deployment has occurred. Production must not be mutated without an explicit owner gate.
+No recovery-branch merge or production deployment has occurred. Production mutation requires a separate explicit owner gate.
 
 ## Resume instructions
 
 1. Freshly verify the branch, HEAD, worktree and remote before any local mutation.
 2. Read `docs/LIVING_STATUS.md`, `PLAN.md`, the whole-product preservation rule in `AGENTS.md`, and relevant rule/domain docs.
-3. Treat the earlier `PLAN.md` wording that places `AUTHORITY-GUARD-1` immediately next as stale sequencing, not implementation authorization; owner authorization is required and the guard is deferred pending known hardening contradictions.
+3. Read the single current roadmap in `PLAN.md`; `AUTHORITY-GUARD-1` is explicitly deferred and must not be started without owner authorization.
 4. Follow `AGENTS.md` mandatory workflow (inspect -> change -> verify -> remove only proven-superseded artifacts -> update living docs -> publish -> verify runtime).
 5. Use deterministic NoDrift / Literal Command Executor discipline for consequential mutations.
 6. Never push, deploy, merge or mutate production resources without explicit authorization.
