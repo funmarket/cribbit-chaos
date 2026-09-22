@@ -3,7 +3,7 @@
 
 ## Current recovery state
 
-The active recovery source line is `recovery/single-engine-authority`. The verified published tip before the RECOVERY-HARDEN-4 chain is `adc947cd8d1f8fd3737396a39445485ceff46cf8`, with GitHub Actions run `35670806884` successful. RECOVERY-HARDEN-1, RECOVERY-HARDEN-2, RECOVERY-HARDEN-3/3B and RECOVERY-HARDEN-4 are on that line; the RECOVERY-HARDEN-4 chain is RED `b5df94103455569a2dc12b1627aab0818d5e3bbf` -> implementation `cb3126c96c58db68f9401304cc23cd2fde5911d4` -> documentation commit.
+The active recovery source line is `recovery/single-engine-authority`. The accepted RECOVERY-HARDEN-4 baseline is `a7e984bc6bb4bd22bf23d471550d677a4cba5500`, verified by GitHub Actions run `35674013904` with typecheck, test, build-web, build-telegram, and build-api all successful. The HARDEN-4 chain is RED `b5df94103455569a2dc12b1627aab0818d5e3bbf` -> implementation `cb3126c96c58db68f9401304cc23cd2fde5911d4` -> documentation closeout `a7e984bc6bb4bd22bf23d471550d677a4cba5500`. This living-document reconciliation follows that accepted engineering baseline and does not change gameplay behavior.
 
 The recovery branch is **not deployed to production**. Railway API production is sourced from `main`; the original Cloudflare Pages Web and Telegram projects still use `feature/visual-integration-checkpoint` as their production branch. Source recovery state and deployed-runtime state must never be conflated.
 
@@ -257,7 +257,7 @@ Update affected technical/operational docs at the same time. Remove resolved blo
 
 The verified current state is maintained in `docs/LIVING_STATUS.md`; the roadmap lives in `PLAN.md`. Summary:
 
-- Work happens locally on `recovery/single-engine-authority`; nothing from this branch is pushed or deployed.
+- Recovery work is published on `recovery/single-engine-authority`; the recovery branch is **not deployed** to production.
 - One application, two delivery surfaces: Web and Telegram both go through `packages/api-client` to the same API, the same `packages/game-engine`, and the same Railway PostgreSQL database.
 - Verified locally: real Live multiplayer lifecycle (create -> join -> start) with no fabricated bots, authoritative command handling, private hands, sealed Roulette masking, canonical Live command-id contract, canonical identity/login model, shared Navigation, shared local QA Simulation.
 - Canonical gameplay rules are owned by `Game_rules.md` (current slices: `RULE-SPECIAL-PLAY-001`..`008` and `RULE-VOLUNTARY-DRAW-001`..`007`, implemented in the shared engine).

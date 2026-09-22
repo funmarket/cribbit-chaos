@@ -24,22 +24,23 @@ All work is governed by the **Whole-Project Scope and Preservation Rule** in `AG
 
 ## Verified shared repository state
 
-Fresh shared-state verification for this documentation rebaseline:
+Fresh accepted state before this documentation-only reconciliation:
 
 ```text
 repository                                  funmarket/cribbit-chaos
 branch                                      recovery/single-engine-authority
-published parent before this rebaseline     625f0ade6889a97a8577eebe3682879f1819ee8a
+accepted HARDEN-4 baseline                  a7e984bc6bb4bd22bf23d471550d677a4cba5500
+exact HARDEN-4 CI                           35674013904  SUCCESS
 main                                        964a9162d7d9e1a12acfccc61f0fb88430a8f4ff
 recovery/single-engine-authority-ci         f384c824a0553d1adceb05ef55612e177967bb1a
 recovery branch deployed                    NO
 ```
 
-Exact GitHub CI on `625f0ade...`: run `35667604453` SUCCESS. The test job runs PostgreSQL 16, canonical migrations and the DB-backed suite.
+RECOVERY-HARDEN-4 is fully published and exact-SHA CI verified. Its chain is RED `b5df941...` -> implementation `cb3126c...` -> documentation closeout `a7e984b...`. The test job runs PostgreSQL 16, canonical migrations and DB-backed integration tests.
 
-Hermes local recovery worktree was aligned to the same SHA with a clean worktree, no stash and 0/0 ahead/behind. Its superseded local-only documentation commit remains preserved on local branch `preserve/recovery-harden1-docs-reconcile`; it is not part of the recovery branch.
+Hermes's local recovery worktree and the shared recovery branch were aligned at the HARDEN-4 closeout after publication. The superseded local-only documentation commit remains preserved on local branch `preserve/recovery-harden1-docs-reconcile`; it is not part of the recovery branch.
 
-Fresh deployment separation:
+Deployment remains separate from recovery source state:
 
 ```text
 Railway API source branch              main
@@ -48,7 +49,7 @@ Cloudflare Web production branch       feature/visual-integration-checkpoint
 Cloudflare Telegram production branch  feature/visual-integration-checkpoint
 ```
 
-Those deployed sources are older than the recovery branch and are not evidence that recovery work is live in production.
+The recovery branch is not deployed.
 
 ## Completed recovery slices (all local, all in this branch's ancestry)
 
@@ -79,6 +80,7 @@ Those deployed sources are older than the recovery branch and are not evidence t
 | RECOVERY-HARDEN-2 — server-projected Live capabilities | `3b1da012`, `812acce` | Server/API projects each viewer's gameplay capabilities; Web/Telegram Live consume them without direct game-engine decision imports; stale architecture assertions were updated and exact candidate CI is green |
 | RECOVERY-HARDEN-3 — persisted command-ID collision contract | `cbe8c6fd`, `67dbff10`, `31f8b3a8` | One shared semantic command fingerprint; persisted replay/collision behavior aligned across engine/API; documentation recorded |
 | RECOVERY-HARDEN-3B — command identity completeness + concurrency | `d24264e4`, `3fd53f77`, `625f0ade` | Exhaustive payload-aware fingerprinting, advisory-lock serialization of global command IDs, PostgreSQL 16 CI with DB-backed concurrency proof, documentation closeout |
+| RECOVERY-HARDEN-4 — one REST gameplay mutation transport | `b5df941`, `cb3126c`, `a7e984b` | Retired the stale realtime gameplay sender, moved gameplay action metadata to POST, kept realtime subscription/invalidation-only, exact-SHA CI run `35674013904` green |
 
 ## Current canonical gameplay rules (this slice's authority)
 
@@ -213,6 +215,15 @@ verification
   typecheck (tsconfig.check.json)             PASS
   full suite, local PostgreSQL 18.4           261 tests / 254 pass / 1 fail / 6 skipped
   lint, build:api, build:web, build:telegram, audit:ui   PASS
+
+exact GitHub CI
+  run 35674013904
+  head a7e984bc6bb4bd22bf23d471550d677a4cba5500
+  typecheck        SUCCESS
+  test             SUCCESS
+  build-web        SUCCESS
+  build-telegram   SUCCESS
+  build-api        SUCCESS
 ```
 
 The single local full-suite failure is the pre-existing Windows CRLF source-shape assertion in `apps/web/test/runtime-single-owner.test.ts` (worktree `w/crlf` versus blob `i/lf`; the same assertion is green on Linux CI at `adc947cd`, run `35670806884`). The intermittent PostgreSQL-backed command-identity failure seen locally is pre-existing cross-test flakiness: it passes in isolation and had already failed remote CI runs before this slice. No schema, migration, `Game_rules.md`, deployment or production mutation occurred in RECOVERY-HARDEN-4.
@@ -230,17 +241,17 @@ Historical/reference documents that previously carried stale "current branch", "
 
 ## Remote / publication state
 
-Shared source state immediately before the RECOVERY-HARDEN-4 chain (`origin/recovery/single-engine-authority` was `adc947cd8d1f8fd3737396a39445485ceff46cf8`, CI run `35670806884` SUCCESS):
+Accepted RECOVERY-HARDEN-4 baseline before this documentation-only reconciliation:
 
 ```text
 origin/main                                   964a9162d7d9e1a12acfccc61f0fb88430a8f4ff
 origin/recovery/single-engine-authority-ci    f384c824a0553d1adceb05ef55612e177967bb1a
-origin/recovery/single-engine-authority       adc947cd8d1f8fd3737396a39445485ceff46cf8  (published tip before this chain)
 RECOVERY-HARDEN-4 RED                         b5df94103455569a2dc12b1627aab0818d5e3bbf
 RECOVERY-HARDEN-4 implementation              cb3126c96c58db68f9401304cc23cd2fde5911d4
-RECOVERY-HARDEN-4 documentation               this commit (published tip of the branch)
+RECOVERY-HARDEN-4 closeout                    a7e984bc6bb4bd22bf23d471550d677a4cba5500
+exact closeout CI                             35674013904  SUCCESS
 ```
 
-The RECOVERY-HARDEN-4 chain advances only `recovery/single-engine-authority`. It does not merge, deploy, mutate `main`, change the CI anchor, modify gameplay rules, or alter production resources.
+This reconciliation changes documentation only. It does not merge, deploy, mutate `main`, change the CI anchor, modify gameplay rules, alter schema/migrations, or change production resources.
 
 Current deployed production remains older than recovery source: Railway API is sourced from `main` and its latest successful deployment is commit `b48493dbd5eebf5a0bc82755c1e739117d8f713a`; the original Cloudflare Pages Web and Telegram projects still use `feature/visual-integration-checkpoint` as their production branch.

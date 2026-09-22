@@ -30,7 +30,9 @@ The recovery-branch CI runs:
 
 Exact accepted evidence for RECOVERY-HARDEN-3B implementation SHA `3fd53f7748f28ddc10883278ce1f1b57fdb60434` is GitHub Actions run `35667385029`: all five jobs passed; migrations `001_initial.sql`, `002_dual_web_auth.sql`, and `003_identity_link_challenges.sql` applied; 252 tests ran, 246 passed, 0 failed, 6 skipped.
 
-The documentation closeout parent `625f0ade6889a97a8577eebe3682879f1819ee8a` also passed exact-SHA run `35667604453`.
+Historical RECOVERY-HARDEN-3B closeout `625f0ade6889a97a8577eebe3682879f1819ee8a` passed exact-SHA run `35667604453`.
+
+Current accepted RECOVERY-HARDEN-4 closeout `a7e984bc6bb4bd22bf23d471550d677a4cba5500` passed exact-SHA GitHub Actions run `35674013904`: typecheck, PostgreSQL-backed test, build-web, build-telegram, and build-api all succeeded.
 
 `npm run audit:ui` is a required local/shared-UI gate when UI/action-registry surfaces change, but it is not currently a separate GitHub Actions job. Do not claim it ran from CI unless the workflow is changed to run it.
 

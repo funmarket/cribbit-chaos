@@ -569,13 +569,14 @@ Current recovery order after the completed documentation and authority-hardening
 3. **Whole-project preservation rule + publication-state reconciliation** — COMPLETE / PUBLISHED.
 4. **RECOVERY-HARDEN-2 — authoritative server-projected Live gameplay capabilities** — COMPLETE / PUBLISHED.
 5. **RECOVERY-HARDEN-3/3B — persisted command-ID identity, collision and concurrency reconciliation** — COMPLETE / PUBLISHED. Exact final implementation SHA `3fd53f7748f28ddc10883278ce1f1b57fdb60434` is green in CI run `35667385029` with PostgreSQL 16, canonical migrations, DB-backed command-ID concurrency tests, typecheck and all builds.
-6. **RECOVERY-HARDEN-4 — gameplay mutation transport authority** — COMPLETE / PUBLISHED. RED contract `b5df94103455569a2dc12b1627aab0818d5e3bbf`, implementation `cb3126c96c58db68f9401304cc23cd2fde5911d4`, documentation commit is the published tip of the chain. Gameplay mutation has exactly one REST transport (`POST /v1/games/:sessionId/commands`); realtime is subscription/invalidation only.
-7. **Next hardening slice — OWNER SELECTION REQUIRED.** Remaining candidates are:
+6. **RECOVERY-HARDEN-4 — gameplay mutation transport authority** — COMPLETE / PUBLISHED. RED contract `b5df94103455569a2dc12b1627aab0818d5e3bbf`, implementation `cb3126c96c58db68f9401304cc23cd2fde5911d4`, documentation closeout `a7e984bc6bb4bd22bf23d471550d677a4cba5500` is exact-SHA CI green in run `35674013904`. Gameplay mutation has exactly one REST transport (`POST /v1/games/:sessionId/commands`); realtime is subscription/invalidation only.
+7. **DOC-RECONCILE-H4 — living-document consistency correction** — documentation-only reconciliation after the accepted HARDEN-4 baseline; no gameplay, source, schema, CI-workflow, deployment, or production behavior changes.
+8. **Next hardening slice — OWNER SELECTION REQUIRED.** Remaining candidates are:
    - Truth-or-Chaos completion hardening, but only after the unresolved owner rule decisions are explicitly settled;
    - Roulette SVG presentation, migration of the unmigrated product verticals, or retirement of the preserved legacy/canonical client runtimes.
-8. **Whole-product ownership/dependency audit** — mandatory before broad deletion/migration decisions across apps/packages/unmigrated verticals.
-9. **AUTHORITY-GUARD-1** — unauthorized and not started; its precondition list still includes the unresolved Truth-or-Chaos owner decisions.
-10. **Subsequent owner-approved product phases** — restore/migrate the complete product verticals, verify real Telegram Mini App runtime, tune mechanics/pacing, then finalize art and deployment/release work.
+9. **Whole-product ownership/dependency audit** — mandatory before broad deletion/migration decisions across apps/packages/unmigrated verticals.
+10. **AUTHORITY-GUARD-1** — unauthorized and not started; its precondition list still includes the unresolved Truth-or-Chaos owner decisions.
+11. **Subsequent owner-approved product phases** — restore/migrate the complete product verticals, verify real Telegram Mini App runtime, tune mechanics/pacing, then finalize art and deployment/release work.
 
 Every phase must preserve the existing contract: one complete application, two delivery surfaces, gameplay authority in the server/shared engine boundary, one PostgreSQL database, and `Game_rules.md` as the only gameplay meaning.
 

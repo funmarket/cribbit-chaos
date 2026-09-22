@@ -13,82 +13,71 @@ Before any task, apply the **Whole-Project Scope and Preservation Rule** in `AGE
 
 ## Verified shared repository state
 
-Fresh shared-state verification for this documentation rebaseline:
+Fresh accepted state before this documentation-only reconciliation:
 
 ```text
 repository                                  funmarket/cribbit-chaos
 branch                                      recovery/single-engine-authority
-published parent before this rebaseline     625f0ade6889a97a8577eebe3682879f1819ee8a
+accepted HARDEN-4 baseline                  a7e984bc6bb4bd22bf23d471550d677a4cba5500
+exact HARDEN-4 CI                           35674013904  SUCCESS
 main                                        964a9162d7d9e1a12acfccc61f0fb88430a8f4ff   (unchanged)
 recovery/single-engine-authority-ci         f384c824a0553d1adceb05ef55612e177967bb1a   (unchanged)
 recovery branch deployed                    NO
 ```
 
-Current accepted recovery sequence includes:
+Current accepted recovery sequence:
 
 ```text
 95e4d846   RECOVERY-HARDEN-1 — room concurrency
 3b1da012 + 812acce   RECOVERY-HARDEN-2 — server-projected Live capabilities
 67dbff10 + 3fd53f77   RECOVERY-HARDEN-3/3B — command identity/collision/concurrency
-625f0ade   documentation closeout for HARDEN-3 quality gaps
+b5df941 + cb3126c + a7e984b   RECOVERY-HARDEN-4 — one REST gameplay mutation transport
 ```
 
-Exact GitHub CI on `625f0ade...`: run `35667604453` SUCCESS (typecheck, PostgreSQL-backed test job, build-web, build-telegram, build-api). Hermes's Windows recovery worktree was subsequently aligned to the same SHA with a clean 0/0 ahead/behind state; its superseded local docs commit is preserved only on local branch `preserve/recovery-harden1-docs-reconcile`.
+RECOVERY-HARDEN-4 exact-SHA CI run `35674013904` succeeded for typecheck, PostgreSQL-backed tests, build-web, build-telegram, and build-api. Hermes's local recovery worktree and the remote recovery branch were aligned at `a7e984b...` after publication. The superseded local documentation commit remains preserved only on local branch `preserve/recovery-harden1-docs-reconcile`.
 
-Deployment is intentionally separate from recovery source state. Fresh provider inspection shows Railway API source branch `main` with latest successful deployment commit `b48493dbd5eebf5a0bc82755c1e739117d8f713a`; original Cloudflare Web/Telegram production branches remain `feature/visual-integration-checkpoint`. Recovery pushes are not production deployment proof.
+Deployment remains separate from recovery source state. Railway API production is still sourced from `main`; original Cloudflare Web/Telegram production branches remain `feature/visual-integration-checkpoint`. Recovery publication is not production deployment proof.
 
 ## Last completed task
 
-**RECOVERY-HARDEN-3B — command identity completeness, concurrency and PostgreSQL CI proof — COMPLETE / PUBLISHED.**
+**RECOVERY-HARDEN-4 — gameplay mutation transport authority — COMPLETE / PUBLISHED / EXACT-SHA CI GREEN.**
 
-This follow-up closed the remaining quality gaps found in the second review of RECOVERY-HARDEN-3.
-
-TDD evidence:
-
-- RED test commit `d24264e40e33bcfa2f8f66087301df460a449c3f` added regressions for payload completeness, global command-id serialization, PostgreSQL 16 CI, and concurrent duplicate UUID behavior. Exact CI run `35667283036` failed for the intended missing behavior:
-  - `ACTIVATE_GHOST.cardId` was not part of semantic identity;
-  - no global command-id advisory lock existed before duplicate lookup;
-  - CI had no PostgreSQL service/database-backed test execution.
-- GREEN implementation commit `3fd53f7748f28ddc10883278ce1f1b57fdb60434` fixed all three gaps.
-- Exact CI run `35667385029` succeeded with PostgreSQL 16, migrations applied, and DB-backed tests enabled.
-
-The final command-ID contract is:
-
-1. `game_commands.command_id` is the global UUID idempotency key.
-2. `expectedRevision` and `commandId` are envelope metadata, not semantic command identity.
-3. Every current `GameCommand` variant is handled explicitly by `fingerprintGameCommand`; payload-bearing commands cannot silently fall through because the switch is exhaustively type-checked.
-4. `ACTIVATE_GHOST.cardId`, `NOPE_REACTION.useNope`, timeout revision identity and all other current semantic payload fields are included.
-5. Same UUID + same semantic command replays one stored result.
-6. Same UUID + different semantic command returns controlled `COMMAND_ID_COLLISION`.
-7. A transaction-scoped PostgreSQL advisory lock keyed by command UUID is acquired before duplicate lookup, so simultaneous identical retries and cross-session collisions cannot race into a raw primary-key failure.
-8. GitHub CI now starts PostgreSQL 16, runs `npm run migrate:db`, and executes the database-backed tests.
-
-Exact CI evidence on `3fd53f...`:
+Published chain:
 
 ```text
-run 35667385029  SUCCESS
-typecheck        PASS
-test             PASS
-build-web        PASS
-build-telegram   PASS
-build-api        PASS
+b5df94103455569a2dc12b1627aab0818d5e3bbf
+  test(transport): require one REST gameplay mutation authority
 
-PostgreSQL migrations:
-001_initial.sql                   applied
-002_dual_web_auth.sql             applied
-003_identity_link_challenges.sql  applied
+cb3126c96c58db68f9401304cc23cd2fde5911d4
+  fix(transport): retire realtime gameplay command authority
 
-tests     252
-passed    246
-failed    0
-skipped   6
+a7e984bc6bb4bd22bf23d471550d677a4cba5500
+  docs: reconcile recovery state and gameplay transport authority
 ```
 
-The command-ID DB evidence gap is therefore CLOSED for the tested PostgreSQL 16 CI environment.
+Resulting transport contract:
 
-Before this follow-up: RECOVERY-HARDEN-3 established one shared command fingerprint owner; RECOVERY-HARDEN-2 removed Live client-side gameplay decision authority; RECOVERY-HARDEN-1 serialized Live room joins/starts.
+1. Web and Telegram submit gameplay mutations through `packages/api-client`.
+2. The single authoritative gameplay mutation route is `POST /v1/games/:sessionId/commands`.
+3. `CribbitRealtimeClient` no longer exposes or emits a gameplay `sendCommand`.
+4. The server has no socket `game-command` gameplay mutation handler.
+5. Realtime remains subscription/invalidation/update transport only.
+6. `packages/action-registry` marks gameplay actions as `POST`; the only remaining `method:'WS'` entry is genuinely realtime.
+7. Simulation remains local/shared-engine QA and was not converted to network REST.
 
-RECOVERY-HARDEN-4 established one gameplay mutation transport: gameplay commands reach the authoritative engine only through `POST /v1/games/:sessionId/commands`. The stale `CribbitRealtimeClient.sendCommand` socket gameplay emit was removed and `packages/action-registry` no longer claims `method:'WS'` outside genuinely realtime actions.
+Exact GitHub Actions evidence:
+
+```text
+run 35674013904
+head a7e984bc6bb4bd22bf23d471550d677a4cba5500
+typecheck        SUCCESS
+test             SUCCESS
+build-web        SUCCESS
+build-telegram   SUCCESS
+build-api        SUCCESS
+```
+
+Historical command-identity/concurrency proof from RECOVERY-HARDEN-3/3B remains valid background evidence; it is no longer the last completed task.
 
 ## Current task
 
@@ -117,12 +106,14 @@ Remaining hardening candidates (the former REST-vs-socket `game-command` metadat
 
 ## Publication / deployment state
 
-The recovery source line is published through the RECOVERY-HARDEN-4 chain, whose tip is this documentation commit: RED contract `b5df94103455569a2dc12b1627aab0818d5e3bbf` -> implementation `cb3126c96c58db68f9401304cc23cd2fde5911d4` -> this documentation commit. Its parent is the implementation commit; the previously published tip was `adc947cd8d1f8fd3737396a39445485ceff46cf8`.
+The accepted RECOVERY-HARDEN-4 engineering/documentation baseline is `a7e984bc6bb4bd22bf23d471550d677a4cba5500`. This documentation-only reconciliation follows that baseline and does not alter runtime behavior.
 
 ```text
 origin/main                                   964a9162d7d9e1a12acfccc61f0fb88430a8f4ff
 origin/recovery/single-engine-authority-ci    f384c824a0553d1adceb05ef55612e177967bb1a
-origin/recovery/single-engine-authority       RECOVERY-HARDEN-4 documentation commit; parent cb3126c96c58db68f9401304cc23cd2fde5911d4
+RECOVERY-HARDEN-4 RED                         b5df94103455569a2dc12b1627aab0818d5e3bbf
+RECOVERY-HARDEN-4 implementation              cb3126c96c58db68f9401304cc23cd2fde5911d4
+RECOVERY-HARDEN-4 closeout                    a7e984bc6bb4bd22bf23d471550d677a4cba5500
 Railway API source branch                     main
 Railway latest successful API commit          b48493dbd5eebf5a0bc82755c1e739117d8f713a
 Cloudflare Web production branch              feature/visual-integration-checkpoint

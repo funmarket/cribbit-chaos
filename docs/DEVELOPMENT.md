@@ -1,7 +1,7 @@
 # Development
 
 
-Current recovery work is controlled on `recovery/single-engine-authority`. The verified parent before the current documentation rebaseline is `625f0ade6889a97a8577eebe3682879f1819ee8a`. Do not assume an old PR or historical branch is the active work surface.
+Current recovery work is controlled on `recovery/single-engine-authority`. The accepted RECOVERY-HARDEN-4 baseline is `a7e984bc6bb4bd22bf23d471550d677a4cba5500`, exact-SHA CI run `35674013904` SUCCESS. This documentation-only reconciliation does not change runtime behavior. Do not assume an old PR or historical branch is the active work surface.
 
 This is a living development-control document. Development work is not complete until affected project-control documentation is synchronized with the verified implementation/runtime state.
 

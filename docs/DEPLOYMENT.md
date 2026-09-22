@@ -9,7 +9,7 @@ GitHub is the canonical source of deployable source. **Recovery source state and
 ```text
 repo                         funmarket/cribbit-chaos
 recovery branch              recovery/single-engine-authority
-verified parent before docs  625f0ade6889a97a8577eebe3682879f1819ee8a
+accepted recovery baseline    a7e984bc6bb4bd22bf23d471550d677a4cba5500
 recovery deployed            NO
 ```
 
