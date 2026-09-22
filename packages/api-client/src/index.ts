@@ -198,7 +198,6 @@ export class CribbitRealtimeClient {
 
   joinSession(sessionId:string): void { this.connect().emit('join-session',{sessionId}); }
   joinRoomChannel(roomId:string): void { this.connect().emit('join-room-channel',{roomId}); }
-  sendCommand(command:GameCommand): void { this.connect().emit('game-command',command); }
   disconnect(): void { this.socket?.disconnect(); this.socket=null; }
 }
 

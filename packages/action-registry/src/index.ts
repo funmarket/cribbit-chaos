@@ -4,9 +4,16 @@ export interface ActionAssignment {
   action: string;
   backendClass: BackendClass;
   target: string;
+  /** Canonical transport. 'WS' is reserved for genuinely realtime-only actions (subscription/reconnect). */
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'WS';
   notes: string;
 }
+
+/**
+ * Canonical transport for every authoritative gameplay/QA engine command. Realtime carries
+ * subscription and invalidation only; it is never a gameplay mutation transport.
+ */
+export const GAMEPLAY_COMMAND_TRANSPORT = 'POST /v1/games/:sessionId/commands';
 
 /**
  * Production assignment for every literal data-action emitted by the approved V4 UI/runtime.
@@ -15,70 +22,70 @@ export interface ActionAssignment {
 export const ACTION_ASSIGNMENTS: readonly ActionAssignment[] = [
   { action:'add-to-room', backendClass:'rest', target:'/v1/rooms/:roomId/prompt-pool/:promptId', method:'POST', notes:'Persist prompt in the authoritative live room pool.' },
   { action:'advance-submission', backendClass:'rest', target:'/v1/moderation/submissions/:submissionId/advance', method:'POST', notes:'Moderator/development workflow; role-gated.' },
-  { action:'answer-mode', backendClass:'game-command', target:'SELECT_ANSWER_MODE', method:'WS', notes:'Select explicit Speak, Type, Choose or Answered Live path.' },
+  { action:'answer-mode', backendClass:'game-command', target:'SELECT_ANSWER_MODE', method:'POST', notes:'Select explicit Speak, Type, Choose or Answered Live path.' },
   { action:'apply-room-config', backendClass:'rest', target:'/v1/rooms/:roomId/config', method:'PATCH', notes:'Host-only authoritative room configuration.' },
   { action:'card-detail', backendClass:'client-only', target:'local-dialog', notes:'Displays already-authorized card metadata; no mutation.' },
-  { action:'choose-wild', backendClass:'game-command', target:'SELECT_WILD_COLOR', method:'WS', notes:'Authoritative active-color change.' },
+  { action:'choose-wild', backendClass:'game-command', target:'SELECT_WILD_COLOR', method:'POST', notes:'Authoritative active-color change.' },
   { action:'clear-log', backendClass:'dev-only', target:'local-qa-log', notes:'QA-only display reset; never clears server audit events.' },
   { action:'close-rail-drawers', backendClass:'client-only', target:'local-layout', notes:'Visual panel state.' },
-  { action:'complete-flow', backendClass:'game-command', target:'COMPLETE_FLOW', method:'WS', notes:'Resolve current authoritative flow when permitted.' },
+  { action:'complete-flow', backendClass:'game-command', target:'COMPLETE_FLOW', method:'POST', notes:'Resolve current authoritative flow when permitted.' },
   { action:'continue-with-telegram', backendClass:'rest', target:'/v1/auth/telegram/web/start', method:'GET', notes:'Starts backend-owned Telegram Web Login/OIDC when configured; never falls back to guest auth.' },
   { action:'cycle-fixture', backendClass:'dev-only', target:'local visual fixture selector', notes:'Cycles the shared visual fixture preview without mutating gameplay authority.' },
-  { action:'draw-card', backendClass:'game-command', target:'DRAW_CARD', method:'WS', notes:'Server validates active player and draw legality.' },
-  { action:'duel-vote', backendClass:'game-command', target:'DUEL_VOTE', method:'WS', notes:'Submit an eligible non-participant group vote for the Duel winner.' },
+  { action:'draw-card', backendClass:'game-command', target:'DRAW_CARD', method:'POST', notes:'Server validates active player and draw legality.' },
+  { action:'duel-vote', backendClass:'game-command', target:'DUEL_VOTE', method:'POST', notes:'Submit an eligible non-participant group vote for the Duel winner.' },
   { action:'edit-answer', backendClass:'client-only', target:'local-answer-draft', notes:'Returns unsubmitted answer to editing; server has not accepted it yet.' },
-  { action:'finish-speak', backendClass:'game-command', target:'REVIEW_ANSWER', method:'WS', notes:'Production voice adapter submits reviewed transcription, never passive call audio.' },
+  { action:'finish-speak', backendClass:'game-command', target:'REVIEW_ANSWER', method:'POST', notes:'Production voice adapter submits reviewed transcription, never passive call audio.' },
   { action:'flow-close-request', backendClass:'client-only', target:'local-guard', notes:'Prevents dismissing unresolved authoritative flow.' },
-  { action:'force-recap', backendClass:'dev-only', target:'FORCE_RECAP', method:'WS', notes:'QA-only state transition, disabled in production.' },
+  { action:'force-recap', backendClass:'dev-only', target:'FORCE_RECAP', method:'POST', notes:'QA-only state transition, disabled in production.' },
   { action:'join-room', backendClass:'rest', target:'/v1/rooms/join', method:'POST', notes:'Resolve room code/invite and create room membership.' },
-  { action:'lab-add-card', backendClass:'dev-only', target:'LAB_ADD_CARD', method:'WS', notes:'QA only.' },
-  { action:'lab-human-turn', backendClass:'dev-only', target:'LAB_HUMAN_TURN', method:'WS', notes:'QA only.' },
-  { action:'lab-one-card', backendClass:'dev-only', target:'LAB_ONE_CARD', method:'WS', notes:'QA only.' },
+  { action:'lab-add-card', backendClass:'dev-only', target:'LAB_ADD_CARD', notes:'QA only; legacy local QA command with no authoritative production transport.' },
+  { action:'lab-human-turn', backendClass:'dev-only', target:'LAB_HUMAN_TURN', notes:'QA only; legacy local QA command with no authoritative production transport.' },
+  { action:'lab-one-card', backendClass:'dev-only', target:'LAB_ONE_CARD', notes:'QA only; legacy local QA command with no authoritative production transport.' },
   { action:'lab-queue-chaos', backendClass:'dev-only', target:'QA_CHAOS_QUEUE', notes:'QA-only deterministic fixture selection.' },
-  { action:'lab-trigger-draw', backendClass:'dev-only', target:'LAB_TRIGGER_DRAW', method:'WS', notes:'QA only.' },
-  { action:'paranoia-choice', backendClass:'game-command', target:'PARANOIA_CHOICE', method:'WS', notes:'Private server-validated target selection.' },
-  { action:'paranoia-classic-answer', backendClass:'game-command', target:'SELECT_PARANOIA_CLASSIC_ANSWER', method:'WS', notes:'Submit the named answer player for Classic Paranoia.' },
-  { action:'paranoia-classic-decision', backendClass:'game-command', target:'SUBMIT_PARANOIA_CLASSIC_DECISION', method:'WS', notes:'Reveal or keep secret for the named Classic Paranoia player.' },
-  { action:'paranoia-phase', backendClass:'game-command', target:'SELECT_PARANOIA_PHASE', method:'WS', notes:'Choose the authoritative Paranoia branch after target selection.' },
-  { action:'paranoia-vote', backendClass:'game-command', target:'SUBMIT_PARANOIA_VOTE', method:'WS', notes:'Submit an eligible Stranger vote for the current Paranoia target.' },
-  { action:'duel-target', backendClass:'game-command', target:'DUEL_TARGET', method:'WS', notes:'Server validates eligible Duel opponent.' },
-  { action:'duel-timer', backendClass:'game-command', target:'SELECT_DUEL_TIMER', method:'WS', notes:'Challenger selects the fixed Duel response timer before response windows start.' },
-  { action:'chaos-target', backendClass:'game-command', target:'CHAOS_TARGET', method:'WS', notes:'Server validates target for the preselected CHAOS effect.' },
+  { action:'lab-trigger-draw', backendClass:'dev-only', target:'LAB_TRIGGER_DRAW', notes:'QA only; legacy local QA command with no authoritative production transport.' },
+  { action:'paranoia-choice', backendClass:'game-command', target:'PARANOIA_CHOICE', method:'POST', notes:'Private server-validated target selection.' },
+  { action:'paranoia-classic-answer', backendClass:'game-command', target:'SELECT_PARANOIA_CLASSIC_ANSWER', method:'POST', notes:'Submit the named answer player for Classic Paranoia.' },
+  { action:'paranoia-classic-decision', backendClass:'game-command', target:'SUBMIT_PARANOIA_CLASSIC_DECISION', method:'POST', notes:'Reveal or keep secret for the named Classic Paranoia player.' },
+  { action:'paranoia-phase', backendClass:'game-command', target:'SELECT_PARANOIA_PHASE', method:'POST', notes:'Choose the authoritative Paranoia branch after target selection.' },
+  { action:'paranoia-vote', backendClass:'game-command', target:'SUBMIT_PARANOIA_VOTE', method:'POST', notes:'Submit an eligible Stranger vote for the current Paranoia target.' },
+  { action:'duel-target', backendClass:'game-command', target:'DUEL_TARGET', method:'POST', notes:'Server validates eligible Duel opponent.' },
+  { action:'duel-timer', backendClass:'game-command', target:'SELECT_DUEL_TIMER', method:'POST', notes:'Challenger selects the fixed Duel response timer before response windows start.' },
+  { action:'chaos-target', backendClass:'game-command', target:'CHAOS_TARGET', method:'POST', notes:'Server validates target for the preselected CHAOS effect.' },
   { action:'focus-create-prompt', backendClass:'client-only', target:'local-scroll', notes:'Navigation helper only.' },
-  { action:'prompt-source', backendClass:'game-command', target:'SELECT_PROMPT_SOURCE', method:'WS', notes:'Select manual Truth/Dare/Paranoia/Duel composition or Roulette source before reveal.' },
-  { action:'nope-reaction', backendClass:'game-command', target:'NOPE_REACTION', method:'WS', notes:'Server validates reaction window and Nope ownership.' },
+  { action:'prompt-source', backendClass:'game-command', target:'SELECT_PROMPT_SOURCE', method:'POST', notes:'Select manual Truth/Dare/Paranoia/Duel composition or Roulette source before reveal.' },
+  { action:'nope-reaction', backendClass:'game-command', target:'NOPE_REACTION', method:'POST', notes:'Server validates reaction window and Nope ownership.' },
   { action:'open-global-search', backendClass:'client-only', target:'local-search-overlay', notes:'Searches cached route/prompt data; remote prompt search may be added later.' },
   { action:'open-mobile-nav', backendClass:'client-only', target:'local-navigation', notes:'Presentation only.' },
   { action:'open-notifications', backendClass:'rest', target:'/v1/me/notifications', method:'GET', notes:'Production notifications load from shared account backend.' },
   { action:'open-profile', backendClass:'rest', target:'/v1/me', method:'GET', notes:'Load shared Cribbit profile.' },
   { action:'play-again', backendClass:'rest', target:'/v1/games/:sessionId/rematch', method:'POST', notes:'Create/rematch server session; client then navigates to returned room/session.' },
-  { action:'play-card', backendClass:'game-command', target:'PLAY_CARD', method:'WS', notes:'Server validates ownership and legal play atomically.' },
+  { action:'play-card', backendClass:'game-command', target:'PLAY_CARD', method:'POST', notes:'Server validates ownership and legal play atomically.' },
   { action:'prompt-detail', backendClass:'rest', target:'/v1/prompts/:promptId', method:'GET', notes:'Fetch authorized prompt detail and attribution visibility.' },
-  { action:'publish-prompt', backendClass:'game-command', target:'PUBLISH_PROMPT', method:'WS', notes:'Server-controlled reveal/publish step.' },
+  { action:'publish-prompt', backendClass:'game-command', target:'PUBLISH_PROMPT', method:'POST', notes:'Server-controlled reveal/publish step.' },
   { action:'reconnect-now', backendClass:'realtime', target:'/v1/realtime + /v1/games/:sessionId/snapshot', method:'WS', notes:'Reconnect socket then hydrate authoritative snapshot/revision.' },
   { action:'remove-from-room', backendClass:'rest', target:'/v1/rooms/:roomId/prompt-pool/:promptId', method:'DELETE', notes:'Host-authorized live-pool removal.' },
   { action:'reset-demo', backendClass:'dev-only', target:'local-demo-reset', notes:'Never exposed as production session reset.' },
-  { action:'resolve-chaos', backendClass:'game-command', target:'COMPLETE_FLOW', method:'WS', notes:'CHAOS effect result is already selected server-side; this acknowledges/completes it.' },
-  { action:'retry-last-command', backendClass:'realtime', target:'replay same commandId', method:'WS', notes:'Idempotent replay must return prior result rather than apply twice.' },
-  { action:'review-choice-answer', backendClass:'game-command', target:'REVIEW_ANSWER', method:'WS', notes:'Validate choice before final submit.' },
-  { action:'review-live-answer', backendClass:'game-command', target:'REVIEW_ANSWER', method:'WS', notes:'Completion-only; no passive transcript.' },
-  { action:'review-typed-answer', backendClass:'game-command', target:'REVIEW_ANSWER', method:'WS', notes:'Review explicit typed answer.' },
-  { action:'safety-flag', backendClass:'game-command', target:'FLAG_PROMPT', method:'WS', notes:'Private moderation signal; separate from Pass/Rewind/Nope.' },
-  { action:'safety-pass', backendClass:'game-command', target:'PASS_PROMPT', method:'WS', notes:'Private consent-preserving decline. Truth/Dare Pass / Not for Me draws exactly 2 cards before resolution.' },
-  { action:'safety-rewind', backendClass:'game-command', target:'REWIND_PROMPT', method:'WS', notes:'Private eligible Truth/Dare replacement before reveal.' },
+  { action:'resolve-chaos', backendClass:'game-command', target:'COMPLETE_FLOW', method:'POST', notes:'CHAOS effect result is already selected server-side; this acknowledges/completes it.' },
+  { action:'retry-last-command', backendClass:'game-command', target:GAMEPLAY_COMMAND_TRANSPORT + ' (replay same commandId)', method:'POST', notes:'Idempotent replay must return prior result rather than apply twice.' },
+  { action:'review-choice-answer', backendClass:'game-command', target:'REVIEW_ANSWER', method:'POST', notes:'Validate choice before final submit.' },
+  { action:'review-live-answer', backendClass:'game-command', target:'REVIEW_ANSWER', method:'POST', notes:'Completion-only; no passive transcript.' },
+  { action:'review-typed-answer', backendClass:'game-command', target:'REVIEW_ANSWER', method:'POST', notes:'Review explicit typed answer.' },
+  { action:'safety-flag', backendClass:'game-command', target:'FLAG_PROMPT', method:'POST', notes:'Private moderation signal; separate from Pass/Rewind/Nope.' },
+  { action:'safety-pass', backendClass:'game-command', target:'PASS_PROMPT', method:'POST', notes:'Private consent-preserving decline. Truth/Dare Pass / Not for Me draws exactly 2 cards before resolution.' },
+  { action:'safety-rewind', backendClass:'game-command', target:'REWIND_PROMPT', method:'POST', notes:'Private eligible Truth/Dare replacement before reveal.' },
   { action:'save-profile', backendClass:'rest', target:'/v1/me/profile', method:'PATCH', notes:'Persist shared account/profile settings across web and Telegram.' },
   { action:'save-prompt', backendClass:'rest', target:'/v1/prompts/:promptId/save', method:'POST', notes:'Destination determines My Deck or House Deck; public submission remains separate.' },
   { action:'share-recap', backendClass:'client-only', target:'platform.share', notes:'User-initiated share. Recap itself is fetched from backend.' },
   { action:'simulate-disconnect', backendClass:'dev-only', target:'local-network-fixture', notes:'QA only.' },
   { action:'spin-roulette', backendClass:'client-only', target:'local-animation', notes:'Animation only. Server has selected the prompt before spin begins.' },
-  { action:'submit-manual-prompt', backendClass:'game-command', target:'SUBMIT_MANUAL_PROMPT', method:'WS', notes:'Submit a one-off written Truth/Dare/Paranoia prompt for the current flow only.' },
-  { action:'submit-answer', backendClass:'game-command', target:'SUBMIT_ANSWER', method:'WS', notes:'Finalize reviewed answer/completion metadata.' },
+  { action:'submit-manual-prompt', backendClass:'game-command', target:'SUBMIT_MANUAL_PROMPT', method:'POST', notes:'Submit a one-off written Truth/Dare/Paranoia prompt for the current flow only.' },
+  { action:'submit-answer', backendClass:'game-command', target:'SUBMIT_ANSWER', method:'POST', notes:'Finalize reviewed answer/completion metadata.' },
   { action:'toggle-activity', backendClass:'client-only', target:'local-layout', notes:'Presentation only.' },
   { action:'toggle-focus-mode', backendClass:'client-only', target:'local-layout', notes:'Presentation only.' },
   { action:'toggle-fullscreen', backendClass:'client-only', target:'platform.fullscreen', notes:'Uses browser Fullscreen or Telegram requestFullscreen when supported.' },
   { action:'toggle-left-rail', backendClass:'client-only', target:'local-layout', notes:'Presentation only.' },
   { action:'toggle-right-rail', backendClass:'client-only', target:'local-layout', notes:'Presentation only.' },
-  { action:'use-nope', backendClass:'game-command', target:'NOPE_REACTION', method:'WS', notes:'Server validates owned Nope card and eligible effect window.' }
+  { action:'use-nope', backendClass:'game-command', target:'NOPE_REACTION', method:'POST', notes:'Server validates owned Nope card and eligible effect window.' }
 ] as const;
 
 export const ACTION_ASSIGNMENT_BY_NAME = new Map(ACTION_ASSIGNMENTS.map(item => [item.action, item]));
